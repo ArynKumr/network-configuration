@@ -111,10 +111,10 @@ nft add rule inet filter <policy_name> \
 **Purpose:**  
 Allow or deny access to a **specific Firewall service**.
 
-```
-nft add rule inet filter <policy_name> \
+```nft add rule inet filter <policy_name> \
     ip saddr @<user_set_name> ip daddr <Firewall_ip> \
     <protocol> dport <service_port> <action>
+
 ```
 
 * * *
