@@ -1,27 +1,42 @@
-* * *
-
-NGFW Policy Chains (User-Scoped Firewall Policies)
-==================================================
+NGFW Policy Framework (Set-Based, Chain-Driven)
+===============================================
 
 **Purpose:**  
-Apply **policy-based firewall behavior** to a predefined group of users **after user creation**, without modifying global rules.
+Apply **group-based firewall policies** to already-created users using:
 
-These policies:
+*   dedicated policy chains,
+*   user membership sets,
+*   explicit NAT + FILTER symmetry,
+*   predictable control flow (`jump` → policy → `return`).
 
-*   operate via **dedicated sub-chains**,
-*   are activated only when explicitly **jumped to**, and
-*   cleanly return control to the main chains when done.
+Policies are **reusable**, **auditable**, and **time-bound**.
 
 * * *
 
-Policy Chain & User Set Creation
---------------------------------
+Core Concepts (Do Not Skip)
+---------------------------
 
-### 1\. Create Dedicated Policy Chains
+### 1\. Policies are **chains**, not rules
 
-**Purpose:**  
-Create isolated chains for NAT and Filter logic.  
 They do nothing until traffic is explicitly jumped into them.
+
+### 2\. Users are assigned via **sets**
+
+No per-user rules. Membership decides behavior.
+
+### 3\. NAT and FILTER are **both required**
+
+NAT changes traffic direction.  
+FILTER decides if traffic is allowed.
+
+Missing either = broken policy.
+
+* * *
+
+Common Setup (Required for ALL Policies)
+----------------------------------------
+
+### Create Policy Chains
 
 ```
 nft add chain inet nat <policy_name>
@@ -30,53 +45,59 @@ nft add chain inet filter <policy_name>
 
 * * *
 
-### 2\. Create User Membership Sets
-
-**Purpose:**  
-Define which users belong to this policy.
+### Create Policy Membership Sets
 
 ```
-nft add set inet nat <user_set_name> '{ type ipv4_addr; flags interval; }'
-nft add set inet filter <user_set_name> '{ type ipv4_addr; flags interval; }'
+nft add set inet nat <policy_user_set> '{ type ipv4_addr; flags interval; }'
+nft add set inet filter <policy_user_set> '{ type ipv4_addr; flags interval; }'
 ```
 
-> **Important:**  
-> Sets must exist in **both tables** — nftables tables are isolated.
+> `flags interval` allows subnet-level policies.
 
 * * *
 
-NAT-Side Policy Logic (Captive Portal / Redirection Control)
-------------------------------------------------------------
+### Policy Triggers (Activation)
 
-### 3\. Global NAT Action (Policy-Level)
-
-**Purpose:**  
-Apply a general NAT decision for all users in this policy  
-(e.g. bypass captive portal).
+These rules **activate** the policy.
 
 ```
-nft add rule inet nat <policy_name> ip saddr @<user_set_name> <action>
+nft insert rule inet nat prerouting \
+    ip saddr @<policy_user_set> jump <policy_name>
+
+nft insert rule inet filter forward \
+    ip saddr @<policy_user_set> jump <policy_name>
 ```
+
+Traffic now enters the policy **before global logic**.
 
 * * *
 
-### 4\. Destination-Specific NAT Exception
+POLICY CASES
+============
 
-**Purpose:**  
-Apply a NAT action **only** when traffic is headed to a specific destination  
-(e.g. allow company website access without authentication).
+Each policy must clearly declare **which case it implements**.
+
+* * *
+
+Case 1: Full Policy Bypass (Group Trust)
+----------------------------------------
+
+**Use when:**  
+A group should bypass **all firewall restrictions**, while still:
+
+*   being NATed correctly,
+*   retaining QoS / ISP routing marks.
+
+This is **maximum trust**.
+
+* * *
+
+### NAT Policy (Bypass All Redirection)
 
 ```
 nft add rule inet nat <policy_name> \
-    ip saddr @<user_set_name> ip daddr <destination_ip> <action>
+    ip saddr @<policy_user_set> accept
 ```
-
-* * *
-
-### 5\. NAT Exit Ramp
-
-**Purpose:**  
-Stop evaluating this policy and return to the main `prerouting` chain.
 
 ```
 nft add rule inet nat <policy_name> return
@@ -84,45 +105,12 @@ nft add rule inet nat <policy_name> return
 
 * * *
 
-FILTER INPUT Policy Logic
--------------------------------------------------------
-
-### 6\. Filter Input: Firewall Access Control (Policy-Level)
-
-**Purpose:**  
-Define what users in this policy may do **to the Firewall itself**  
-(SSH, Web UI, APIs, etc.).
+### FILTER Policy (Bypass All Filtering)
 
 ```
 nft add rule inet filter <policy_name> \
-    ip saddr @<user_set_name> <action>
+    ip saddr @<policy_user_set> accept
 ```
-
-> Examples:
-> 
-> *   `accept` → allow Firewall access
-> *   `drop` → isolate users from Firewall services
->     
-
-* * *
-
-### 7\. Filter Input: Destination-Specific Firewall Access
-
-**Purpose:**  
-Allow or deny access to a **specific Firewall service**.
-
-```nft add rule inet filter <policy_name> \
-    ip saddr @<user_set_name> ip daddr <Firewall_ip> \
-    <protocol> dport <service_port> <action>
-
-```
-
-* * *
-
-### 8\. Filter Input Exit Ramp
-
-**Purpose:**  
-Return control to the main `input` chain once policy evaluation is complete.
 
 ```
 nft add rule inet filter <policy_name> return
@@ -130,30 +118,146 @@ nft add rule inet filter <policy_name> return
 
 * * *
 
-Policy Activation (Jump Triggers)
----------------------------------
+### Result
 
-### 9\. NAT Trigger (Prerouting)
+*   No captive portal
+*   No geo blocking
+*   No protocol restrictions
+*   Global QoS / routing still applies
 
-**Purpose:**  
-As soon as traffic arrives from a policy user,  
-evaluate the policy **before global NAT rules**.
+This is equivalent to **Case 1 in NGFW rules**.
+
+* * *
+
+Case 2: Destination + Port / Protocol Controlled Policy
+-------------------------------------------------------
+
+**Use when:**  
+Users are mostly trusted, but access must be restricted to:
+
+*   specific destination IPs,
+*   specific ports,
+*   specific protocols.
+
+This is **controlled trust**.
+
+* * *
+
+### NAT Policy (Destination-Specific Bypass)
 
 ```
-nft insert rule inet nat prerouting \
-    ip saddr @<user_set_name> jump <policy_name>
+nft add rule inet nat <policy_name> \
+    ip saddr @<policy_user_set> ip daddr <destination_ip> <action>
+```
+
+```
+nft add rule inet nat <policy_name> return
 ```
 
 * * *
 
-### 10\. FILTER INPUT Trigger (Firewall-Bound Traffic)
-
-**Purpose:**  
-Ensure traffic **to the Firewall itself** is evaluated by the policy.
+### FILTER Policy (Outbound Control)
 
 ```
-nft insert rule inet filter input \
-    ip saddr @<user_set_name> jump <policy_name>
+nft add rule inet filter <policy_name> \
+    ip saddr @<policy_user_set> ip daddr <destination_ip> \
+    <protocol> dport <service_port> <action>
 ```
 
 * * *
+
+### FILTER Policy (Inbound / Replies)
+
+```
+nft add rule inet filter <policy_name> \
+    ip daddr @<policy_user_set> ip saddr <destination_ip> \
+    <protocol> sport <service_port> <action>
+```
+
+```
+nft add rule inet filter <policy_name> return
+```
+
+* * *
+
+### Result
+
+*   Only defined services work
+*   Everything else dies at policy boundary
+*   Global firewall remains intact
+
+Matches **Case 2 in NGFW rules**.
+
+* * *
+
+Case 3: Destination-Only Policy (Protocol-Agnostic)
+---------------------------------------------------
+
+**Use when:**  
+A group should communicate **only with a specific IP**, regardless of port or protocol.
+
+Useful for:
+
+*   partner systems,
+*   site-to-site backends,
+*   fixed SaaS endpoints.
+
+* * *
+
+### NAT Policy
+
+```
+nft add rule inet nat <policy_name> \
+    ip saddr @<policy_user_set> ip daddr <destination_ip> <action>
+```
+
+```
+nft add rule inet nat <policy_name> return
+```
+
+* * *
+
+### FILTER Policy (Outbound)
+
+```
+nft add rule inet filter <policy_name> \
+    ip saddr @<policy_user_set> ip daddr <destination_ip> accept
+```
+
+* * *
+
+### FILTER Policy (Inbound / Replies)
+
+```
+nft add rule inet filter <policy_name> \
+    ip daddr @<policy_user_set> accept
+```
+
+```
+nft add rule inet filter <policy_name> return
+```
+
+* * *
+
+### Result
+
+*   User is globally restricted
+*   Only traffic to the destination works
+*   Clean, predictable behavior
+
+Matches **Case 3 in NGFW rules**.
+
+* * *
+
+Firewall (Router) Access Control — OPTIONAL EXTENSION
+-----------------------------------------------------
+
+If the policy also needs to control access **to the firewall itself**:
+
+```
+nft add rule inet filter <policy_name> \
+    ip saddr @<policy_user_set> ip daddr <firewall_ip> \
+    <protocol> dport <service_port> <action>
+```
+
+Place **before** the final `return`.

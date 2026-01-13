@@ -1,37 +1,43 @@
 * * *
 
-NGFW User Policy Overrides (nftables)
-=====================================
+NGFW Rule Application (User-Level Firewall Overrides)
+=====================================================
 
 **Purpose:**  
-Apply **explicit user-level exceptions** to the firewall.  
-These rules are used when a device must:
+Apply **explicit firewall overrides** for selected users **after identity is known**.  
+These rules intentionally bypass or partially bypass the default NGFW pipeline.
 
-*   bypass global firewall enforcement,
-*   bypass captive portal redirection,
-*   retain QoS / ISP routing marks, and
-*   optionally receive granular access to Firewall services.
+This layer is used for:
 
-This is **override logic** — it intentionally weakens default protections.
+*   trusted devices,
+*   administrators,
+*   exceptions,
+*   controlled partner access.
+
+> ⚠️ **Warning:**  
+> Misuse of these rules can completely bypass security controls.  
+> These are **operator-only actions**.
 
 * * *
 
-Case 1: Full Firewall Bypass (Trusted User)
--------------------------------------------
+Case 1: Full Firewall Bypass (Unrestricted User)
+------------------------------------------------
 
 **Use when:**  
-A user/device must bypass **all firewall restrictions**, while still:
+A device must bypass **all firewall restrictions**, while still:
 
-*   being routable,
-*   bypassing the captive portal, and
-*   retaining QoS / ISP routing marks.
+*   participating in QoS / ISP routing,
+*   traversing NAT correctly.
+
+This user is effectively **trusted root on the network**.
 
 * * *
 
-### 1\. Global Permission (Forward Chain)
+### Rules Applied
 
-**Purpose:**  
-Allow the device to forward traffic through the Firewall to the internet.
+#### 1\. Forwarding Permission (Filter)
+
+Allow the user to forward traffic through the firewall.
 
 ```
 nft add element inet filter allowed_ip4 { <local_ip> }
@@ -39,10 +45,9 @@ nft add element inet filter allowed_ip4 { <local_ip> }
 
 * * *
 
-### 2\. Captive Portal Bypass (NAT)
+#### 2\. Captive Portal & NAT Bypass
 
-**Purpose:**  
-Stop HTTP/HTTPS/DNS hijacking for this user.
+Prevent any NAT-based redirection (portal, DNS hijack, etc.).
 
 ```
 nft add element inet nat allowed_ip4 { <local_ip> }
@@ -50,10 +55,9 @@ nft add element inet nat allowed_ip4 { <local_ip> }
 
 * * *
 
-### 3\. Bandwidth & Routing Mark (Mangle)
+#### 3\. QoS & ISP Routing Mark
 
-**Purpose:**  
-Attach ISP ID and TC class to all traffic from this user.
+Attach the user to a specific ISP and bandwidth class.
 
 ```
 nft add element inet mangle user4_marks { <local_ip> : 0x00<isp_mark><tc_class_marks> }
@@ -61,37 +65,50 @@ nft add element inet mangle user4_marks { <local_ip> : 0x00<isp_mark><tc_class_m
 
 * * *
 
-### 4\. Immediate NAT Override (High Priority)
+#### 4\. High-Priority NAT Override
 
-**Purpose:**  
-Force an early NAT decision before any other redirection logic.
+Force an immediate NAT decision for this user.
 
 ```
 nft insert rule inet nat prerouting ip saddr <local_ip> <action>
 ```
 
-* * *
+**Typical `<action>`:**
 
-### 5\. Firewall Access Control (Inbound → Firewall)
-
-**Purpose:**  
-Control whether this user may access Firewall-local services  
-(e.g. SSH, Web UI, APIs).
-
-```
-nft add rule inet filter input ip saddr <local_ip> <action>
-```
+*   `accept`
+*   `return`
+*   `dnat to …`
 
 * * *
 
-### 6\. Firewall → Client Communication
+#### 5\. Forward Chain Override (Outbound)
 
-**Purpose:**  
-Allow or deny traffic originating from the Firewall back to the client.
+Allow traffic **from the user** regardless of global policy.
 
 ```
-nft add rule inet filter input ip daddr <local_ip> <action>
+nft insert rule inet filter forward ip saddr <local_ip> <action>
 ```
+
+* * *
+
+#### 6\. Forward Chain Override (Inbound / Replies)
+
+Allow return traffic **to the user**.
+
+```
+nft add rule inet filter forward ip daddr <local_ip> <action>
+```
+
+* * *
+
+### Resulting Behavior
+
+*   No firewall filtering
+*   No captive portal
+*   No geo restrictions
+*   QoS and routing still enforced
+
+This is **maximum privilege**.
 
 * * *
 
@@ -101,12 +118,19 @@ Case 2: Port / Protocol / Destination-Controlled Access
 _(User is otherwise exempt from global firewall rules)_
 
 **Use when:**  
-A user should bypass most enforcement but still be constrained  
-to specific ports, protocols, or destinations.
+A user should bypass global enforcement **except** for:
+
+*   specific ports,
+*   specific protocols,
+*   specific destination IPs.
+
+This is **surgical trust**, not blanket trust.
 
 * * *
 
-### Section 1: Global Access Enablement
+### Rules Applied
+
+#### 1\. Global Bypass Enablement
 
 ```
 nft add element inet filter allowed_ip4 { <local_ip> }
@@ -115,7 +139,7 @@ nft add element inet nat allowed_ip4 { <local_ip> }
 
 * * *
 
-### Section 2: Traffic Labeling (QoS & ISP Routing)
+#### 2\. QoS & Routing Mark
 
 ```
 nft add element inet mangle user4_marks { <local_ip> : 0x00<isp_mark><tc_class_marks> }
@@ -123,11 +147,7 @@ nft add element inet mangle user4_marks { <local_ip> : 0x00<isp_mark><tc_class_m
 
 * * *
 
-### Section 3: Destination-Specific NAT Rule
-
-**Purpose:**  
-Apply a NAT decision only when traffic is headed to a specific destination  
-(e.g. split tunneling, forced proxy, VPN bypass).
+#### 3\. Destination-Specific NAT Handling
 
 ```
 nft insert rule inet nat prerouting \
@@ -136,13 +156,12 @@ nft insert rule inet nat prerouting \
 
 * * *
 
-### Section 4: Firewall Interaction (Granular)
+#### 4\. Forwarding Rule (Outbound Direction)
 
-**Purpose:**  
-Allow precise access from this user to a Firewall-local service.
+Allow traffic **from user → destination** only on specified ports.
 
 ```
-nft add rule inet filter input \
+nft add rule inet filter forward \
     ip saddr <local_ip> ip daddr <destination_ip> \
     <protocol> sport <source_port> \
     <protocol> dport <destination_port> \
@@ -151,49 +170,51 @@ nft add rule inet filter input \
 
 * * *
 
-### Emergency Firewall Access Rule
+#### 5\. Forwarding Rule (Inbound / Replies)
 
-**Purpose:**  
-Decide whether the Firewall should accept _any_ direct traffic from this user.
+Allow return traffic **from destination → user**.
 
 ```
-nft add rule inet filter input ip daddr <local_ip> <action>
+nft add rule inet filter forward \
+    ip daddr <local_ip> ip saddr <destination_ip> \
+    <protocol> sport <source_port> \
+    <protocol> dport <destination_port> \
+    <action>
 ```
 
 * * *
 
-Case 3: Destination-Only Managed Access
----------------------------------------
+### Resulting Behavior
 
-_(IP-based, otherwise fully exempt)_
+*   User bypasses general firewall rules
+*   Only specified services are reachable
+*   All other traffic still dies at policy drop
+
+* * *
+
+Case 3: Destination-IP–Only Managed Access
+------------------------------------------
+
+_(Protocol-agnostic, IP-scoped trust)_
 
 **Use when:**  
-A device should be:
-
-*   globally trusted,
-*   portal-exempt,
-*   QoS-managed,
-*   but **restricted only when talking to specific destinations**.
+A user is trusted **only when communicating with a specific IP**,  
+regardless of protocol or port.
 
 * * *
 
-### 1\. Permanent Forward Whitelist
+### Rules Applied
+
+#### 1\. Global Bypass Enablement
 
 ```
 nft add element inet filter allowed_ip4 { <local_ip> }
-```
-
-* * *
-
-### 2\. Portal Bypass
-
-```
 nft add element inet nat allowed_ip4 { <local_ip> }
 ```
 
 * * *
 
-### 3\. QoS / ISP Marking
+#### 2\. QoS & Routing Mark
 
 ```
 nft add element inet mangle user4_marks { <local_ip> : 0x00<isp_mark><tc_class_marks> }
@@ -201,10 +222,7 @@ nft add element inet mangle user4_marks { <local_ip> : 0x00<isp_mark><tc_class_m
 
 * * *
 
-### 4\. Destination-Specific NAT Exemption
-
-**Purpose:**  
-Ensure this destination is handled **before** any global redirection.
+#### 3\. Destination-Specific NAT Exemption
 
 ```
 nft insert rule inet nat prerouting \
@@ -213,18 +231,31 @@ nft insert rule inet nat prerouting \
 
 * * *
 
-### 5\. Administrative Access (Client → Firewall)
+#### 4\. Forwarding Rule (Outbound)
 
 ```
-nft add rule inet filter input \
+nft add rule inet filter forward \
     ip saddr <local_ip> ip daddr <destination_ip> <action>
 ```
 
 * * *
 
-### 6\. Firewall → Client Replies
+#### 5\. Forwarding Rule (Inbound / Replies)
 
 ```
-nft add rule inet filter input ip daddr <local_ip> <action>
+nft add rule inet filter forward \
+    ip daddr <local_ip> <action>
 ```
 
+* * *
+
+### Resulting Behavior
+
+*   User is globally trusted
+*   Enforcement applies **only** based on destination IP
+*   Suitable for:
+    *   site-to-site links,
+    *   partner systems,
+    *   fixed backends
+
+* * *
