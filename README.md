@@ -342,6 +342,25 @@ ip route show table <isp_table>
 
 * * *
 
+* * *
+
+### Setting up ifaces
+
+Refer `iface_setup.md`
+```
+nft add element inet filter wan_ifaces { "<wan_iface1>", "<wan_iface2>" }
+nft add element inet nat wan_ifaces { "<wan_iface1>", "<wan_iface2>" }
+nft add element inet geo wan_ifaces { "<wan_iface1>", "<wan_iface2>" }
+nft add element inet filter lan_ifaces { "<lan_iface1>", "<lan_iface2>" }
+nft add element inet nat lan_ifaces { "<lan_iface1>", "<lan_iface2>" }
+nft add element inet webfilter lan_ifaces { "<lan_iface1>", "<lan_iface2>" }
+```
+✔ LAN WAN interfaces present in NFT  
+✘ No interfaces = traffic will blackhole
+
+
+* * *
+
 ### Traffic control
 
 Refer `tc_setup.md`
