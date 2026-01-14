@@ -53,8 +53,8 @@ Temporary (until reboot):
 sysctl -w net.ipv4.ip_forward = 1
 sysctl -w net.ipv4.conf.all.rp_filter = 0
 sysctl -w net.ipv4.conf.default.rp_filter = 0
-sysctl -w net.ipv4.conf.eth0.rp_filter = 0
-sysctl -w net.ipv4.conf.eth1.rp_filter = 1
+sysctl -w net.ipv4.conf.<WAN_INTERFACE>.rp_filter = 0
+sysctl -w net.ipv4.conf.<LAN_INTERFACE>.rp_filter = 1
 ```
 
 Persistent:
@@ -64,8 +64,8 @@ cat <<EOF >/etc/sysctl.d/99-forwarding.conf
 net.ipv4.ip_forward = 1
 net.ipv4.conf.all.rp_filter = 0
 net.ipv4.conf.default.rp_filter = 0
-net.ipv4.conf.eth0.rp_filter = 0
-net.ipv4.conf.eth1.rp_filter = 1
+net.ipv4.conf.<WAN_INTERFACE>.rp_filter = 0
+net.ipv4.conf.<LAN_INTERFACE>.rp_filter = 1
 EOF
 sysctl --system
 ```
