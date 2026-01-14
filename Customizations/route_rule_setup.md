@@ -166,4 +166,7 @@ ip route add <ip_subnet_of_iface> dev <iface_name> src <ip_on_iface> table <tabl
 ```bash
 root@localhost:~# ip route add 192.168.1.0/24 dev enp1s0 src 192.168.1.14 table 1
 ```
+
+[To test user routes](user_login.md)
+
 * * *

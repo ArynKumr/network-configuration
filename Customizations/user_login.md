@@ -13,7 +13,12 @@ These commands are meant to be executed dynamically by:
 *   or an orchestration backend.
 
 They **modify live sets/maps** — nothing here is persistent unless saved.
+***
+**REQUIREMENTS:**
 
+* [IP Routes are to configured for nftables](route_rule_setup.md)
+* [Interfaces are to configured for nftables](iface_setup.md)
+* [TC classes qdiscs and filters are to configured for user setup](tc_setup.md)
 * * *
 
 IPv4-Based Users

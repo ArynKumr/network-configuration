@@ -327,7 +327,7 @@ nft list ruleset
 
 ### Routing & policy routing
 
-Refer `route_rules_setup.md`
+* [IP Routes are to configured](route_rule_setup.md)
 
 ```
 ip rule show
@@ -346,7 +346,7 @@ ip route show table <isp_table>
 
 ### Setting up ifaces
 
-Refer `iface_setup.md`
+* [Ifaces are to configured](iface_setup.md)
 ```
 nft add element inet filter wan_ifaces { "<wan_iface1>", "<wan_iface2>" }
 nft add element inet nat wan_ifaces { "<wan_iface1>", "<wan_iface2>" }
@@ -363,7 +363,7 @@ nft add element inet webfilter lan_ifaces { "<lan_iface1>", "<lan_iface2>" }
 
 ### Traffic control
 
-Refer `tc_setup.md`
+* [TC are to configured](tc_setup.md)`
 
 ```
 tc qdisc show
