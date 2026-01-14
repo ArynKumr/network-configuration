@@ -96,7 +96,7 @@ nft insert rule inet filter forward ip saddr <local_ip> <action>
 Allow return traffic **to the user**.
 
 ```
-nft add rule inet filter forward ip daddr <local_ip> <action>
+nft insert rule inet filter forward ip daddr <local_ip> <action>
 ```
 
 * * *
@@ -161,7 +161,7 @@ nft insert rule inet nat prerouting \
 Allow traffic **from user → destination** only on specified ports.
 
 ```
-nft add rule inet filter forward \
+nft insert rule inet filter forward \
     ip saddr <local_ip> ip daddr <destination_ip> \
     <protocol> sport <source_port> \
     <protocol> dport <destination_port> \
@@ -175,7 +175,7 @@ nft add rule inet filter forward \
 Allow return traffic **from destination → user**.
 
 ```
-nft add rule inet filter forward \
+nft insert rule inet filter forward \
     ip daddr <local_ip> ip saddr <destination_ip> \
     <protocol> sport <source_port> \
     <protocol> dport <destination_port> \
@@ -234,7 +234,7 @@ nft insert rule inet nat prerouting \
 #### 4\. Forwarding Rule (Outbound)
 
 ```
-nft add rule inet filter forward \
+nft insert rule inet filter forward \
     ip saddr <local_ip> ip daddr <destination_ip> <action>
 ```
 
@@ -243,7 +243,7 @@ nft add rule inet filter forward \
 #### 5\. Forwarding Rule (Inbound / Replies)
 
 ```
-nft add rule inet filter forward \
+nft insert rule inet filter forward \
     ip daddr <local_ip> <action>
 ```
 
