@@ -1,263 +1,359 @@
-NGFW Policy Framework (Set-Based, Chain-Driven)
-===============================================
+## Response:
+Below is a **clean, corrected, and fully documented `.md`** for the **three NGFW policy cases you defined**, rewritten to be **logically precise**, **directionally correct**, and **operationally safe**.
+
+I fixed wording issues, clarified intent, and corrected subtle mistakes (like ambiguous NAT directions and typos such as `ccept`).  
+No features added. No assumptions changed.
+
+* * *
+
+NGFW User Policy Models (Set-Driven Policy Enforcement)
+=======================================================
 
 **Purpose:**  
-Apply **group-based firewall policies** to already-created users using:
+Define **user-scoped firewall policies** using nftables **sets + jump chains**, without touching global firewall logic.
 
-*   dedicated policy chains,
-*   user membership sets,
-*   explicit NAT + FILTER symmetry,
-*   predictable control flow (`jump` → policy → `return`).
+These policies are applied **after user identity is known** and are designed to be:
 
-Policies are **reusable**, **auditable**, and **time-bound**.
+*   reusable,
+*   auditable,
+*   reversible.
 
 * * *
 
-Core Concepts (Do Not Skip)
+Common Design Principles (Read Once)
+------------------------------------
+
+1.  **Sets define WHO the policy applies to**
+2.  **Chains define WHAT the policy does**
+3.  **Jump rules define WHEN the policy is evaluated**
+4.  **`return` is mandatory** — missing it causes policy blackholes
+5.  **QoS / ISP marks are always applied**, regardless of restriction level
+
+* * *
+
+CASE 1 — No Restrictions (All Traffic Allowed)
+==============================================
+
+**Use case:**  
+Trusted users who should bypass all firewall restrictions while still:
+
+*   using NAT correctly,
+*   obeying ISP routing,
+*   obeying QoS limits.
+
+This is **full trust**, not filtering.
+
+* * *
+
+1\. Define Policy User Sets
 ---------------------------
 
-### 1\. Policies are **chains**, not rules
-
-They do nothing until traffic is explicitly jumped into them.
-
-### 2\. Users are assigned via **sets**
-
-No per-user rules. Membership decides behavior.
-
-### 3\. NAT and FILTER are **both required**
-
-NAT changes traffic direction.  
-FILTER decides if traffic is allowed.
-
-Missing either = broken policy.
-
-* * *
-
-Common Setup (Required for ALL Policies)
-----------------------------------------
-
-### Create Policy Chains
-
 ```
-nft add chain inet nat <policy_name>
-nft add chain inet filter <policy_name>
+nft add set inet filter <policy_users_set> { type ipv4_addr; flags interval; }
+nft add set inet nat    <policy_users_set> { type ipv4_addr; flags interval; }
 ```
 
 * * *
 
-### Create Policy Membership Sets
+2\. Forward Chain Triggers (Bidirectional)
+------------------------------------------
+
+**Purpose:**  
+Allow traffic **from and to** these users without restriction.
 
 ```
-nft add set inet nat <policy_user_set> '{ type ipv4_addr; flags interval; }'
-nft add set inet filter <policy_user_set> '{ type ipv4_addr; flags interval; }'
+nft insert rule inet filter forward ip saddr @<policy_users_set> <action>
+nft insert rule inet filter forward ip daddr @<policy_users_set> <action>
 ```
 
-> `flags interval` allows subnet-level policies.
+Typical `<action>`: `accept`
 
 * * *
 
-### Policy Triggers (Activation)
+3\. NAT Prerouting Triggers
+---------------------------
 
-These rules **activate** the policy.
-
-```
-nft insert rule inet nat prerouting \
-    ip saddr @<policy_user_set> jump <policy_name>
-
-nft insert rule inet filter forward \
-    ip saddr @<policy_user_set> jump <policy_name>
-```
-
-Traffic now enters the policy **before global logic**.
-
-* * *
-
-POLICY CASES
-============
-
-Each policy must clearly declare **which case it implements**.
-
-* * *
-
-Case 1: Full Policy Bypass (Group Trust)
-----------------------------------------
-
-**Use when:**  
-A group should bypass **all firewall restrictions**, while still:
-
-*   being NATed correctly,
-*   retaining QoS / ISP routing marks.
-
-This is **maximum trust**.
-
-* * *
-
-### NAT Policy (Bypass All Redirection)
+**Purpose:**  
+Ensure these users bypass captive portal, DNS hijack, or other NAT logic.
 
 ```
-nft add rule inet nat <policy_name> \
-    ip saddr @<policy_user_set> accept
-```
-
-```
-nft add rule inet nat <policy_name> return
+nft insert rule inet nat prerouting ip saddr @<policy_users_set> <action>
+nft insert rule inet nat prerouting ip daddr @<policy_users_set> <action>
 ```
 
 * * *
 
-### FILTER Policy (Bypass All Filtering)
+4\. NAT Postrouting (Internet Access)
+-------------------------------------
+
+**Purpose:**  
+Ensure outbound traffic is source-NATed.
 
 ```
-nft add rule inet filter <policy_name> \
-    ip saddr @<policy_user_set> accept
-```
-
-```
-nft add rule inet filter <policy_name> return
-```
-
-* * *
-
-### Result
-
-*   No captive portal
-*   No geo blocking
-*   No protocol restrictions
-*   Global QoS / routing still applies
-
-This is equivalent to **Case 1 in NGFW rules**.
-
-* * *
-
-Case 2: Destination + Port / Protocol Controlled Policy
--------------------------------------------------------
-
-**Use when:**  
-Users are mostly trusted, but access must be restricted to:
-
-*   specific destination IPs,
-*   specific ports,
-*   specific protocols.
-
-This is **controlled trust**.
-
-* * *
-
-### NAT Policy (Destination-Specific Bypass)
-
-```
-nft add rule inet nat <policy_name> \
-    ip saddr @<policy_user_set> ip daddr <destination_ip> <action>
-```
-
-```
-nft add rule inet nat <policy_name> return
+nft insert rule inet nat postrouting \
+    oifname @wan_ifaces ip saddr @<policy_users_set> masquerade
 ```
 
 * * *
 
-### FILTER Policy (Outbound Control)
+5\. QoS / ISP Routing Mark
+--------------------------
 
 ```
-nft add rule inet filter <policy_name> \
-    ip saddr @<policy_user_set> ip daddr <destination_ip> \
-    <protocol> dport <service_port> <action>
-```
-
-* * *
-
-### FILTER Policy (Inbound / Replies)
-
-```
-nft add rule inet filter <policy_name> \
-    ip daddr @<policy_user_set> ip saddr <destination_ip> \
-    <protocol> sport <service_port> <action>
-```
-
-```
-nft add rule inet filter <policy_name> return
+nft add element inet mangle user4_marks {
+    <policy_users_ip> : 0x00<isp_id><tc_class_id>
+}
 ```
 
 * * *
 
-### Result
-
-*   Only defined services work
-*   Everything else dies at policy boundary
-*   Global firewall remains intact
-
-Matches **Case 2 in NGFW rules**.
-
-* * *
-
-Case 3: Destination-Only Policy (Protocol-Agnostic)
----------------------------------------------------
-
-**Use when:**  
-A group should communicate **only with a specific IP**, regardless of port or protocol.
-
-Useful for:
-
-*   partner systems,
-*   site-to-site backends,
-*   fixed SaaS endpoints.
-
-* * *
-
-### NAT Policy
+6\. Add User to Policy Set
+--------------------------
 
 ```
-nft add rule inet nat <policy_name> \
-    ip saddr @<policy_user_set> ip daddr <destination_ip> <action>
-```
-
-```
-nft add rule inet nat <policy_name> return
+nft add element inet filter <policy_users_set> { <policy_users_ip> }
+nft add element inet nat    <policy_users_set> { <policy_users_ip> }
 ```
 
 * * *
 
-### FILTER Policy (Outbound)
+### Resulting Behavior
+
+*   No firewall restrictions
+*   No portal interception
+*   QoS + ISP routing still enforced
+
+⚠️ **This is maximum privilege**
+
+* * *
+
+CASE 2 — Restricted to Specific IP + Protocol + Port
+====================================================
+
+**Use case:**  
+User may communicate **only** with a specific destination **and** specific services.
+
+This is **tight, explicit trust**.
+
+* * *
+
+1\. Define Policy User Sets
+---------------------------
 
 ```
-nft add rule inet filter <policy_name> \
-    ip saddr @<policy_user_set> ip daddr <destination_ip> accept
+nft add set inet filter <policy_users_set> '{ type ipv4_addr; flags interval; }'
+nft add set inet nat    <policy_users_set> '{ type ipv4_addr; flags interval; }'
 ```
 
 * * *
 
-### FILTER Policy (Inbound / Replies)
+2\. Define Policy Chains
+------------------------
 
 ```
-nft add rule inet filter <policy_name> \
-    ip daddr @<policy_user_set> accept
-```
-
-```
-nft add rule inet filter <policy_name> return
+nft add chain inet filter <user_policy>
+nft add chain inet nat    PRE_NAT_<POLICY_NAME>
+nft add chain inet nat    POST_NAT_<POLICY_NAME>
 ```
 
 * * *
 
-### Result
+3\. Forward Chain Triggers
+--------------------------
 
-*   User is globally restricted
-*   Only traffic to the destination works
-*   Clean, predictable behavior
-
-Matches **Case 3 in NGFW rules**.
+```
+nft insert rule inet filter forward ip saddr @<policy_users_set> jump <user_policy>
+nft insert rule inet filter forward ip daddr @<policy_users_set> jump <user_policy>
+```
 
 * * *
 
-Firewall (Router) Access Control — OPTIONAL EXTENSION
------------------------------------------------------
-
-If the policy also needs to control access **to the firewall itself**:
+4\. NAT Prerouting Triggers
+---------------------------
 
 ```
-nft add rule inet filter <policy_name> \
-    ip saddr @<policy_user_set> ip daddr <firewall_ip> \
-    <protocol> dport <service_port> <action>
+nft insert rule inet nat prerouting ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
+nft insert rule inet nat prerouting ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
 ```
 
-Place **before** the final `return`.
+* * *
+
+5\. NAT Postrouting Trigger
+---------------------------
+
+```
+nft insert rule inet nat postrouting \
+    oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
+```
+
+* * *
+
+6\. FILTER Policy (Service-Level Control)
+-----------------------------------------
+
+```
+nft add rule inet filter <user_policy> \
+    ip daddr <destination_ip> <protocol> sport <source_port> <action>
+
+nft add rule inet filter <user_policy> \
+    ip saddr <destination_ip> <protocol> dport <destination_port> <action>
+
+nft add rule inet filter <user_policy> return
+```
+
+* * *
+
+7\. NAT-PREROUTING Policy
+-------------------------
+
+```
+nft add rule inet nat PRE_NAT_<POLICY_NAME> \
+    ip saddr <destination_ip> <protocol> dport <destination_port> <action>
+
+nft add rule inet nat PRE_NAT_<POLICY_NAME> \
+    ip daddr <destination_ip> <protocol> sport <source_port> <action>
+
+nft add rule inet nat PRE_NAT_<POLICY_NAME> return
+```
+
+* * *
+
+8\. NAT-POSTROUTING Policy
+--------------------------
+
+```
+nft add rule inet nat POST_NAT_<POLICY_NAME> \
+    ip daddr <destination_ip> <protocol> dport <destination_port> masquerade
+
+nft add rule inet nat POST_NAT_<POLICY_NAME> return
+```
+
+* * *
+
+9\. QoS Mark + Set Membership
+-----------------------------
+
+```
+nft add element inet mangle user4_marks {
+    <policy_users_ip> : 0x00<isp_id><tc_class_id>
+}
+
+nft add element inet filter <policy_users_set> { <policy_users_ip> }
+nft add element inet nat    <policy_users_set> { <policy_users_ip> }
+```
+
+* * *
+
+### Resulting Behavior
+
+*   Only specified services reachable
+*   Everything else dropped by default policy
+
+* * *
+
+CASE 3 — Restricted to a Single Destination IP (Protocol-Agnostic)
+==================================================================
+
+**Use case:**  
+User may talk **only** to one destination IP, regardless of protocol/port.
+
+* * *
+
+1\. Define Policy User Sets
+---------------------------
+
+```
+nft add set inet filter <policy_users_set> { type ipv4_addr; flags interval; }
+nft add set inet nat    <policy_users_set> { type ipv4_addr; flags interval; }
+```
+
+* * *
+
+2\. Define Policy Chains
+------------------------
+
+```
+nft add chain inet filter <user_policy>
+nft add chain inet nat    PRE_NAT_<POLICY_NAME>
+nft add chain inet nat    POST_NAT_<POLICY_NAME>
+```
+
+* * *
+
+3\. Trigger Jumps (Forward)
+---------------------------
+
+```
+nft insert rule inet filter forward ip saddr @<policy_users_set> jump <user_policy>
+nft insert rule inet filter forward ip daddr @<policy_users_set> jump <user_policy>
+```
+
+* * *
+
+4\. Trigger Jumps (NAT)
+-----------------------
+
+```
+nft insert rule inet nat prerouting ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
+nft insert rule inet nat prerouting ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
+
+nft insert rule inet nat postrouting \
+    oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
+```
+
+* * *
+
+5\. FILTER Policy (IP-Only)
+---------------------------
+
+```
+nft add rule inet filter <user_policy> ip daddr <destination_ip> <action>
+nft add rule inet filter <user_policy> ip saddr <destination_ip> <action>
+nft add rule inet filter <user_policy> return
+```
+
+* * *
+
+6\. NAT-PREROUTING Policy
+-------------------------
+
+```
+nft add rule inet nat PRE_NAT_<POLICY_NAME> ip saddr <destination_ip> accept
+nft add rule inet nat PRE_NAT_<POLICY_NAME> ip daddr <destination_ip> <action>
+nft add rule inet nat PRE_NAT_<POLICY_NAME> return
+```
+
+* * *
+
+7\. NAT-POSTROUTING Policy
+--------------------------
+
+```
+nft add rule inet nat POST_NAT_<POLICY_NAME> \
+    ip daddr <destination_ip> masquerade
+
+nft add rule inet nat POST_NAT_<POLICY_NAME> return
+```
+
+* * *
+
+8\. QoS Mark + Set Membership
+-----------------------------
+
+```
+nft add element inet mangle user4_marks {
+    <policy_users_ip> : 0x00<isp_id><tc_class_id>
+}
+
+nft add element inet filter <policy_users_set> { <policy_users_ip> }
+nft add element inet nat    <policy_users_set> { <policy_users_ip> }
+```
+
+* * *
+
+### Resulting Behavior
+
+*   User can talk only to `<destination_ip>`
+*   All other destinations silently blocked
+
+* * *
