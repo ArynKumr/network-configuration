@@ -40,7 +40,8 @@ This user is effectively **trusted root on the network**.
 Allow the user to forward traffic through the firewall.
 
 ```
-nft add element inet filter allowed_ip4 { <local_ip> }
+nft insert rule inet filter forward ip daddr <local_ip> accept
+nft insert rule inet filter forward ip saddr <local_ip> accept
 ```
 
 * * *
@@ -50,7 +51,8 @@ nft add element inet filter allowed_ip4 { <local_ip> }
 Prevent any NAT-based redirection (portal, DNS hijack, etc.).
 
 ```
-nft add element inet nat allowed_ip4 { <local_ip> }
+nft insert rule inet nat prerouting ip daddr <local_ip> accept
+nft insert rule inet nat prerouting ip saddr <local_ip> accept
 ```
 
 * * *
@@ -65,12 +67,12 @@ nft add element inet mangle user4_marks { <local_ip> : 0x00<isp_mark><tc_class_m
 
 * * *
 
-#### 4\. High-Priority NAT Override
+#### 4\. NAT Masquerading
 
 Force an immediate NAT decision for this user.
 
 ```
-nft insert rule inet nat prerouting ip saddr <local_ip> <action>
+nft insert rule inet nat postrouting oifname @wan_ifaces ip saddr <local_ip> masquerade
 ```
 
 **Typical `<action>`:**
@@ -78,26 +80,6 @@ nft insert rule inet nat prerouting ip saddr <local_ip> <action>
 *   `accept`
 *   `return`
 *   `dnat to …`
-
-* * *
-
-#### 5\. Forward Chain Override (Outbound)
-
-Allow traffic **from the user** regardless of global policy.
-
-```
-nft insert rule inet filter forward ip saddr <local_ip> <action>
-```
-
-* * *
-
-#### 6\. Forward Chain Override (Inbound / Replies)
-
-Allow return traffic **to the user**.
-
-```
-nft insert rule inet filter forward ip daddr <local_ip> <action>
-```
 
 * * *
 
@@ -131,10 +113,11 @@ This is **surgical trust**, not blanket trust.
 ### Rules Applied
 
 #### 1\. Global Bypass Enablement
-
+Allow traffic **from user → destination** only on specified ports.
+Allow return traffic **from destination → user**.
 ```
-nft add element inet filter allowed_ip4 { <local_ip> }
-nft add element inet nat allowed_ip4 { <local_ip> }
+nft insert rule inet filter forward ip daddr <local_ip> ip saddr <destination_ip> tcp dport <destination_port> accept
+nft insert rule inet filter forward ip saddr <local_ip> ip daddr <destination_ip> tcp sport <local_port> accept
 ```
 
 * * *
@@ -147,39 +130,19 @@ nft add element inet mangle user4_marks { <local_ip> : 0x00<isp_mark><tc_class_m
 
 * * *
 
-#### 3\. Destination-Specific NAT Handling
+#### 3\. NAT Handling
 
 ```
-nft insert rule inet nat prerouting \
-    ip saddr <local_ip> ip daddr <destination_ip> <action>
-```
-
-* * *
-
-#### 4\. Forwarding Rule (Outbound Direction)
-
-Allow traffic **from user → destination** only on specified ports.
-
-```
-nft insert rule inet filter forward \
-    ip saddr <local_ip> ip daddr <destination_ip> \
-    <protocol> sport <source_port> \
-    <protocol> dport <destination_port> \
-    <action>
+nft insert rule inet nat prerouting ip daddr <local_ip> ip saddr <destination_ip> tcp dport <destination_port> accept
+nft insert rule inet nat prerouting ip saddr <local_ip> ip daddr <destination_ip> tcp sport <local_port> accept
 ```
 
 * * *
 
-#### 5\. Forwarding Rule (Inbound / Replies)
-
-Allow return traffic **from destination → user**.
+#### 4\. NAT Masquerading
 
 ```
-nft insert rule inet filter forward \
-    ip daddr <local_ip> ip saddr <destination_ip> \
-    <protocol> sport <source_port> \
-    <protocol> dport <destination_port> \
-    <action>
+nft insert rule inet nat postrouting oifname @wan_ifaces ip saddr <local_ip> ip daddr <destination_ip> tcp sport <local_port> masquerade
 ```
 
 * * *
@@ -208,8 +171,8 @@ regardless of protocol or port.
 #### 1\. Global Bypass Enablement
 
 ```
-nft add element inet filter allowed_ip4 { <local_ip> }
-nft add element inet nat allowed_ip4 { <local_ip> }
+nft insert rule inet filter forward ip daddr <local_ip> ip saddr <destination_ip> accept
+nft insert rule inet filter forward ip saddr <local_ip> ip daddr <destination_ip> accept
 ```
 
 * * *
@@ -222,29 +185,19 @@ nft add element inet mangle user4_marks { <local_ip> : 0x00<isp_mark><tc_class_m
 
 * * *
 
-#### 3\. Destination-Specific NAT Exemption
+#### 3\. NAT Exemption
 
 ```
-nft insert rule inet nat prerouting \
-    ip saddr <local_ip> ip daddr <destination_ip> <action>
-```
-
-* * *
-
-#### 4\. Forwarding Rule (Outbound)
-
-```
-nft insert rule inet filter forward \
-    ip saddr <local_ip> ip daddr <destination_ip> <action>
+nft insert rule inet nat prerouting ip saddr <local_ip> ip daddr <destination_ip> accept
+nft insert rule inet nat prerouting ip daddr <local_ip> ip saddr <destination_ip> accept
 ```
 
 * * *
 
-#### 5\. Forwarding Rule (Inbound / Replies)
+#### 4\. NAT Masquerading
 
 ```
-nft insert rule inet filter forward \
-    ip daddr <local_ip> <action>
+nft insert rule inet nat postrouting oifname @wan_ifaces ip saddr <local_ip> ip daddr <destination_ip> masquerade
 ```
 
 * * *
