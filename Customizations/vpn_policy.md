@@ -20,7 +20,7 @@ Common Assumptions
 *   VPN interface exists (e.g. `wg0`, `tun0`)
 *   VPN users receive **IPv4 addresses**
 *   VPN traffic enters the firewall via `<vpn_iface>`
-*   Default `forward` policy is `drop`
+>   Default `forward` policy is `drop`
 
 * * *
 
@@ -51,8 +51,8 @@ This is equivalent to **NGFW Case 1**, but scoped to VPN ingress.
 -------------------------------
 
 ```
-nft add set inet filter vpn_users_full { type ipv4_addr; flags interval; }
-nft add set inet nat    vpn_users_full { type ipv4_addr; flags interval; }
+nft add set inet filter <vpn_user_set> '{ type ipv4_addr; flags interval; }'
+nft add set inet nat    <vpn_user_set> { type ipv4_addr; flags interval; }
 ```
 
 * * *
@@ -62,10 +62,10 @@ nft add set inet nat    vpn_users_full { type ipv4_addr; flags interval; }
 
 ```
 nft insert rule inet filter forward \
-    iifname <vpn_iface> ip saddr @vpn_users_full accept
+    iifname "<vpn_iface>" ip saddr @<vpn_user_set> accept
 
 nft insert rule inet filter forward \
-    oifname <vpn_iface> ip daddr @vpn_users_full accept
+    oifname "<vpn_iface>" ip daddr @<vpn_user_set> accept
 ```
 
 * * *
@@ -75,7 +75,7 @@ nft insert rule inet filter forward \
 
 ```
 nft insert rule inet nat postrouting \
-    oifname @wan_ifaces ip saddr @vpn_users_full masquerade
+    oifname @wan_ifaces ip saddr @<vpn_user_set> masquerade
 ```
 
 * * *
@@ -95,8 +95,8 @@ nft add element inet mangle user4_marks {
 ----------------------
 
 ```
-nft add element inet filter vpn_users_full { <vpn_user_ip> }
-nft add element inet nat    vpn_users_full { <vpn_user_ip> }
+nft add element inet filter <vpn_user_set> { <vpn_user_ip> }
+nft add element inet nat    <vpn_user_set> { <vpn_user_ip> }
 ```
 
 * * *
@@ -126,8 +126,8 @@ Equivalent to **NGFW Case 2**.
 ---------------
 
 ```
-nft add set inet filter vpn_users_limited { type ipv4_addr; flags interval; }
-nft add set inet nat    vpn_users_limited { type ipv4_addr; flags interval; }
+nft add set inet filter <vpn_user_set>  { type ipv4_addr; flags interval; }
+nft add set inet nat    <vpn_user_set>  { type ipv4_addr; flags interval; }
 ```
 
 * * *
@@ -148,10 +148,10 @@ nft add chain inet nat    VPN_POST_NAT
 
 ```
 nft insert rule inet filter forward \
-    iifname <vpn_iface> ip saddr @vpn_users_limited jump VPN_USER_POLICY
+    iifname <vpn_iface> ip saddr @<vpn_user_set>  jump VPN_USER_POLICY
 
 nft insert rule inet filter forward \
-    oifname <vpn_iface> ip daddr @vpn_users_limited jump VPN_USER_POLICY
+    oifname <vpn_iface> ip daddr @<vpn_user_set>  jump VPN_USER_POLICY
 ```
 
 * * *
@@ -161,10 +161,10 @@ nft insert rule inet filter forward \
 
 ```
 nft insert rule inet nat prerouting \
-    ip saddr @vpn_users_limited jump VPN_PRE_NAT
+    ip saddr @<vpn_user_set>  jump VPN_PRE_NAT
 
 nft insert rule inet nat postrouting \
-    oifname @wan_ifaces ip saddr @vpn_users_limited jump VPN_POST_NAT
+    oifname @wan_ifaces ip saddr @<vpn_user_set>  jump VPN_POST_NAT
 ```
 
 * * *
@@ -216,8 +216,8 @@ nft add element inet mangle user4_marks {
     <vpn_user_ip> : 0x00<isp_id><tc_class_id>
 }
 
-nft add element inet filter vpn_users_limited { <vpn_user_ip> }
-nft add element inet nat    vpn_users_limited { <vpn_user_ip> }
+nft add element inet filter <vpn_user_set>  { <vpn_user_ip> }
+nft add element inet nat    <vpn_user_set>  { <vpn_user_ip> }
 ```
 
 * * *
@@ -244,8 +244,8 @@ Equivalent to **NGFW Case 3**.
 ---------------
 
 ```
-nft add set inet filter vpn_users_single { type ipv4_addr; flags interval; }
-nft add set inet nat    vpn_users_single { type ipv4_addr; flags interval; }
+nft add set inet filter <vpn_user_set>   { type ipv4_addr; flags interval; }
+nft add set inet nat    <vpn_user_set>   { type ipv4_addr; flags interval; }
 ```
 
 * * *
@@ -266,10 +266,10 @@ nft add chain inet nat    VPN_POST_NAT_IP
 
 ```
 nft insert rule inet filter forward \
-    iifname <vpn_iface> ip saddr @vpn_users_single jump VPN_IP_ONLY
+    iifname <vpn_iface> ip saddr @<vpn_user_set>   jump VPN_IP_ONLY
 
 nft insert rule inet filter forward \
-    oifname <vpn_iface> ip daddr @vpn_users_single jump VPN_IP_ONLY
+    oifname <vpn_iface> ip daddr @<vpn_user_set>   jump VPN_IP_ONLY
 ```
 
 * * *
@@ -279,10 +279,10 @@ nft insert rule inet filter forward \
 
 ```
 nft insert rule inet nat prerouting \
-    ip saddr @vpn_users_single jump VPN_PRE_NAT_IP
+    ip saddr @<vpn_user_set>   jump VPN_PRE_NAT_IP
 
 nft insert rule inet nat postrouting \
-    oifname @wan_ifaces ip saddr @vpn_users_single jump VPN_POST_NAT_IP
+    oifname @wan_ifaces ip saddr @<vpn_user_set>   jump VPN_POST_NAT_IP
 ```
 
 * * *
@@ -321,8 +321,8 @@ nft add element inet mangle user4_marks {
     <vpn_user_ip> : 0x00<isp_id><tc_class_id>
 }
 
-nft add element inet filter vpn_users_single { <vpn_user_ip> }
-nft add element inet nat    vpn_users_single { <vpn_user_ip> }
+nft add element inet filter <vpn_user_set>   { <vpn_user_ip> }
+nft add element inet nat    <vpn_user_set>   { <vpn_user_ip> }
 ```
 
 * * *

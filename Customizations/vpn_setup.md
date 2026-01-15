@@ -48,14 +48,17 @@ Allow traffic **originating from VPN clients** to pass through the Firewall.
 
 ```
 nft add rule inet filter forward \
-    iifname <vpn_iface> \
+    iifname "<vpn_iface>" \
     <action>
 ```
 
 **Logic:**
 
 *   `iifname <vpn_iface>` → traffic came **from the VPN tunnel**
-*   This rule must exist or VPN clients will connect but have **no access**
+*   This rule must exist or VPN clients will connect but have 
+**no access**
+*   **Typical <vpn_iface>:** tun0,wg0,etc.
+>Note: check the exact name of the vpn interface with the command `ip -a` on the firewall.
 
 > **Note:**  
 > This rule should appear **before restrictive forward-chain rules**,  
