@@ -657,7 +657,11 @@ Record which users are accessing the internet.
 Enable multiple internal devices to share a single public IP.
 
 ```
-    oifname @wan_ifaces masquerade
+    oifname @wan_ifaces ip saddr @allowed_ip4 masquerade
+    oifname @wan_ifaces ip6 saddr @allowed_ip6 masquerade
+    oifname @wan_ifaces ether saddr @allowed_macs masquerade
+    oifname @wan_ifaces ip saddr . ether saddr vmap @allowed_ip4_mac masquerade
+    oifname @wan_ifaces ip saddr . ether saddr vmap @allowed_ip6_mac masquerade
 ```
 
 * * *
