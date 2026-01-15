@@ -171,8 +171,8 @@ regardless of protocol or port.
 #### 1\. Global Bypass Enablement
 
 ```
-nft insert rule inet filter forward ip daddr <local_ip> ip saddr <destination_ip> accept
-nft insert rule inet filter forward ip saddr <local_ip> ip daddr <destination_ip> accept
+nft insert rule inet filter forward ip daddr <local_ip> ip saddr <destination_ip> <action>
+nft insert rule inet filter forward ip saddr <local_ip> ip daddr <destination_ip> <action>
 ```
 
 * * *
@@ -188,8 +188,8 @@ nft add element inet mangle user4_marks { <local_ip> : 0x00<isp_mark><tc_class_m
 #### 3\. NAT Exemption
 
 ```
-nft insert rule inet nat prerouting ip saddr <local_ip> ip daddr <destination_ip> accept
-nft insert rule inet nat prerouting ip daddr <local_ip> ip saddr <destination_ip> accept
+nft insert rule inet nat prerouting ip saddr <local_ip> ip daddr <destination_ip> <action>
+nft insert rule inet nat prerouting ip daddr <local_ip> ip saddr <destination_ip> <action>
 ```
 
 * * *

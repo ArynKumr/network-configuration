@@ -413,7 +413,7 @@ After user logs in and login-time rules are applied:
 ```
 nft list set inet filter allowed_ip4
 nft list set inet nat allowed_ip4
-nft list set inet mangle user4_marks
+nft list map inet mangle user4_marks
 nft list set inet webfilter ALLOW_ACCESS
 ```
 
