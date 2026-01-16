@@ -1,4 +1,3 @@
-
 Logging & Observability Documentation (nftables NGFW)
 =====================================================
 

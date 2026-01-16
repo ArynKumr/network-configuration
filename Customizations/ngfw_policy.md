@@ -354,6 +354,6 @@ nft add element inet nat    <policy_users_set> { <policy_users_ip> }
 ### Resulting Behavior
 
 *   User can talk only to `<destination_ip>`
-*   All other destinations silently blocked
+*   All other destinations should be silently blocked
 
 * * *

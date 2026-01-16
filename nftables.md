@@ -44,7 +44,7 @@ The `filter` table is responsible for all **allow / deny** decisions.
 Using the `inet` family allows a single ruleset to handle both IPv4 and IPv6.
 
 ```
-table inet filter {
+table inet filter {}
 ```
 
 * * *
@@ -1167,3 +1167,5 @@ chain forward {
 4.  Connection is terminated
 
 * * *
+
+Refer [nftables](nftables.conf) for a more granular explanation of the rules.

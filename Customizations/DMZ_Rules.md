@@ -18,7 +18,7 @@ Provide runnable nftables templates for:
 
 Selective Port Forwarding
 -------------------------
-
+>Note: Ensure that you have added the interfaces in nat and filter table.
 ### 1\. ALLOW INTERNET ACCESS
 
 **Purpose:**  

@@ -77,7 +77,7 @@ If this is **not enabled**, your firewall will pass traffic nowhere.
 3\. Basic Network Interface Setup
 ---------------------------------
 
-### Bring interfaces up
+### Bring interfaces up (If they aren't already up)
 
 ```
 ip link set eth0 up
@@ -101,7 +101,7 @@ ip route
 
 You **must** have:
 
-*   a public IP or upstream IP
+*   a public IP or upstream IP ,as that implies it connects your server to the external network a.k.a the internet.
 *   a default route via eth0
 
 * * *
@@ -109,7 +109,7 @@ You **must** have:
 ### LAN interface (static IP)
 
 Example LAN: `192.168.1.0/24`
-
+>Note: Refer [RFC 1918](https://www.rfc-editor.org/rfc/rfc1918) to see what ips are set aside for private networks (LAN)
 ```
 ip addr add 192.168.1.1/24 dev eth1
 ```
@@ -197,13 +197,13 @@ nft add rule inet filter input iif lo accept
 
 * * *
 
-### Allow established connections
+### Allow established and related connections
 
 ```
 nft add rule inet filter input ct state established,related accept
 nft add rule inet filter forward ct state established,related accept
 ```
-
+>Refer man page of [conntrack](https://man.archlinux.org/man/conntrack.8.en) 
 * * *
 
 ### Allow LAN → Internet
@@ -267,15 +267,16 @@ Fix **before continuing**.
 >NOTE: Import the nftables.conf file to you testing machine from the repo.
 
 ### Apply rules
-
+Ensure `/etc/nftables.conf` contains everything by running the command below.
+```
+less /etc/nftables.conf
+```
+After confirming the rules are stored in the location `/etc/nftables.conf`, run the command below
 ```
 nft -f /etc/nftables.conf
 ```
 
-Ensure `/etc/nftables.conf` contains everything.
-
-Enable loading at boot:
-
+To enable loading at boot:
 ```
 systemctl enable nftables
 ```
@@ -327,7 +328,7 @@ nft list ruleset
 
 ### Routing & policy routing
 
-* [IP Routes are to configured](route_rule_setup.md)
+* [How to configure ip route and ip rules](route_rule_setup.md)
 
 ```
 ip rule show
@@ -346,7 +347,7 @@ ip route show table <isp_table>
 
 ### Setting up ifaces
 
-* [Ifaces are to configured](iface_setup.md)
+* [How to configure interfaces](iface_setup.md)
 ```
 nft add element inet filter wan_ifaces { "<wan_iface1>", "<wan_iface2>" }
 nft add element inet nat wan_ifaces { "<wan_iface1>", "<wan_iface2>" }
@@ -363,7 +364,7 @@ nft add element inet webfilter lan_ifaces { "<lan_iface1>", "<lan_iface2>" }
 
 ### Traffic control
 
-* [TC are to configured](tc_setup.md)`
+* [How to configure tc](tc_setup.md)`
 
 ```
 tc qdisc show
@@ -405,7 +406,7 @@ dig @8.8.8.8 google.com
 
 2\. Authentication Flow Test (Login Hook)
 -----------------------------------------
-Reffer `user_login.md`
+Refer [user_login.md](Customizations/user_login.md)
 After user logs in and login-time rules are applied:
 
 ### Verify set membership
@@ -435,7 +436,7 @@ curl https://example.com
 
 3\. Web Filtering (NFQUEUE)
 ---------------------------
-Reffer `user_login.md` and `nftables.md`
+Refer [user_login.md](Customizations/user_login.md) and [nftables.md](nftables.md)
 ### Trigger inspection
 
 ```
@@ -450,7 +451,7 @@ If daemon is stopped:
 ```
 systemctl stop <webfilter_service>
 ```
-
+>Currently the service planned for it is `netifyd`.
 ✔ Traffic still flows (bypass works)  
 ✘ Internet dies → `bypass` missing (critical bug)
 
@@ -563,7 +564,7 @@ curl http://<blocked_country_ip>
 7\. VPN Connectivity Test
 -------------------------
 
-Reffer `vpn_setup.md`
+Refer [vpn_setup.md](Customizations/vpn_setup.md)
 
 ### Tunnel establishment
 
@@ -588,14 +589,14 @@ ping 8.8.8.8
 ```
 
 ✔ LAN reachable  
-✔ Internet reachable (if intended)  
+✔ Internet reachable (if allowed)  
 ✘ Connects but no traffic → forward rules broken
 
 * * *
 
 8\. NGFW Policy Override Test
 -----------------------------
-Reffer `ngfw_policy.md`
+Refer [ngfw_policy.md](Customizations/ngfw_policy.md) for more details
 ### Add user to policy set
 
 ```

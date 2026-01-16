@@ -3,7 +3,7 @@ Interface Registration — WAN & LAN (nftables)
 
 **Purpose:** Register physical interfaces in the appropriate nftables sets so the rules (masquerade, geofence, captive portal, webfilter, forward logic) know which ports are WAN and which are LAN.
 
-> **Note:** These commands **add elements** to pre-existing sets. Make sure those sets exist in your nftables configuration before running the `add element` commands.
+> **Note:** These commands **add elements** to pre-existing sets. Make sure those sets exist in your nftables configuration before running the `add element` commands. (Refer [README.md](../README.md) for how to setup the tables or copy the contents of [nftables.conf](../nftables.conf) onto your machine and run it with the command `nft -f \path\to\nftables.conf`)
 
 * * *
 
