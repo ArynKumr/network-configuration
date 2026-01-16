@@ -159,4 +159,10 @@ tc filter add dev <iface_name> protocol ip parent 1:0 prio 1 \
 *   `/0x0000FFFF` → mask isolates TC bits
 *   `flowid 1:<user_class_id>` → push packet into the user’s lane
 
+> Note: Set the marks on the user during user creation, such that the tc mark is like: 0x0000\<mark here\>. Only then will the tc rules be applied. Refer [this](user_login.md)
+
+Example:
+```
+nft add element inet mangle user4_marks { <client_ip> : 0x00<isp_mark><tc_class_marks> }
+```
 * * *

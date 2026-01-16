@@ -364,7 +364,7 @@ nft add element inet webfilter lan_ifaces { "<lan_iface1>", "<lan_iface2>" }
 
 ### Traffic control
 
-* [How to configure tc](tc_setup.md)`
+* [How to configure tc](./Customizations/tc_setup.md)
 
 ```
 tc qdisc show
