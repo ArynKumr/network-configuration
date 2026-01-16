@@ -4,7 +4,7 @@ VPN Policy Enforcement (NGFW-Aligned Model)
 ===========================================
 
 **Purpose:**  
-Apply **user-scoped firewall policies** to **VPN-connected users** using the **same NGFW design language** as LAN users.
+Apply **user-scoped firewall policies** to **VPN-connected users** using a  **similar NGFW design language** as LAN users.
 
 This ensures:
 
