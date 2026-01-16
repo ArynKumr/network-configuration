@@ -49,8 +49,8 @@ This is **full trust**, not filtering.
 ---------------------------
 
 ```
-nft add set inet filter <policy_users_set> { type ipv4_addr; flags interval; }
-nft add set inet nat    <policy_users_set> { type ipv4_addr; flags interval; }
+nft add set inet filter <policy_users_set> '{ type ipv4_addr; flags interval; }'
+nft add set inet nat    <policy_users_set> '{ type ipv4_addr; flags interval; }'
 ```
 
 * * *
