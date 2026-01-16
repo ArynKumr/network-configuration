@@ -48,7 +48,7 @@ ip route add <ip_subnet_of_iface> dev <iface_name> src <ip_on_iface>
 Example:
  - We have networks 192.168.1.0/24 (ISP) and 10.9.0.0/24(LAN) which are supposed to be reachable by the firewall.
     ```bash
-    root@localhost:~# ip -c -br a
+    bash-x.x$ ip -c -br a
     enp1s0           UP             192.168.1.14/24 metric 100 
     enp8s0           UP             10.9.0.1/24 
     root@localhost:~# 
@@ -58,8 +58,8 @@ Example:
 
  - To re add them, we need to add the routes back again, using these commands:
     ```bash
-    root@localhost:~# ip route add 192.168.1.0/24 dev enp1s0 src 192.168.1.14
-    root@localhost:~# ip route add 10.9.0.0/24 dev enp8s0 src 10.9.0.1
+    ip route add 192.168.1.0/24 dev enp1s0 src 192.168.1.14
+    ip route add 10.9.0.0/24 dev enp8s0 src 10.9.0.1
     ```
 > **Why this matters:**  
 > Without these routes, replies to LAN/WAN traffic may fail  
@@ -103,7 +103,7 @@ ip rule add fwmark 0x00<isp_mark>0000/0x00ff0000 table <table_number>
 **Example:**
 
 ```bash
-root@localhost:~# ip rule add fwmark 0x00A10000/0xff0000 table 1
+ip rule add fwmark 0x00A10000/0xff0000 table 1
 ```
 
 **Logic:**
@@ -147,7 +147,7 @@ ip route add default via <gateway_ip> dev <iface_name> table <table_number>
 **Example:**
 
 ```bash
-root@localhost:~# ip route add default via 192.168.1.1 dev enp1s0 table 1
+ip route add default via 192.168.1.1 dev enp1s0 table 1
 ```
 
 * * *
@@ -164,7 +164,7 @@ ip route add <ip_subnet_of_iface> dev <iface_name> src <ip_on_iface> table <tabl
 **Example:**
 
 ```bash
-root@localhost:~# ip route add 192.168.1.0/24 dev enp1s0 src 192.168.1.14 table 1
+ip route add 192.168.1.0/24 dev enp1s0 src 192.168.1.14 table 1
 ```
 
 [To test user routes](user_login.md)

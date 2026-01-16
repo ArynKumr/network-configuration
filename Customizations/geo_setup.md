@@ -84,14 +84,15 @@ nft flush set inet geo geo_v6
 Managing **large country IP lists** via files (recommended).
 
 ### File Example (`geo_v4_subnets.nft`)
-
 ```
+`geo_v4_subnets.nft`
 add element inet geo geo_v4 { $(subnets) }
 ```
 
 ### File Example (`geo_v6_subnets.nft`)
 
 ```
+`geo_v6_subnets.nft`
 add element inet geo geo_v6 { $(subnets) }
 ```
 
@@ -142,3 +143,4 @@ This avoids:
 *   silent false positives.
 
 * * *
+
