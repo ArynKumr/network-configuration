@@ -692,5 +692,13 @@ This layer is used for:
 -----------------------------------
 Refer [vpn_policy.md](Customizations/vpn_policy.md) for more details
 
-## Overview
-This document outlines the NFTables boilerplate configuration for all  VPN access scenarios. All scenarios assume the existence of inet filter and `inet nat` tables and include Captive Portal redirection for unauthenticated users.
+_(With and Without Captive Portal)_
+
+**Purpose:**  
+Define **VPN user traffic behavior** across all supported modes:
+
+*   Split Tunnel vs Full Tunnel
+*   With Captive Portal vs Without
+*   IP-only vs IP+Port restrictions
+
+This document maps **12 operational cases** to their intent and rule groups.
