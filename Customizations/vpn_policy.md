@@ -1,384 +1,506 @@
-VPN Access Control — NGFW Policy Models (nftables)
-==================================================
+VPN Policy Matrix — Split Tunnel & Full Tunnel
+==============================================
 
-**Scope:**  
-This document defines **VPN access enforcement patterns** using `nftables` for all common VPN user scenarios.
+_(With and Without Captive Portal)_
 
-**Assumptions:**
+**Purpose:**  
+Define **VPN user traffic behavior** across all supported modes:
 
-*   `inet filter` and `inet nat` tables already exist
-*   VPN tunnel interface is already allowed at the input layer
-*   Captive Portal logic exists in `nat prerouting`
-*   Default `filter forward` policy is `drop`
+*   Split Tunnel vs Full Tunnel
+*   With Captive Portal vs Without
+*   IP-only vs IP+Port restrictions
 
-All policies are **set-driven**, **jump-based**, and **reversible**.
-
-* * *
-
-Global Design Rules (Non-Negotiable)
-------------------------------------
-
-1.  **Sets define WHO**
-2.  **Chains define WHAT**
-3.  **Jump rules define WHEN**
-4.  **Every policy chain MUST end with `return`**
-5.  **Inbound + outbound symmetry is mandatory**
-6.  **Captive Portal logic belongs only in NAT**
-
-If any of these are violated → undefined behavior.
+This document maps **12 operational cases** to their intent and rule groups.
 
 * * *
 
-CASE 1 — Full Access (Captive Portal: YES)
-==========================================
+Global Assumptions (Applies to All Cases)
+-----------------------------------------
 
-**Meaning:**  
-All users in the VPN subnet are subject to captive portal.  
-Once authenticated, a user gets **unrestricted network access**.
-
-* * *
-
-1.1 Infrastructure & Logic (One-Time Setup)
--------------------------------------------
-
-### Sets
-
-```nft
-nft add set inet filter vpn_<subnet_set> '{ type ipv4_addr; flags interval; }'
-nft add set inet filter vpn_<user_set>   '{ type ipv4_addr; flags interval; }'
-
-nft add set inet nat    vpn_<subnet_set> '{ type ipv4_addr; flags interval; }'
-nft add set inet nat    vpn_<user_set>   '{ type ipv4_addr; flags interval; }'
-```
+*   `lan_ifaces` includes LAN and optionally VPN interface
+*   `wan_ifaces` includes internet-facing interface
+*   Default `forward` policy is `drop`
+*   VPN users are identified by **IP or IP+Port**
+*   QoS & ISP routing are always enforced via `mangle`
 
 * * *
 
-### Policy Chain (Filter)
+AXIS DEFINITIONS (Read Once)
+----------------------------
 
-```nft
-nft add chain inet filter VPN_<POLICY_NAME>
-nft add rule  inet filter VPN_<POLICY_NAME> accept
-nft add rule  inet filter VPN_<POLICY_NAME> return
-```
+### Tunnel Mode
 
-✔ Correct: explicit allow + clean exit
+*   **Split Tunnel** → VPN users access **only selected destinations**
+*   **Full Tunnel** → VPN users route **all traffic** through VPN
 
-* * *
+### Access Control
 
-### Enforcement (Filter → Forward)
-
-```nft
-# Block unauthenticated VPN subnet
-nft add rule inet filter forward ip saddr @vpn_<subnet_set> drop
-
-# Allow authenticated users
-nft insert rule inet filter forward ip saddr @vpn_<user_set> jump VPN_<POLICY_NAME>
-```
-
-✔ Correct  
-✔ Order matters — `insert` is required
-
-* * *
-
-### Captive Portal Redirection (NAT)
-
-```nft
-nft insert rule inet nat prerouting \
-    ip saddr @vpn_<subnet_set> ip saddr != @vpn_<user_set> \
-    tcp dport 80 redirect to :80
-```
-
-✔ Correct  
-✔ Redirect applies only to unauthenticated users
-
-* * *
-
-1.2 Runtime User Management
----------------------------
-
-```nft
-# Subnet under portal control
-nft add element inet filter vpn_<subnet_set> { <vpn_subnet> }
-nft add element inet nat    vpn_<subnet_set> { <vpn_subnet> }
-
-# Authenticate user
-nft add element inet filter vpn_<user_set> { <vpn_user_ip> }
-nft add element inet nat    vpn_<user_set> { <vpn_user_ip> }
-```
-
-* * *
-
-CASE 2 — Restricted: Specific Destination IP + Port (Captive Portal: YES)
-=========================================================================
-
-**Meaning:**  
-User must authenticate via portal, then may access **only defined services**.
-
-* * *
-
-2.1 Infrastructure & Logic
---------------------------
-
-### Sets
-
-```nft
-nft add set inet filter vpn_<subnet_set>  '{ type ipv4_addr; flags interval; }'
-nft add set inet filter vpn_<user_set>    '{ type ipv4_addr; flags interval; }'
-nft add set inet filter vpn_<service_map> '{ type ipv4_addr . inet_service; }'
-
-nft add set inet nat vpn_<subnet_set> '{ type ipv4_addr; flags interval; }'
-nft add set inet nat vpn_<user_set>   '{ type ipv4_addr; flags interval; }'
-```
-
-✔ `inet_service` is correct  
-⚠️ `flags interval` is **NOT valid** on maps → removed
-
-* * *
-
-### Policy Chain (Filter)
-
-```nft
-nft add chain inet filter VPN_<POLICY_NAME>
-
-# outbound
-nft add rule inet filter VPN_<POLICY_NAME> \
-    ip saddr @vpn_<user_set> ip daddr . tcp dport @vpn_<service_map> accept
-
-# inbound
-nft add rule inet filter VPN_<POLICY_NAME> \
-    ip daddr @vpn_<user_set> ip saddr . tcp sport @vpn_<service_map> accept
-
-nft add rule inet filter VPN_<POLICY_NAME> return
-```
-
-✔ Directionality corrected  
-✔ Protocol explicitly defined
-
-* * *
-
-### Enforcement
-
-```nft
-nft add rule    inet filter forward ip saddr @vpn_<subnet_set> drop
-nft insert rule inet filter forward ip saddr @vpn_<user_set> jump VPN_<POLICY_NAME>
-```
-
-* * *
+*   **Unrestricted** → All traffic allowed
+*   **Restricted** → Limited by IP / Port / Protocol
 
 ### Captive Portal
 
-```nft
-nft insert rule inet nat prerouting \
-    ip saddr @vpn_<subnet_set> ip saddr != @vpn_<user_set> \
-    tcp dport 80 redirect to :80
+*   **Enabled** → Non-auth VPN users redirected to portal
+*   **Disabled** → No redirection
+
+* * *
+
+SPLIT TUNNEL CASES (1–6)
+========================
+
+* * *
+
+Case 1 — Split Tunnel, No Restrictions, No Portal
+-------------------------------------------------
+
+**Intent:**  
+VPN user can access **only permitted LAN paths**, no portal, no filtering.
+
+**Key Characteristics**
+
+*   IP-based allow
+*   Forward accept both directions
+*   No policy chains
+
+**Used when:**  
+Trusted VPN admin or internal staff.
+
+```
+nft add set inet filter <vpn_user_set> '{ type ipv4_addr; flags interval; }'
+nft add element inet filter <vpn_user_set> { <vpn_user_ip> }
+nft insert rule inet filter forward ip saddr @<vpn_user_set> accept
+nft insert rule inet filter forward ip daddr @<vpn_user_set> accept
 ```
 
 * * *
 
-2.2 Runtime Management
-----------------------
+Case 2 — Split Tunnel, IP+Port Restricted, No Portal
+----------------------------------------------------
 
-```nft
-nft add element inet filter vpn_<subnet_set>  { <vpn_subnet> }
-nft add element inet nat    vpn_<subnet_set>  { <vpn_subnet> }
+**Intent:**  
+VPN user can access **specific services only**.
 
-nft add element inet filter vpn_<service_map> { <dest_ip> . <port> }
+**Mechanism**
 
-nft add element inet filter vpn_<user_set> { <vpn_user_ip> }
-nft add element inet nat    vpn_<user_set> { <vpn_user_ip> }
+*   `ipv4_addr . inet_service` maps
+*   Dedicated filter chain
+*   Default drop inside policy
+
+**Used when:**  
+Service-specific access (DB, API, SSH).
+
+```
+nft add set inet filter vpn_<vpn_policy_user_map_name> '{ type ipv4_addr . inet_service; flags interval; }'
+nft add set inet filter vpn_<allowed_ip_port_map> '{ type ipv4_addr . inet_service; flags interval; }'
+nft add chain inet filter VPN_<vpn_policy_name>
+nft add element inet filter vpn_<vpn_policy_user_map_name> { <vpn_user_ip> . <vpn_user_port> }
+nft add element inet filter vpn_<allowed_ip_port_map> { <destination_ip> . <destination_port> }
+nft add rule inet filter VPN_<vpn_policy_name> ip daddr . tcp dport @vpn_<allowed_ip_port_map> accept
+nft add rule inet filter VPN_<vpn_policy_name> ip saddr . tcp sport @vpn_<allowed_ip_port_map> accept
+nft add rule inet filter VPN_<vpn_policy_name> drop
+nft insert rule inet filter forward  ip saddr . tcp sport @vpn_<vpn_policy_user_map_name>  oifname @lan_ifaces jump VPN_<vpn_policy_name>
+nft insert rule inet filter forward  ip daddr . tcp dport @vpn_<vpn_policy_user_map_name> iifname @lan_ifaces jump VPN_<vpn_policy_name>
 ```
 
 * * *
 
-CASE 3 — Semi-Restricted: Destination IP Only (Captive Portal: YES)
-===================================================================
+Case 3 — Split Tunnel, IP-Only Restricted, No Portal
+----------------------------------------------------
 
-**Meaning:**  
-User may access specific destination IPs, **any port**.
+**Intent:**  
+VPN user can reach **only one destination IP**.
 
-* * *
+**Mechanism**
 
-3.1 Infrastructure & Logic
---------------------------
+*   IP-only allow list
+*   No port granularity
 
-```nft
-nft add set inet filter vpn_<subnet_set>     '{ type ipv4_addr; flags interval; }'
-nft add set inet filter vpn_<user_set>       '{ type ipv4_addr; flags interval; }'
-nft add set inet filter vpn_<allowed_ip_set> '{ type ipv4_addr; flags interval; }'
-
-nft add set inet nat vpn_<subnet_set> '{ type ipv4_addr; flags interval; }'
-nft add set inet nat vpn_<user_set>   '{ type ipv4_addr; flags interval; }'
+**Used when:**  
+Partner system or fixed backend.
 ```
 
-* * *
-
-### Policy Chain
-
-```nft
-nft add chain inet filter VPN_<POLICY_NAME>
-
-nft add rule inet filter VPN_<POLICY_NAME> \
-    ip saddr @vpn_<user_set> ip daddr @vpn_<allowed_ip_set> accept
-
-nft add rule inet filter VPN_<POLICY_NAME> \
-    ip daddr @vpn_<user_set> ip saddr @vpn_<allowed_ip_set> accept
-
-nft add rule inet filter VPN_<POLICY_NAME> return
+nft add set inet filter <vpn_user_set> '{ type ipv4_addr; flags interval; }'  
+nft add set inet filter <allowed_ips_set> '{ type ipv4_addr; flags interval; }'                                                                 
+nft add chain inet filter VPN_<vpn_policy_name>
+nft add element inet filter <vpn_user_set> { <vpn_user_ip> }
+nft add element inet filter <allowed_ips_set> { <destination_ip> }
+nft add rule inet filter VPN_<vpn_policy_name> ip daddr @<allowed_ips_set> accept
+nft add rule inet filter VPN_<vpn_policy_name> ip saddr @<allowed_ips_set> accept
+nft add rule inet filter VPN_<vpn_policy_name> drop
+nft insert rule inet filter forward ip saddr @<vpn_user_set> jump VPN_<vpn_policy_name>
+nft insert rule inet filter forward ip daddr @<vpn_user_set> jump VPN_<vpn_policy_name>
 ```
-
 * * *
 
-### Enforcement + Portal
+Case 4 — Split Tunnel, No Restrictions, With Portal
+---------------------------------------------------
 
-```nft
-nft add rule    inet filter forward ip saddr @vpn_<subnet_set> drop
-nft insert rule inet filter forward ip saddr @vpn_<user_set> jump VPN_<POLICY_NAME>
+**Intent:**  
+VPN subnet blocked until user authenticates.
 
-nft insert rule inet nat prerouting \
-    ip saddr @vpn_<subnet_set> ip saddr != @vpn_<user_set> \
-    tcp dport 80 redirect to :80
+**Mechanism**
+
+*   Drop entire VPN subnet in `filter`
+*   Portal redirect in `nat prerouting`
+*   User IP exemption post-login
 ```
+nft add set inet filter <vpn_subnet> '{ type ipv4_addr; flags interval; }'
+nft add element inet filter <vpn_subnet> { <<vpn_subnet>> }
+nft add set inet filter <vpn_user_set> '{ type ipv4_addr; flags interval; }'
+nft insert rule inet filter forward ip saddr @<vpn_subnet> drop
+nft insert rule inet filter forward ip saddr @<vpn_user_set> accept
+
+nft add set inet nat <vpn_subnet> '{ type ipv4_addr; flags interval; }'
+nft add element inet nat <vpn_subnet> { <<vpn_subnet>> }
+nft add set inet nat <vpn_user_set> '{ type ipv4_addr; flags interval; }'
+nft insert rule inet nat prerouting ip saddr @<vpn_subnet> ip saddr != @<vpn_user_set> tcp dport 80 redirect to :80
+
+nft add element inet filter <vpn_user_set> { <vpn_user_ip> }
+nft add element inet nat <vpn_user_set> { <vpn_user_ip> }
+```
+* * *
+
+Case 5 — Split Tunnel, IP+Port Restricted, With Portal
+------------------------------------------------------
+
+**Intent:**  
+Unauthenticated VPN users see portal, authenticated users get **service-limited access**.
+
+**Mechanism**
+
+*   Portal redirection for subnet
+*   Service policy chain for authenticated users
+```
+nft add set inet filter <vpn_subnet> '{ type ipv4_addr; flags interval; }'
+nft add element inet filter <vpn_subnet> { <<vpn_subnet>> }
+nft add set inet filter vpn_<vpn_policy_user_map_name> '{ type ipv4_addr . inet_service; flags interval; }'
+nft insert rule inet filter forward ip saddr @<vpn_subnet> drop
+nft add set inet filter vpn_<allowed_ip_port_map> '{ type ipv4_addr . inet_service; flags interval; }'
+nft add chain inet filter VPN_<vpn_policy_name>
+nft add element inet filter vpn_<allowed_ip_port_map> { <destination_ip> . <destination_port> }
+nft add rule inet filter VPN_<vpn_policy_name> ip daddr . tcp dport @vpn_<allowed_ip_port_map> accept
+nft add rule inet filter VPN_<vpn_policy_name> ip saddr . tcp sport @vpn_<allowed_ip_port_map> accept
+nft add rule inet filter VPN_<vpn_policy_name> drop
+nft insert rule inet filter forward  ip saddr . tcp sport @vpn_<vpn_policy_user_map_name>  oifname @lan_ifaces jump VPN_<vpn_policy_name>
+nft insert rule inet filter forward  ip daddr . tcp dport @vpn_<vpn_policy_user_map_name> iifname @lan_ifaces jump VPN_<vpn_policy_name>
+
+nft add set inet nat <vpn_subnet> '{ type ipv4_addr; flags interval; }'
+nft add element inet nat <vpn_subnet> { <<vpn_subnet>> }
+nft add set inet nat <vpn_user_set> '{ type ipv4_addr; flags interval; }'
+nft insert rule inet nat prerouting ip saddr @<vpn_subnet> ip saddr != @<vpn_user_set> tcp dport 80 redirect to :80
+
+nft add element inet filter vpn_<vpn_policy_user_map_name> { <vpn_user_ip> . <vpn_user_port> }
+nft add element inet nat <vpn_user_set> { <vpn_user_ip> }
+```
+* * *
+
+Case 6 — Split Tunnel, IP-Only Restricted, With Portal
+------------------------------------------------------
+
+**Intent:**  
+Authenticated VPN users can reach **only selected IPs**; others redirected.
+
+**Mechanism**
+
+*   Portal for subnet
+*   IP-only policy chain
+```
+nft add set inet filter <vpn_subnet> '{ type ipv4_addr; flags interval; }'
+nft add element inet filter <vpn_subnet> { <<vpn_subnet>> }
+nft add set inet filter <vpn_user_set> '{ type ipv4_addr; flags interval; }' 
+nft add rule inet filter forward ip saddr @<vpn_subnet> drop 
+nft add set inet filter <allowed_ips_set> '{ type ipv4_addr; flags interval; }'                                                                 
+nft add chain inet filter VPN_<vpn_policy_name>
+nft add element inet filter <allowed_ips_set> { <destination_ip> }
+nft add rule inet filter VPN_<vpn_policy_name> ip daddr @<allowed_ips_set> accept
+nft add rule inet filter VPN_<vpn_policy_name> ip saddr @<allowed_ips_set> accept
+nft add rule inet filter VPN_<vpn_policy_name> drop
+nft insert rule inet filter forward  ip saddr @<vpn_user_set>  oifname @lan_ifaces jump VPN_<vpn_policy_name>
+nft insert rule inet filter forward  ip daddr @<vpn_user_set> iifname @lan_ifaces jump VPN_<vpn_policy_name>
+
+nft add set inet nat <vpn_subnet> '{ type ipv4_addr; flags interval; }'
+nft add element inet nat <vpn_subnet> { <<vpn_subnet>> }
+nft add set inet nat <vpn_user_set> '{ type ipv4_addr; flags interval; }'
+nft insert rule inet nat prerouting ip saddr @<vpn_subnet> ip saddr != @<vpn_user_set> tcp dport 80 redirect to :80
+
+nft add element inet filter <vpn_user_set> { <vpn_user_ip> }
+nft add element inet nat <vpn_user_set> { <vpn_user_ip> }
+```
+* * *
+
+FULL TUNNEL CASES (7–12)
+========================
 
 * * *
 
-3.2 Runtime
+Case 7 — Full Tunnel, No Restrictions, No Portal
+------------------------------------------------
+
+**Intent:**  
+VPN user behaves like a **LAN user**.
+
+**Mechanism**
+
+*   VPN interface added to `lan_ifaces`
+*   `allowed_ip4` bypass
+*   Full QoS + routing marks
+
+**Used when:**  
+Corporate VPN, full trust.
+```
+nft add element inet filter lan_ifaces {"<lan_iface>", "<vpn_iface>" }
+nft add element inet nat lan_ifaces { "<lan_iface>", "<vpn_iface>" }
+
+
+nft add set inet filter <vpn_user_set> '{ type ipv4_addr; flags interval; }'
+nft add element inet filter <vpn_user_set> { <vpn_user_ip> }
+nft add chain inet filter VPN_FULL_ACCESS
+nft insert rule inet filter forward ip saddr @<vpn_user_set> accept
+nft add element inet filter allowed_ip4 { <vpn_user_ip> }
+nft add element inet nat allowed_ip4 { <vpn_user_ip> }
+nft add element inet mangle user4_marks { <vpn_user_ip> : 0x00<isp_id><tc_class_id> }
+```
+* * *
+
+Case 8 — Full Tunnel, IP+Port Restricted, No Portal
+---------------------------------------------------
+
+**Intent:**  
+All traffic goes through VPN, but **only specific services allowed**.
+
+**Mechanism**
+
+*   Service-based policy chain
+*   Drop everything else
+```
+nft add element inet filter lan_ifaces {"<lan_iface>", "<vpn_iface>" }
+nft add element inet nat lan_ifaces { "<lan_iface>", "<vpn_iface>" }
+
+nft add set inet filter vpn_<vpn_policy_user_map_name> '{ type ipv4_addr . inet_service; flags interval; }'
+nft add set inet filter vpn_<allowed_ip_port_map> '{ type ipv4_addr . inet_service; flags interval; }'
+nft add chain inet filter VPN_<vpn_policy_name>
+nft add element inet filter vpn_<vpn_policy_user_map_name> { <vpn_user_ip> . <vpn_user_port> }
+nft add element inet filter vpn_<allowed_ip_port_map> { <destination_ip> . <destination_port> }
+nft add rule inet filter VPN_<vpn_policy_name> ip daddr . tcp dport @vpn_<allowed_ip_port_map> accept
+nft add rule inet filter VPN_<vpn_policy_name> ip saddr . tcp sport @vpn_<allowed_ip_port_map> accept
+nft add rule inet filter VPN_<vpn_policy_name> drop
+nft insert rule inet filter forward  ip saddr . tcp sport @vpn_<vpn_policy_user_map_name>  oifname @lan_ifaces jump VPN_<vpn_policy_name>
+nft insert rule inet filter forward  ip daddr . tcp dport @vpn_<vpn_policy_user_map_name> iifname @lan_ifaces jump VPN_<vpn_policy_name>
+nft add element inet filter allowed_ip4 { <vpn_user_ip> }
+nft add element inet nat allowed_ip4 { <vpn_user_ip> }
+nft add element inet mangle user4_marks { <vpn_user_ip> : 0x00<isp_id><tc_class_id> }
+```
+* * *
+
+Case 9 — Full Tunnel, IP-Only Restricted, No Portal
+---------------------------------------------------
+
+**Intent:**  
+Full tunnel, but user can talk **only to specific IPs**.
+
+**Mechanism**
+
+*   IP-only allow list
+*   Explicit WAN/LAN enforcement
+```
+nft add element inet filter lan_ifaces {"<lan_iface>", "<vpn_iface>" }
+nft add element inet nat lan_ifaces { "<lan_iface>", "<vpn_iface>" }
+
+nft add element inet filter allowed_ip4 { <vpn_user_ip> }
+nft add set inet filter <vpn_user_set> '{ type ipv4_addr; flags interval; }'  
+nft add set inet filter <allowed_ips_set> '{ type ipv4_addr; flags interval; }'                                                                 
+nft add chain inet filter VPN_<vpn_policy_name>
+nft add element inet filter <vpn_user_set> { <vpn_user_ip> }
+nft add element inet filter <allowed_ips_set> { <destination_ip> }
+nft add rule inet filter VPN_<vpn_policy_name> ip daddr @<allowed_ips_set> accept
+nft add rule inet filter VPN_<vpn_policy_name> ip saddr @<allowed_ips_set> accept
+nft add rule inet filter VPN_<vpn_policy_name> oifname @lan_ifaces drop
+nft add rule inet filter VPN_<vpn_policy_name> oifname @wan_ifaces accept
+nft add rule inet filter VPN_<vpn_policy_name> drop
+nft insert rule inet filter forward  ip saddr @<vpn_user_set>  oifname @lan_ifaces jump VPN_<vpn_policy_name>
+nft insert rule inet filter forward  ip daddr @<vpn_user_set> iifname @lan_ifaces jump VPN_<vpn_policy_name>
+nft add element inet nat allowed_ip4 { <vpn_user_ip> }
+nft add element inet mangle user4_marks { <vpn_user_ip> : 0x00<isp_id><tc_class_id> }
+```
+* * *
+
+Case 10 — Full Tunnel, No Restrictions, With Portal
+---------------------------------------------------
+
+**Intent:**  
+VPN users must authenticate before gaining **full internet access**.
+
+**Mechanism**
+
+*   VPN subnet forced to portal
+*   User IP exemption post-login
+*   Full NAT + QoS applied
+```
+nft add element inet filter lan_ifaces {"<lan_iface>", "<vpn_iface>" }
+nft add element inet nat lan_ifaces { "<lan_iface>", "<vpn_iface>" }
+
+nft add set inet filter <vpn_subnet> '{ type ipv4_addr; flags interval; }'
+nft add element inet filter <vpn_subnet> { <<vpn_subnet>> }
+nft add set inet filter <vpn_user_set> '{ type ipv4_addr; flags interval; }'
+nft add rule inet filter forward ip saddr @<vpn_subnet> drop
+nft insert rule inet filter forward ip saddr @<vpn_user_set> accept
+nft add set inet nat <vpn_subnet> '{ type ipv4_addr; flags interval; }'
+nft add element inet nat <vpn_subnet> { <<vpn_subnet>> }
+nft add set inet nat <vpn_user_set> '{ type ipv4_addr; flags interval; }'
+nft insert rule inet nat prerouting ip saddr @<vpn_subnet> ip saddr != @<vpn_user_set> tcp dport 80 redirect to :80
+
+nft add element inet filter <vpn_user_set> { <vpn_user_ip> }
+nft add element inet nat <vpn_user_set> { <vpn_user_ip> }
+nft add element inet filter allowed_ip4 { <vpn_user_ip> }
+nft add element inet nat allowed_ip4 { <vpn_user_ip> }
+nft add element inet mangle user4_marks { <vpn_user_ip> : 0x00<isp_id><tc_class_id> }
+```
+* * *
+
+Case 11 — Full Tunnel, IP+Port Restricted, With Portal
+------------------------------------------------------
+
+**Intent:**  
+Authenticated VPN users get **service-level access only**, others redirected.
+
+**Mechanism**
+
+*   Portal for subnet
+*   Service-based policy chain after login
+```
+nft add element inet filter lan_ifaces {"<lan_iface>", "<vpn_iface>" }
+nft add element inet nat lan_ifaces { "<lan_iface>", "<vpn_iface>" }
+
+nft add set inet filter <vpn_subnet> '{ type ipv4_addr; flags interval; }'
+nft add element inet filter <vpn_subnet> { <<vpn_subnet>> }
+nft add set inet filter vpn_<vpn_policy_user_map_name> '{ type ipv4_addr . inet_service; flags interval; }'
+nft add rule inet filter forward ip saddr @<vpn_subnet> drop
+nft add set inet filter vpn_<allowed_ip_port_map> '{ type ipv4_addr . inet_service; flags interval; }'
+nft add chain inet filter VPN_<vpn_policy_name>
+nft add element inet filter vpn_<allowed_ip_port_map> { <destination_ip> . <destination_port> }
+nft add rule inet filter VPN_<vpn_policy_name> ip daddr . tcp dport @vpn_<allowed_ip_port_map> accept
+nft add rule inet filter VPN_<vpn_policy_name> ip saddr . tcp sport @vpn_<allowed_ip_port_map> accept
+nft add rule inet filter VPN_<vpn_policy_name> drop
+nft insert rule inet filter forward  ip saddr . tcp sport @vpn_<vpn_policy_user_map_name>  oifname @lan_ifaces jump VPN_<vpn_policy_name>
+nft insert rule inet filter forward  ip daddr . tcp dport @vpn_<vpn_policy_user_map_name> iifname @lan_ifaces jump VPN_<vpn_policy_name>
+
+nft add set inet nat <vpn_subnet> '{ type ipv4_addr; flags interval; }'
+nft add element inet nat <vpn_subnet> { <<vpn_subnet>> }
+nft add set inet nat <vpn_user_set> '{ type ipv4_addr; flags interval; }'
+nft insert rule inet nat prerouting ip saddr @<vpn_subnet> ip saddr != @<vpn_user_set> tcp dport 80 redirect to :80
+
+nft add element inet nat <vpn_user_set> { <vpn_user_ip> }
+nft add element inet filter vpn_<vpn_policy_user_map_name> { <vpn_user_ip> . <vpn_user_port> }
+nft add element inet filter allowed_ip4 { <vpn_user_ip> }
+nft add element inet nat allowed_ip4 { <vpn_user_ip> }
+nft add element inet mangle user4_marks { <vpn_user_ip> : 0x00<isp_id><tc_class_id> }
+```
+* * *
+
+Case 12 — Full Tunnel, IP-Only Restricted, With Portal
+------------------------------------------------------
+
+**Intent:**  
+Authenticated VPN users can reach **specific IPs only**, all others blocked.
+
+**Mechanism**
+
+*   Portal redirect until login
+*   IP-only policy after login
+```
+nft add element inet filter lan_ifaces {"<lan_iface>", "<vpn_iface>" }
+nft add element inet nat lan_ifaces { "<lan_iface>", "<vpn_iface>" }
+
+nft add set inet filter <vpn_subnet> '{ type ipv4_addr; flags interval; }'
+nft add element inet filter <vpn_subnet> { <<vpn_subnet>> }
+nft add set inet filter <vpn_user_set> '{ type ipv4_addr; flags interval; }' 
+nft add rule inet filter forward ip saddr @<vpn_subnet> drop 
+nft add set inet filter <allowed_ips_set> '{ type ipv4_addr; flags interval; }'                                                                 
+nft add chain inet filter VPN_<vpn_policy_name>
+nft add element inet filter <allowed_ips_set> { <destination_ip> }
+nft add rule inet filter VPN_<vpn_policy_name> ip daddr @<allowed_ips_set> accept
+nft add rule inet filter VPN_<vpn_policy_name> ip saddr @<allowed_ips_set> accept
+nft add rule inet filter VPN_<vpn_policy_name> drop
+nft insert rule inet filter forward  ip saddr @<vpn_user_set>  oifname @lan_ifaces jump VPN_<vpn_policy_name>
+nft insert rule inet filter forward  ip daddr @<vpn_user_set> iifname @lan_ifaces jump VPN_<vpn_policy_name>
+
+nft add set inet nat <vpn_subnet> '{ type ipv4_addr; flags interval; }'
+nft add element inet nat <vpn_subnet> { <<vpn_subnet>> }
+nft add set inet nat <vpn_user_set> '{ type ipv4_addr; flags interval; }'
+nft insert rule inet nat prerouting ip saddr @<vpn_subnet> ip saddr != @<vpn_user_set> tcp dport 80 redirect to :80
+
+nft add element inet filter <vpn_user_set> { <vpn_user_ip> }
+nft add element inet nat <vpn_user_set> { <vpn_user_ip> }
+nft add element inet filter allowed_ip4 { <vpn_user_ip> }
+nft add element inet nat allowed_ip4 { <vpn_user_ip> }
+nft add element inet mangle user4_marks { <vpn_user_ip> : 0x00<isp_id><tc_class_id> }
+```
+* * *
+
+COMMON BUILDING BLOCKS (Used Across All 12)
+===========================================
+
+Identity
+--------
+
+*   `<vpn_user_set>` → authenticated VPN users
+*   `<vpn_subnet>` → all VPN clients (pre-auth)
+
+Control
+-------
+
+*   Filter `forward` → access enforcement
+*   NAT `prerouting` → portal redirection
+*   NAT `postrouting` → masquerade
+
+Enforcement
 -----------
 
-```nft
-nft add element inet filter vpn_<subnet_set>     { <vpn_subnet> }
-nft add element inet nat    vpn_<subnet_set>     { <vpn_subnet> }
+*   Policy chains (`VPN_<policy_name>`)
+*   Default `drop` inside chains
+*   Mandatory `return`
 
-nft add element inet filter vpn_<allowed_ip_set> { <destination_ip> }
+Traffic Shaping
+---------------
 
-nft add element inet filter vpn_<user_set> { <vpn_user_ip> }
-nft add element inet nat    vpn_<user_set> { <vpn_user_ip> }
+```
+nft add element inet mangle user4_marks {
+  <vpn_user_ip> : 0x00<isp_id><tc_class_id>
+}
 ```
 
 * * *
 
-CASE 4 — Full Access (Captive Portal: NO)
-=========================================
+OPERATOR RULES (NON-NEGOTIABLE)
+===============================
 
-**Meaning:**  
-VPN users are **trusted immediately**.
+1.  **Never forget `return` in policy chains**
+2.  **Always mirror forward rules both directions**
+3.  **Portal logic always lives in NAT prerouting**
+4.  **VPN interface must be in `lan_ifaces` for full tunnel**
+5.  **QoS marks are mandatory in all cases**
+6.  **Split tunnel ≠ NAT exemption**
 
-* * *
-
-4.1 Infrastructure
-------------------
-
-```nft
-nft add set inet filter vpn_<user_set> '{ type ipv4_addr; flags interval; }'
-
-nft add chain inet filter VPN_<POLICY_NAME>
-nft add rule inet filter VPN_<POLICY_NAME> accept
-nft add rule inet filter VPN_<POLICY_NAME> return
-
-nft insert rule inet filter forward ip saddr @vpn_<user_set> jump VPN_<POLICY_NAME>
-```
-
-✔ Correct  
-✔ No NAT interaction needed
+Break any of these and the behavior becomes undefined.
 
 * * *
 
-4.2 Runtime
------------
+Quick Selection Table
+---------------------
 
-```nft
-nft add element inet filter vpn_<user_set> { <vpn_user_ip> }
-```
-
-* * *
-
-CASE 5 — Restricted IP + Port (Captive Portal: NO)
-==================================================
-
-**Meaning:**  
-VPN user bypasses portal but is **service-restricted**.
-
-* * *
-
-5.1 Infrastructure
-------------------
-
-```nft
-nft add set inet filter vpn_<user_set> '{ type ipv4_addr; flags interval; }'
-nft add set inet filter vpn_<service_map> '{ type ipv4_addr . inet_service; }'
-
-nft add chain inet filter VPN_<POLICY_NAME>
-
-nft add rule inet filter VPN_<POLICY_NAME> \
-    ip saddr @vpn_<user_set> ip daddr . tcp dport @vpn_<service_map> accept
-
-nft add rule inet filter VPN_<POLICY_NAME> \
-    ip daddr @vpn_<user_set> ip saddr . tcp sport @vpn_<service_map> accept
-
-nft add rule inet filter VPN_<POLICY_NAME> return
-
-nft insert rule inet filter forward ip saddr @vpn_<user_set> jump VPN_<POLICY_NAME>
-```
+| Case | Tunnel | Portal | Restriction |
+| --- | --- | --- | --- |
+| 1 | Split | No | None |
+| 2 | Split | No | IP+Port |
+| 3 | Split | No | IP |
+| 4 | Split | Yes | None |
+| 5 | Split | Yes | IP+Port |
+| 6 | Split | Yes | IP |
+| 7 | Full | No | None |
+| 8 | Full | No | IP+Port |
+| 9 | Full | No | IP |
+| 10 | Full | Yes | None |
+| 11 | Full | Yes | IP+Port |
+| 12 | Full | Yes | IP |
 
 * * *
-
-5.2 Runtime
------------
-
-```nft
-nft add element inet filter vpn_<user_set>     { <vpn_user_ip> }
-nft add element inet filter vpn_<service_map> { <dest_ip> . <port> }
-```
-
-* * *
-
-CASE 6 — Semi-Restricted IP Only (Captive Portal: YES)
-======================================================
-
-⚠️ **Validation Note:**  
-Your original Case 6 duplicated Case 3 logically.  
-This version keeps it consistent and correct.
-
-* * *
-
-6.1 Infrastructure
-------------------
-
-```nft
-nft add set inet filter vpn_<user_set>       '{ type ipv4_addr; flags interval; }'
-nft add set inet filter vpn_<allowed_ip_set> '{ type ipv4_addr; flags interval; }'
-nft add set inet nat    vpn_<user_set>       '{ type ipv4_addr; flags interval; }'
-```
-
-```nft
-nft add chain inet filter VPN_<POLICY_NAME>
-
-nft add rule inet filter VPN_<POLICY_NAME> \
-    ip saddr @vpn_<user_set> ip daddr @vpn_<allowed_ip_set> accept
-
-nft add rule inet filter VPN_<POLICY_NAME> \
-    ip daddr @vpn_<user_set> ip saddr @vpn_<allowed_ip_set> accept
-
-nft add rule inet filter VPN_<POLICY_NAME> return
-
-nft insert rule inet filter forward ip saddr @vpn_<user_set> jump VPN_<POLICY_NAME>
-```
-
-* * *
-
-### Captive Portal
-
-```nft
-nft insert rule inet nat prerouting \
-    ip saddr @vpn_<user_set> tcp dport 80 redirect to :80
-```
-
-* * *
-
-6.2 Runtime
------------
-
-```nft
-nft add element inet filter vpn_<user_set>       { <vpn_user_ip> }
-nft add element inet filter vpn_<allowed_ip_set> { <destination_ip> }
-nft add element inet nat    vpn_<user_set>       { <vpn_user_ip> }
-```
