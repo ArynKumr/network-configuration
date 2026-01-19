@@ -328,7 +328,7 @@ nft list ruleset
 
 ### Routing & policy routing
 
-* [How to configure ip route and ip rules](route_rule_setup.md)
+* [How to configure ip route and ip rules](./Customizations/route_rule_setup.md)
 
 ```
 ip rule show
@@ -347,7 +347,7 @@ ip route show table <isp_table>
 
 ### Setting up ifaces
 
-* [How to configure interfaces](iface_setup.md)
+* [How to configure interfaces](./Customizations/iface_setup.md)
 ```
 nft add element inet filter wan_ifaces { "<wan_iface1>", "<wan_iface2>" }
 nft add element inet nat wan_ifaces { "<wan_iface1>", "<wan_iface2>" }
@@ -645,7 +645,7 @@ nft delete element inet webfilter ALLOW_ACCESS { <client_ip> }
 
 9\. DMZ
 -----------------------------------
-Refer [dmz.md](Customizations/DMZ_rules.md) for more details
+Refer [dmz.md](Customizations/DMZ_Rules.md) for more details
 **Purpose:**  
 Provide runnable nftables templates for:
 
@@ -674,7 +674,7 @@ Removing logging **must not change traffic behavior**.
 
 10\. NGFW_rules
 -----------------------------------
-Refer [ngfw_rules.md](Customization/ngfw_rules.md) for more details
+Refer [ngfw_rules.md](Customizations/ngfw_rules.md) for more details
 
 **Purpose:**  
 Apply **explicit firewall overrides** for selected users **after identity is known**.  
@@ -690,7 +690,7 @@ This layer is used for:
 
 11\. VPN Policy
 -----------------------------------
-Refer [vpn_policy.md](Customization/vpn_policy.md) for more details
+Refer [vpn_policy.md](Customizations/vpn_policy.md) for more details
 
 ## Overview
 This document outlines the NFTables boilerplate configuration for all  VPN access scenarios. All scenarios assume the existence of inet filter and `inet nat` tables and include Captive Portal redirection for unauthenticated users.
