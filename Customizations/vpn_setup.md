@@ -17,29 +17,6 @@ These rules are intended to be applied:
 
 * * *
 
-VPN Tunnel Establishment (Inbound)
-----------------------------------
-
-**Purpose:**  
-Permit incoming VPN handshake traffic from the internet to the Firewall.
-
-```
-nft add rule inet filter input \
-    iifname @wan_ifaces \
-    udp dport <vpn_server_port> \
-    <action>
-```
-
-**Logic:**
-
-*   `iifname @wan_ifaces` → packet arrived from the internet
-*   `udp dport <vpn_server_port>` → VPN listening port
-    *   WireGuard: `51820/udp`
-    *   OpenVPN: `1194/udp` (default)
-*   `<action>` → typically `accept`
-
-* * *
-
 VPN Client Traffic (Inbound → Forward)
 --------------------------------------
 

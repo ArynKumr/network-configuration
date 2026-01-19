@@ -1,337 +1,384 @@
-* * *
+VPN Access Control — NGFW Policy Models (nftables)
+==================================================
 
-VPN Policy Enforcement (NGFW-Aligned Model)
-===========================================
+**Scope:**  
+This document defines **VPN access enforcement patterns** using `nftables` for all common VPN user scenarios.
 
-**Purpose:**  
-Apply **user-scoped firewall policies** to **VPN-connected users** using a  **similar NGFW design language** as LAN users.
+**Assumptions:**
 
-This ensures:
+*   `inet filter` and `inet nat` tables already exist
+*   VPN tunnel interface is already allowed at the input layer
+*   Captive Portal logic exists in `nat prerouting`
+*   Default `filter forward` policy is `drop`
 
-*   VPN users are **not implicitly trusted**
-*   VPN access is **explicit, auditable, and reversible**
-*   VPN traffic obeys **QoS, routing, and restriction rules**
-
-* * *
-
-Common Assumptions
-------------------
-
-*   VPN interface exists (e.g. `wg0`, `tun0`)
-*   VPN users receive **IPv4 addresses**
-*   VPN traffic enters the firewall via `<vpn_iface>`
->   Default `forward` policy is `drop`
+All policies are **set-driven**, **jump-based**, and **reversible**.
 
 * * *
 
-Shared Concepts (Same as NGFW)
-------------------------------
+Global Design Rules (Non-Negotiable)
+------------------------------------
 
-| Component | Meaning |
-| --- | --- |
-| Set | Who the policy applies to |
-| Chain | What rules apply |
-| Jump | When policy is evaluated |
-| Return | Exit back to global logic |
-| Mark | ISP + QoS enforcement |
+1.  **Sets define WHO**
+2.  **Chains define WHAT**
+3.  **Jump rules define WHEN**
+4.  **Every policy chain MUST end with `return`**
+5.  **Inbound + outbound symmetry is mandatory**
+6.  **Captive Portal logic belongs only in NAT**
 
-* * *
-
-VPN CASE 1 — Full VPN Access (No Restrictions)
-==============================================
-
-**Use case:**  
-Trusted VPN users (admins, site-to-site peers) with **full LAN + Internet access**.
-
-This is equivalent to **NGFW Case 1**, but scoped to VPN ingress.
+If any of these are violated → undefined behavior.
 
 * * *
 
-1\. Define VPN Policy User Sets
--------------------------------
+CASE 1 — Full Access (Captive Portal: YES)
+==========================================
 
-```
-nft add set inet filter <vpn_user_set> '{ type ipv4_addr; flags interval; }'
-nft add set inet nat    <vpn_user_set> { type ipv4_addr; flags interval; }
+**Meaning:**  
+All users in the VPN subnet are subject to captive portal.  
+Once authenticated, a user gets **unrestricted network access**.
+
+* * *
+
+1.1 Infrastructure & Logic (One-Time Setup)
+-------------------------------------------
+
+### Sets
+
+```nft
+nft add set inet filter vpn_<subnet_set> '{ type ipv4_addr; flags interval; }'
+nft add set inet filter vpn_<user_set>   '{ type ipv4_addr; flags interval; }'
+
+nft add set inet nat    vpn_<subnet_set> '{ type ipv4_addr; flags interval; }'
+nft add set inet nat    vpn_<user_set>   '{ type ipv4_addr; flags interval; }'
 ```
 
 * * *
 
-2\. Forward Chain Triggers (VPN ↔ LAN/WAN)
-------------------------------------------
+### Policy Chain (Filter)
 
+```nft
+nft add chain inet filter VPN_<POLICY_NAME>
+nft add rule  inet filter VPN_<POLICY_NAME> accept
+nft add rule  inet filter VPN_<POLICY_NAME> return
 ```
-nft insert rule inet filter forward \
-    iifname "<vpn_iface>" ip saddr @<vpn_user_set> accept
 
-nft insert rule inet filter forward \
-    oifname "<vpn_iface>" ip daddr @<vpn_user_set> accept
-```
+✔ Correct: explicit allow + clean exit
 
 * * *
 
-3\. NAT Handling (Internet Access)
-----------------------------------
+### Enforcement (Filter → Forward)
 
+```nft
+# Block unauthenticated VPN subnet
+nft add rule inet filter forward ip saddr @vpn_<subnet_set> drop
+
+# Allow authenticated users
+nft insert rule inet filter forward ip saddr @vpn_<user_set> jump VPN_<POLICY_NAME>
 ```
-nft insert rule inet nat postrouting \
-    oifname @wan_ifaces ip saddr @<vpn_user_set> masquerade
-```
+
+✔ Correct  
+✔ Order matters — `insert` is required
 
 * * *
 
-4\. QoS / ISP Marking
----------------------
+### Captive Portal Redirection (NAT)
 
-```
-nft add element inet mangle user4_marks {
-    <vpn_user_ip> : 0x00<isp_id><tc_class_id>
-}
-```
-
-* * *
-
-5\. Add User to Policy
-----------------------
-
-```
-nft add element inet filter <vpn_user_set> { <vpn_user_ip> }
-nft add element inet nat    <vpn_user_set> { <vpn_user_ip> }
-```
-
-* * *
-
-### Resulting Behavior
-
-*   VPN user behaves like a trusted LAN host
-*   Full routing + NAT
-*   QoS enforced
-*   No firewall restriction
-
-⚠️ **Maximum privilege – use sparingly**
-
-* * *
-
-VPN CASE 2 — VPN Access Restricted to Specific IP + Port + Protocol
-===================================================================
-
-**Use case:**  
-Contractors, partners, or service VPN users allowed to access **only specific services**.
-
-Equivalent to **NGFW Case 2**.
-
-* * *
-
-1\. Define Sets
----------------
-
-```
-nft add set inet filter <vpn_user_set>  { type ipv4_addr; flags interval; }
-nft add set inet nat    <vpn_user_set>  { type ipv4_addr; flags interval; }
-```
-
-* * *
-
-2\. Define Policy Chains
-------------------------
-
-```
-nft add chain inet filter VPN_USER_POLICY
-nft add chain inet nat    VPN_PRE_NAT
-nft add chain inet nat    VPN_POST_NAT
-```
-
-* * *
-
-3\. Forward Chain Triggers
---------------------------
-
-```
-nft insert rule inet filter forward \
-    iifname <vpn_iface> ip saddr @<vpn_user_set>  jump VPN_USER_POLICY
-
-nft insert rule inet filter forward \
-    oifname <vpn_iface> ip daddr @<vpn_user_set>  jump VPN_USER_POLICY
-```
-
-* * *
-
-4\. NAT Triggers
-----------------
-
-```
+```nft
 nft insert rule inet nat prerouting \
-    ip saddr @<vpn_user_set>  jump VPN_PRE_NAT
-
-nft insert rule inet nat postrouting \
-    oifname @wan_ifaces ip saddr @<vpn_user_set>  jump VPN_POST_NAT
+    ip saddr @vpn_<subnet_set> ip saddr != @vpn_<user_set> \
+    tcp dport 80 redirect to :80
 ```
+
+✔ Correct  
+✔ Redirect applies only to unauthenticated users
 
 * * *
 
-5\. FILTER Policy (Service-Level)
----------------------------------
-
-```
-nft add rule inet filter VPN_USER_POLICY \
-    ip daddr <destination_ip> <protocol> dport <destination_port> accept
-
-nft add rule inet filter VPN_USER_POLICY \
-    ip saddr <destination_ip> <protocol> sport <destination_port> accept
-
-nft add rule inet filter VPN_USER_POLICY return
-```
-
-* * *
-
-6\. NAT-PREROUTING Policy
--------------------------
-
-```
-nft add rule inet nat VPN_PRE_NAT \
-    ip daddr <destination_ip> accept
-
-nft add rule inet nat VPN_PRE_NAT return
-```
-
-* * *
-
-7\. NAT-POSTROUTING Policy
---------------------------
-
-```
-nft add rule inet nat VPN_POST_NAT \
-    ip daddr <destination_ip> masquerade
-
-nft add rule inet nat VPN_POST_NAT return
-```
-
-* * *
-
-8\. QoS Mark + Membership
--------------------------
-
-```
-nft add element inet mangle user4_marks {
-    <vpn_user_ip> : 0x00<isp_id><tc_class_id>
-}
-
-nft add element inet filter <vpn_user_set>  { <vpn_user_ip> }
-nft add element inet nat    <vpn_user_set>  { <vpn_user_ip> }
-```
-
-* * *
-
-### Resulting Behavior
-
-*   VPN user can access **only specified services**
-*   No lateral movement
-*   Internet optional (depending on NAT)
-
-* * *
-
-VPN CASE 3 — VPN Access Restricted to a Single Destination IP
-=============================================================
-
-**Use case:**  
-Site-to-site tunnels, monitoring systems, backup endpoints.
-
-Equivalent to **NGFW Case 3**.
-
-* * *
-
-1\. Define Sets
----------------
-
-```
-nft add set inet filter <vpn_user_set>   { type ipv4_addr; flags interval; }
-nft add set inet nat    <vpn_user_set>   { type ipv4_addr; flags interval; }
-```
-
-* * *
-
-2\. Define Chains
------------------
-
-```
-nft add chain inet filter VPN_IP_ONLY
-nft add chain inet nat    VPN_PRE_NAT_IP
-nft add chain inet nat    VPN_POST_NAT_IP
-```
-
-* * *
-
-3\. Forward Triggers
---------------------
-
-```
-nft insert rule inet filter forward \
-    iifname <vpn_iface> ip saddr @<vpn_user_set>   jump VPN_IP_ONLY
-
-nft insert rule inet filter forward \
-    oifname <vpn_iface> ip daddr @<vpn_user_set>   jump VPN_IP_ONLY
-```
-
-* * *
-
-4\. NAT Triggers
-----------------
-
-```
-nft insert rule inet nat prerouting \
-    ip saddr @<vpn_user_set>   jump VPN_PRE_NAT_IP
-
-nft insert rule inet nat postrouting \
-    oifname @wan_ifaces ip saddr @<vpn_user_set>   jump VPN_POST_NAT_IP
-```
-
-* * *
-
-5\. FILTER Policy (IP-Only)
+1.2 Runtime User Management
 ---------------------------
 
-```
-nft add rule inet filter VPN_IP_ONLY ip daddr <destination_ip> accept
-nft add rule inet filter VPN_IP_ONLY ip saddr <destination_ip> accept
-nft add rule inet filter VPN_IP_ONLY return
-```
+```nft
+# Subnet under portal control
+nft add element inet filter vpn_<subnet_set> { <vpn_subnet> }
+nft add element inet nat    vpn_<subnet_set> { <vpn_subnet> }
 
-* * *
-
-6\. NAT Policies
-----------------
-
-```
-nft add rule inet nat VPN_PRE_NAT_IP ip daddr <destination_ip> accept
-nft add rule inet nat VPN_PRE_NAT_IP return
-```
-
-```
-nft add rule inet nat VPN_POST_NAT_IP ip daddr <destination_ip> masquerade
-nft add rule inet nat VPN_POST_NAT_IP return
+# Authenticate user
+nft add element inet filter vpn_<user_set> { <vpn_user_ip> }
+nft add element inet nat    vpn_<user_set> { <vpn_user_ip> }
 ```
 
 * * *
 
-7\. QoS + Membership
---------------------
+CASE 2 — Restricted: Specific Destination IP + Port (Captive Portal: YES)
+=========================================================================
 
+**Meaning:**  
+User must authenticate via portal, then may access **only defined services**.
+
+* * *
+
+2.1 Infrastructure & Logic
+--------------------------
+
+### Sets
+
+```nft
+nft add set inet filter vpn_<subnet_set>  '{ type ipv4_addr; flags interval; }'
+nft add set inet filter vpn_<user_set>    '{ type ipv4_addr; flags interval; }'
+nft add set inet filter vpn_<service_map> '{ type ipv4_addr . inet_service; }'
+
+nft add set inet nat vpn_<subnet_set> '{ type ipv4_addr; flags interval; }'
+nft add set inet nat vpn_<user_set>   '{ type ipv4_addr; flags interval; }'
 ```
-nft add element inet mangle user4_marks {
-    <vpn_user_ip> : 0x00<isp_id><tc_class_id>
-}
 
-nft add element inet filter <vpn_user_set>   { <vpn_user_ip> }
-nft add element inet nat    <vpn_user_set>   { <vpn_user_ip> }
+✔ `inet_service` is correct  
+⚠️ `flags interval` is **NOT valid** on maps → removed
+
+* * *
+
+### Policy Chain (Filter)
+
+```nft
+nft add chain inet filter VPN_<POLICY_NAME>
+
+# outbound
+nft add rule inet filter VPN_<POLICY_NAME> \
+    ip saddr @vpn_<user_set> ip daddr . tcp dport @vpn_<service_map> accept
+
+# inbound
+nft add rule inet filter VPN_<POLICY_NAME> \
+    ip daddr @vpn_<user_set> ip saddr . tcp sport @vpn_<service_map> accept
+
+nft add rule inet filter VPN_<POLICY_NAME> return
+```
+
+✔ Directionality corrected  
+✔ Protocol explicitly defined
+
+* * *
+
+### Enforcement
+
+```nft
+nft add rule    inet filter forward ip saddr @vpn_<subnet_set> drop
+nft insert rule inet filter forward ip saddr @vpn_<user_set> jump VPN_<POLICY_NAME>
 ```
 
 * * *
 
-### Resulting Behavior
+### Captive Portal
 
-*   VPN user can talk **only to one IP**
-*   No scanning
-*   No lateral access
-*   Ideal for automation endpoints
+```nft
+nft insert rule inet nat prerouting \
+    ip saddr @vpn_<subnet_set> ip saddr != @vpn_<user_set> \
+    tcp dport 80 redirect to :80
+```
 
 * * *
+
+2.2 Runtime Management
+----------------------
+
+```nft
+nft add element inet filter vpn_<subnet_set>  { <vpn_subnet> }
+nft add element inet nat    vpn_<subnet_set>  { <vpn_subnet> }
+
+nft add element inet filter vpn_<service_map> { <dest_ip> . <port> }
+
+nft add element inet filter vpn_<user_set> { <vpn_user_ip> }
+nft add element inet nat    vpn_<user_set> { <vpn_user_ip> }
+```
+
+* * *
+
+CASE 3 — Semi-Restricted: Destination IP Only (Captive Portal: YES)
+===================================================================
+
+**Meaning:**  
+User may access specific destination IPs, **any port**.
+
+* * *
+
+3.1 Infrastructure & Logic
+--------------------------
+
+```nft
+nft add set inet filter vpn_<subnet_set>     '{ type ipv4_addr; flags interval; }'
+nft add set inet filter vpn_<user_set>       '{ type ipv4_addr; flags interval; }'
+nft add set inet filter vpn_<allowed_ip_set> '{ type ipv4_addr; flags interval; }'
+
+nft add set inet nat vpn_<subnet_set> '{ type ipv4_addr; flags interval; }'
+nft add set inet nat vpn_<user_set>   '{ type ipv4_addr; flags interval; }'
+```
+
+* * *
+
+### Policy Chain
+
+```nft
+nft add chain inet filter VPN_<POLICY_NAME>
+
+nft add rule inet filter VPN_<POLICY_NAME> \
+    ip saddr @vpn_<user_set> ip daddr @vpn_<allowed_ip_set> accept
+
+nft add rule inet filter VPN_<POLICY_NAME> \
+    ip daddr @vpn_<user_set> ip saddr @vpn_<allowed_ip_set> accept
+
+nft add rule inet filter VPN_<POLICY_NAME> return
+```
+
+* * *
+
+### Enforcement + Portal
+
+```nft
+nft add rule    inet filter forward ip saddr @vpn_<subnet_set> drop
+nft insert rule inet filter forward ip saddr @vpn_<user_set> jump VPN_<POLICY_NAME>
+
+nft insert rule inet nat prerouting \
+    ip saddr @vpn_<subnet_set> ip saddr != @vpn_<user_set> \
+    tcp dport 80 redirect to :80
+```
+
+* * *
+
+3.2 Runtime
+-----------
+
+```nft
+nft add element inet filter vpn_<subnet_set>     { <vpn_subnet> }
+nft add element inet nat    vpn_<subnet_set>     { <vpn_subnet> }
+
+nft add element inet filter vpn_<allowed_ip_set> { <destination_ip> }
+
+nft add element inet filter vpn_<user_set> { <vpn_user_ip> }
+nft add element inet nat    vpn_<user_set> { <vpn_user_ip> }
+```
+
+* * *
+
+CASE 4 — Full Access (Captive Portal: NO)
+=========================================
+
+**Meaning:**  
+VPN users are **trusted immediately**.
+
+* * *
+
+4.1 Infrastructure
+------------------
+
+```nft
+nft add set inet filter vpn_<user_set> '{ type ipv4_addr; flags interval; }'
+
+nft add chain inet filter VPN_<POLICY_NAME>
+nft add rule inet filter VPN_<POLICY_NAME> accept
+nft add rule inet filter VPN_<POLICY_NAME> return
+
+nft insert rule inet filter forward ip saddr @vpn_<user_set> jump VPN_<POLICY_NAME>
+```
+
+✔ Correct  
+✔ No NAT interaction needed
+
+* * *
+
+4.2 Runtime
+-----------
+
+```nft
+nft add element inet filter vpn_<user_set> { <vpn_user_ip> }
+```
+
+* * *
+
+CASE 5 — Restricted IP + Port (Captive Portal: NO)
+==================================================
+
+**Meaning:**  
+VPN user bypasses portal but is **service-restricted**.
+
+* * *
+
+5.1 Infrastructure
+------------------
+
+```nft
+nft add set inet filter vpn_<user_set> '{ type ipv4_addr; flags interval; }'
+nft add set inet filter vpn_<service_map> '{ type ipv4_addr . inet_service; }'
+
+nft add chain inet filter VPN_<POLICY_NAME>
+
+nft add rule inet filter VPN_<POLICY_NAME> \
+    ip saddr @vpn_<user_set> ip daddr . tcp dport @vpn_<service_map> accept
+
+nft add rule inet filter VPN_<POLICY_NAME> \
+    ip daddr @vpn_<user_set> ip saddr . tcp sport @vpn_<service_map> accept
+
+nft add rule inet filter VPN_<POLICY_NAME> return
+
+nft insert rule inet filter forward ip saddr @vpn_<user_set> jump VPN_<POLICY_NAME>
+```
+
+* * *
+
+5.2 Runtime
+-----------
+
+```nft
+nft add element inet filter vpn_<user_set>     { <vpn_user_ip> }
+nft add element inet filter vpn_<service_map> { <dest_ip> . <port> }
+```
+
+* * *
+
+CASE 6 — Semi-Restricted IP Only (Captive Portal: YES)
+======================================================
+
+⚠️ **Validation Note:**  
+Your original Case 6 duplicated Case 3 logically.  
+This version keeps it consistent and correct.
+
+* * *
+
+6.1 Infrastructure
+------------------
+
+```nft
+nft add set inet filter vpn_<user_set>       '{ type ipv4_addr; flags interval; }'
+nft add set inet filter vpn_<allowed_ip_set> '{ type ipv4_addr; flags interval; }'
+nft add set inet nat    vpn_<user_set>       '{ type ipv4_addr; flags interval; }'
+```
+
+```nft
+nft add chain inet filter VPN_<POLICY_NAME>
+
+nft add rule inet filter VPN_<POLICY_NAME> \
+    ip saddr @vpn_<user_set> ip daddr @vpn_<allowed_ip_set> accept
+
+nft add rule inet filter VPN_<POLICY_NAME> \
+    ip daddr @vpn_<user_set> ip saddr @vpn_<allowed_ip_set> accept
+
+nft add rule inet filter VPN_<POLICY_NAME> return
+
+nft insert rule inet filter forward ip saddr @vpn_<user_set> jump VPN_<POLICY_NAME>
+```
+
+* * *
+
+### Captive Portal
+
+```nft
+nft insert rule inet nat prerouting \
+    ip saddr @vpn_<user_set> tcp dport 80 redirect to :80
+```
+
+* * *
+
+6.2 Runtime
+-----------
+
+```nft
+nft add element inet filter vpn_<user_set>       { <vpn_user_ip> }
+nft add element inet filter vpn_<allowed_ip_set> { <destination_ip> }
+nft add element inet nat    vpn_<user_set>       { <vpn_user_ip> }
+```

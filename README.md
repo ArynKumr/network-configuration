@@ -459,6 +459,7 @@ systemctl stop <webfilter_service>
 
 4\. QoS / Speed Limit Testing
 -----------------------------
+Refer [tc_setup.md](Customizations/tc_setup.md)
 
 ### Check packet marking
 
@@ -502,7 +503,7 @@ iperf3 -c <server>
 
 5\. Multi-ISP / Policy Routing Test
 -----------------------------------
-
+Refer [route_rule_setup.md](Customizations/route_rule_setup.md)
 ### Force ISP selection (via mark)
 
 Ensure user has ISP mark applied.
@@ -529,7 +530,7 @@ tcpdump -i <isp_iface>
 
 6\. Geo-Blocking Test
 ---------------------
-
+Refer [geo_setup.md](Customizations/geo_setup.md)
 ### Inbound test (from blocked region)
 
 From a blocked country IP:
@@ -640,3 +641,56 @@ nft delete element inet webfilter ALLOW_ACCESS { <client_ip> }
 ✘ Still online → teardown incomplete
 
 * * *
+
+
+9\. DMZ
+-----------------------------------
+Refer [dmz.md](Customizations/DMZ_rules.md) for more details
+**Purpose:**  
+Provide runnable nftables templates for:
+
+*   selective port forwarding (TCP, UDP, or both), and
+*   full DMZ (all incoming traffic redirected to a single internal host),  
+    with optional QoS marking.
+
+* * *
+
+10\. logging
+-----------------------------------
+Refer [logging_setup.md](Customizations/logging_setup.md) for more details
+**Purpose:**  
+Provide **controlled, opt-in visibility** into:
+
+*   user traffic behavior
+*   firewall decisions (accept / drop / redirect)
+*   NAT activity
+*   geofencing enforcement
+*   packet marking (QoS / ISP routing)
+
+Logging is **diagnostic**, not enforcement.  
+Removing logging **must not change traffic behavior**.
+
+* * *
+
+10\. NGFW_rules
+-----------------------------------
+Refer [ngfw_rules.md](Customization/ngfw_rules.md) for more details
+
+**Purpose:**  
+Apply **explicit firewall overrides** for selected users **after identity is known**.  
+These rules intentionally bypass or partially bypass the default NGFW pipeline.
+
+This layer is used for:
+
+*   trusted devices,
+*   administrators,
+*   exceptions,
+*   controlled partner access.
+* * *
+
+11\. VPN Policy
+-----------------------------------
+Refer [vpn_policy.md](Customization/vpn_policy.md) for more details
+
+## Overview
+This document outlines the NFTables boilerplate configuration for all  VPN access scenarios. All scenarios assume the existence of inet filter and `inet nat` tables and include Captive Portal redirection for unauthenticated users.
