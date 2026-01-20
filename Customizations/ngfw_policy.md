@@ -318,7 +318,7 @@ nft add rule inet filter <user_policy> return
 -------------------------
 
 ```
-nft add rule inet nat PRE_NAT_<POLICY_NAME> ip saddr <destination_ip> accept
+nft add rule inet nat PRE_NAT_<POLICY_NAME> ip saddr <destination_ip> <action>
 nft add rule inet nat PRE_NAT_<POLICY_NAME> ip daddr <destination_ip> <action>
 nft add rule inet nat PRE_NAT_<POLICY_NAME> return
 ```

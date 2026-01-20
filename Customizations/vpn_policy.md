@@ -254,7 +254,6 @@ nft add element inet nat lan_ifaces { "<lan_iface>", "<vpn_iface>" }
 
 nft add set inet filter <vpn_user_set> '{ type ipv4_addr; flags interval; }'
 nft add element inet filter <vpn_user_set> { <vpn_user_ip> }
-nft add chain inet filter VPN_FULL_ACCESS
 nft insert rule inet filter forward ip saddr @<vpn_user_set> accept
 nft add element inet filter allowed_ip4 { <vpn_user_ip> }
 nft add element inet nat allowed_ip4 { <vpn_user_ip> }

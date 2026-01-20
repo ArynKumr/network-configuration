@@ -40,8 +40,8 @@ This user is effectively **trusted root on the network**.
 Allow the user to forward traffic through the firewall.
 
 ```
-nft insert rule inet filter forward ip daddr <local_ip> accept
-nft insert rule inet filter forward ip saddr <local_ip> accept
+nft insert rule inet filter forward ip daddr <local_ip> <action>
+nft insert rule inet filter forward ip saddr <local_ip> <action>
 ```
 
 * * *
@@ -51,8 +51,8 @@ nft insert rule inet filter forward ip saddr <local_ip> accept
 Prevent any NAT-based redirection (portal, DNS hijack, etc.).
 
 ```
-nft insert rule inet nat prerouting ip daddr <local_ip> accept
-nft insert rule inet nat prerouting ip saddr <local_ip> accept
+nft insert rule inet nat prerouting ip daddr <local_ip> <action>
+nft insert rule inet nat prerouting ip saddr <local_ip> <action>
 ```
 
 * * *
@@ -77,7 +77,7 @@ nft insert rule inet nat postrouting oifname @wan_ifaces ip saddr <local_ip> mas
 
 **Typical `<action>`:**
 
-*   `accept`
+*   `<action>`
 *   `return`
 *   `dnat to …`
 
@@ -116,8 +116,8 @@ This is **surgical trust**, not blanket trust.
 Allow traffic **from user → destination** only on specified ports.
 Allow return traffic **from destination → user**.
 ```
-nft insert rule inet filter forward ip daddr <local_ip> ip saddr <destination_ip> tcp dport <destination_port> accept
-nft insert rule inet filter forward ip saddr <local_ip> ip daddr <destination_ip> tcp sport <local_port> accept
+nft insert rule inet filter forward ip daddr <local_ip> ip saddr <destination_ip> <protocol> dport <destination_port> <action>
+nft insert rule inet filter forward ip saddr <local_ip> ip daddr <destination_ip> <protocol> sport <local_port> <action>
 ```
 
 * * *
@@ -133,8 +133,8 @@ nft add element inet mangle user4_marks { <local_ip> : 0x00<isp_mark><tc_class_m
 #### 3\. NAT Handling
 
 ```
-nft insert rule inet nat prerouting ip daddr <local_ip> ip saddr <destination_ip> tcp dport <destination_port> accept
-nft insert rule inet nat prerouting ip saddr <local_ip> ip daddr <destination_ip> tcp sport <local_port> accept
+nft insert rule inet nat prerouting ip daddr <local_ip> ip saddr <destination_ip> <protocol> dport <destination_port> <action>
+nft insert rule inet nat prerouting ip saddr <local_ip> ip daddr <destination_ip> <protocol> sport <local_port> <action>
 ```
 
 * * *
@@ -142,7 +142,7 @@ nft insert rule inet nat prerouting ip saddr <local_ip> ip daddr <destination_ip
 #### 4\. NAT Masquerading
 
 ```
-nft insert rule inet nat postrouting oifname @wan_ifaces ip saddr <local_ip> ip daddr <destination_ip> tcp sport <local_port> masquerade
+nft insert rule inet nat postrouting oifname @wan_ifaces ip saddr <local_ip> ip daddr <destination_ip> <protocol> sport <local_port> masquerade
 ```
 
 * * *
