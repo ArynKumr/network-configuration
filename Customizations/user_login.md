@@ -145,7 +145,7 @@ the IP and MAC pair match.
 Allow traffic only when `<client_ip>` is seen coming from `<client_mac>`.
 
 ```
-nft add element inet filter allowed_ip4_mac { <client_ip> . <mac_address> : accept }
+nft add element inet filter allowed_ip4_mac { <client_ip> . <mac_address> }
 ```
 
 * * *
@@ -156,7 +156,7 @@ nft add element inet filter allowed_ip4_mac { <client_ip> . <mac_address> : acce
 Authorize this exact IP–MAC pair to bypass redirection.
 
 ```
-nft add element inet nat allowed_ip4_mac { <client_ip> . <mac_address> : accept }
+nft add element inet nat allowed_ip4_mac { <client_ip> . <mac_address> }
 ```
 
 * * *
