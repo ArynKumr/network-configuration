@@ -66,7 +66,7 @@ Ensures traffic hitting the public WAN IP on a specific port is redirected to th
 
 ```
 nft insert rule inet nat prerouting \
-    ip daddr <public_facing_isp_ip> <protocol> dport <client_port> \
+    ip daddr <public_facing_isp_ip> <protocol> dport <public_facing_isp_port> \
     dnat to <client_ip>:<client_port>
 ```
 
