@@ -183,6 +183,9 @@ nft add chain inet nat POST_NAT_<POLICY_NAME>
 nft insert rule inet filter forward ip saddr @<policy_users_set> jump <POLICY_NAME>
 nft insert rule inet filter forward ip daddr @<policy_users_set> jump <POLICY_NAME>
 
+nft insert rule inet nat prerouting ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
+nft insert rule inet nat prerouting ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
+
 nft insert rule inet nat postrouting oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
 
 nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> <action>
