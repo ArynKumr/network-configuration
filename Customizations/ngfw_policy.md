@@ -32,7 +32,6 @@ How to Read This Table (Non-Negotiable)
 *   **Action** is the **verdict** applied _after_ matching
 *   All cases assume **default drop outside the match**
 
-This is **not documentation fluff** — this table defines reality.
 
 * * *
 
