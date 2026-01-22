@@ -204,7 +204,7 @@ nft add element inet nat <policy_users_set> { <policy_users_ip> }
 
 ### Case 5 — Port-Constrained Egress
 
-**(Source IP + Source Port → Any Destination:Port)**
+**(Source IP + Source Port → Any Destination: Specific Port)**
 
 *   Rare, but valid
 *   Used when **client-side port identity matters**
@@ -229,13 +229,13 @@ nft insert rule inet nat prerouting ip daddr @<policy_users_set> jump PRE_NAT_<P
 
 nft insert rule inet nat postrouting oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
 
-nft add rule inet filter <POLICY_NAME> <protocol> dport <source_port> <action>
+nft add rule inet filter <POLICY_NAME> <protocol> dport <destination_port> <protocol> sport <source_port> <action>
 nft add rule inet filter <POLICY_NAME> return
 
-nft add rule inet nat PRE_NAT_<POLICY_NAME> <protocol> dport <source_port> <action>
+nft add rule inet nat PRE_NAT_<POLICY_NAME> <protocol> dport <destination_port> <protocol> sport <source_port> <action>
 nft add rule inet nat PRE_NAT_<POLICY_NAME> return
 
-nft add rule inet nat POST_NAT_<POLICY_NAME> <protocol> dport <source_port> masquerade
+nft add rule inet nat POST_NAT_<POLICY_NAME> <protocol> dport <destination_port> <protocol> sport <source_port> masquerade
 nft add rule inet nat POST_NAT_<POLICY_NAME> return
 
 nft add element inet mangle user4_marks { <policy_users_ip> : 0x00<isp_id><tc_class_id> }
@@ -283,7 +283,7 @@ nft add element inet nat <policy_users_set> { <policy_users_ip> }
 
 ### Case 7 — Destination Port Policy
 
-**(Source IP → Any Destination:Port)**
+**(Source IP → Any Destination: Specific Port)**
 
 * * *
 ```
@@ -302,13 +302,13 @@ nft insert rule inet nat prerouting ip saddr @<policy_users_set> <action>
 
 nft insert rule inet nat postrouting oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
 
-nft add rule inet filter <POLICY_NAME> <protocol> dport <source_port> <action>
+nft add rule inet filter <POLICY_NAME> <protocol> dport <destination_port> <action>
 nft add rule inet filter <POLICY_NAME> return
 
-nft add rule inet nat PRE_NAT_<POLICY_NAME> <protocol> dport <source_port> <action>
+nft add rule inet nat PRE_NAT_<POLICY_NAME> <protocol> dport <destination_port> <action>
 nft add rule inet nat PRE_NAT_<POLICY_NAME> return
 
-nft add rule inet nat POST_NAT_<POLICY_NAME> <protocol> dport <source_port> masquerade
+nft add rule inet nat POST_NAT_<POLICY_NAME> <protocol> dport <destination_port> masquerade
 nft add rule inet nat POST_NAT_<POLICY_NAME> return
 
 nft add element inet mangle user4_marks { <policy_users_ip> : 0x00<isp_id><tc_class_id> }
