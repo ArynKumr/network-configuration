@@ -233,9 +233,11 @@ nft insert rule inet nat prerouting ip daddr @<policy_users_set> jump PRE_NAT_<P
 nft insert rule inet nat postrouting oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
 
 nft add rule inet filter <POLICY_NAME> <protocol> dport <destination_port> <protocol> sport <source_port> <action>
+nft add rule inet filter <POLICY_NAME> <protocol> sport <destination_port> <protocol> dport <source_port> <action>
 nft add rule inet filter <POLICY_NAME> return
 
 nft add rule inet nat PRE_NAT_<POLICY_NAME> <protocol> dport <destination_port> <protocol> sport <source_port> <action>
+nft add rule inet nat PRE_NAT_<POLICY_NAME> <protocol> sport <destination_port> <protocol> dport <source_port> <action>
 nft add rule inet nat PRE_NAT_<POLICY_NAME> return
 
 nft add rule inet nat POST_NAT_<POLICY_NAME> <protocol> dport <destination_port> <protocol> sport <source_port> masquerade
