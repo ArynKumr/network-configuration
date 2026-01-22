@@ -32,7 +32,6 @@ How to Read This Table (Non-Negotiable)
 *   **Action** is the **verdict** applied _after_ matching
 *   All cases assume **default drop outside the match**
 
-
 * * *
 
 Case Semantics (Authoritative Definitions)
@@ -110,7 +109,9 @@ nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> <protocol> spor
 nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> <protocol> dport <destination_port> <action>
 nft add rule inet filter <POLICY_NAME> return
 
+nft add rule inet nat PRE_NAT_<POLICY_NAME> ip saddr <destination_ip> <protocol> dport <destination_port> <action>
 nft add rule inet nat PRE_NAT_<POLICY_NAME> ip daddr <destination_ip> <protocol> sport <source_port> <action>
+nft add rule inet nat PRE_NAT_<POLICY_NAME> return
 
 nft add rule inet nat POST_NAT_<POLICY_NAME> ip daddr <destination_ip> <protocol> dport <destination_port> masquerade
 nft add rule inet nat POST_NAT_<POLICY_NAME> return
