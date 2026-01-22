@@ -67,6 +67,8 @@ nft insert rule inet nat postrouting oifname @wan_ifaces ip saddr @<policy_users
 
 nft add rule inet filter <POLICY_NAME> <action>
 
+nft add rule inet nat PRE_NAT_<POLICY_NAME> <action>
+
 nft add rule inet nat POST_NAT_<POLICY_NAME> masquerade
 
 nft add element inet mangle user4_marks { <policy_users_ip> : 0x00<isp_id><tc_class_id>}
@@ -107,6 +109,8 @@ nft insert rule inet nat postrouting oifname @wan_ifaces ip saddr @<policy_users
 nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> <protocol> sport <source_port> <action>
 nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> <protocol> dport <destination_port> <action>
 nft add rule inet filter <POLICY_NAME> return
+
+nft add rule inet nat PRE_NAT_<POLICY_NAME> ip daddr <destination_ip> <protocol> sport <source_port> <action>
 
 nft add rule inet nat POST_NAT_<POLICY_NAME> ip daddr <destination_ip> <protocol> dport <destination_port> masquerade
 nft add rule inet nat POST_NAT_<POLICY_NAME> return
