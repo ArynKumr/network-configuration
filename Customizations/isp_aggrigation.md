@@ -1,8 +1,3 @@
-ip route add default table <aggregated_table_id> \
-    nexthop via <isp1_gateway_ip> dev <isp1_iface> weight <w1> \
-    nexthop via <isp2_gateway_ip> dev <isp2_iface> weight <w2> \
-    .......... nexthop via <isp(n)_gateway_ip> dev <isp(n)_iface> weight <w(n)>
-
 * * *
 
 Linux Multipath Default Route (ECMP / Weighted Load Sharing)
