@@ -64,8 +64,8 @@ Each `nexthop` defines **one ISP path**:
 Example:
 
 ```bash
-nexthop via 1.1.1.1 dev wan1 weight 3
-nexthop via 2.2.2.2 dev wan2 weight 1
+nexthop via 192.168.1.1 dev wan1 weight 3
+nexthop via 192.168.193.1 dev wan2 weight 1
 ```
 
 **Result:**  
