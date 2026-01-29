@@ -166,3 +166,74 @@ Example:
 nft add element inet mangle user4_marks { <client_ip> : 0x00<isp_mark><tc_class_marks> }
 ```
 * * *
+
+Bandwidth-Pool-Level QoS Setup
+--------------------
+
+_(Run when a set of user comes online and is assigned the same class)_
+
+> **Directionality matters:**
+> 
+> *   **WAN interface** → controls **upload speed**
+> *   **LAN interface** → controls **download speed**
+>     
+
+Apply these steps on **both** sides as required.
+
+* * *
+
+### 1\. Create the Bandwidth-Pool Lane
+
+**Purpose:**  
+Assign a dedicated speed limit to the Bandwidth-Pool.
+
+```
+tc class add dev <iface_name> parent 1:1 classid 1:<Bandwidth-Pool_class_id> \
+    htb rate <Bandwidth-Pool_plan_speed>Gbit/Mbit/Kbit \
+    ceil <Bandwidth-Pool_plan_speed>Gbit/Mbit/Kbit
+```
+
+**Definitions:**
+
+*   `rate` → guaranteed bandwidth
+*   `ceil` → absolute maximum allowed
+
+* * *
+
+### 2\. Fairness Within the Bandwidth-Pool Lane
+
+**Purpose:**  
+Ensure multiple connections from the same Bandwidth-Pool share bandwidth fairly.
+
+```
+tc qdisc add dev <iface_name> parent 1:<Bandwidth-Pool_class_id> \
+    handle <Bandwidth-Pool_class_id>: sfq perturb 10
+```
+
+* * *
+
+### 3\. Bind nftables Marks to the Bandwidth-Pool Lane
+
+**Purpose:**  
+This is the **bridge** between nftables and traffic control.
+
+```
+tc filter add dev <iface_name> protocol ip parent 1:0 prio 1 \
+    handle 0x0000<tc_class_marks>/0x0000FFFF fw \
+    flowid 1:<Bandwidth-Pool_class_id>
+```
+
+**Logic:**
+
+*   `fw` → match firewall mark
+*   `0x0000<tc_class_marks>` → class identifier portion of the mark
+*   `/0x0000FFFF` → mask isolates TC bits
+*   `flowid 1:<Bandwidth-Pool_class_id>` → push packet into the Bandwidth-Pool’s lane
+
+> Note: Set the marks on the Bandwidth-Pool during Bandwidth-Pool creation, such that the tc mark is like: 0x0000\<mark here\>. Only then will the tc rules be applied. Refer [this](user_login.md)
+
+Example:
+```
+nft add element inet mangle Bandwidth-Pool4_marks { <client_ip> : 0x00<isp_mark><tc_class_marks> }
+```
+* * *

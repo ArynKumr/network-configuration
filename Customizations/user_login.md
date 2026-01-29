@@ -20,6 +20,8 @@ They **modify live sets/maps** — nothing here is persistent unless saved.
 * [Interfaces are to configured for nftables](iface_setup.md)
 * [TC classes qdiscs and filters are to configured for user setup](tc_setup.md)
 * * *
+>In the case of bandwidth pool the users under that pool are to to be assigned same class id.
+* * *
 
 IPv4-Based Users
 ----------------
