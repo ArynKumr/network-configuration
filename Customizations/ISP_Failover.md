@@ -19,7 +19,7 @@ Each ISP has its own routing table.
 
 ```
 ip rule add fwmark 0x00<isp1_mark>0000 lookup <isp1_table_id>
-ip rule add fwmark 0x2 lookup <isp2_table_id>
+ip rule add fwmark 0x00<isp2_mark>0000 lookup <isp2_table_id>
 ```
 
 ### Meaning
@@ -77,7 +77,7 @@ Now:
 | Mark | Routing Table |
 | --- | --- |
 | `0x00<isp1_mark>0000` | `<isp2_table_id>` |
-| `0x2` | `<isp2_table_id>` |
+| `0x00<isp2_mark>0000` | `<isp2_table_id>` |
 
 All traffic — including users originally assigned to ISP-1 — exits via ISP-2.
 
@@ -110,7 +110,7 @@ REQUIRED Supporting Pieces (Non-Optional)
 
 To make this reliable, you must also have:
 
-* [How to configure routing tables](./Customizations/route_rule_setup.md)
+> [How to configure routing tables](route_rule_setup.md)
 
 ### 1\. Per-ISP Routing Tables
 
@@ -120,9 +120,11 @@ ip route add default via <isp2_gateway> dev <isp_iface> table <isp2_table_id>
 ```
 
 * * *
-### 3\. SNAT Alignment (Critical)
+### 2\. SNAT Alignment (Critical)
 
 If users marked `0x00<isp1_mark>0000` are SNATed to **ISP-1 public IPs**:
+
+> [How to configure SNAT ](SNAT_setup.md) (although it is expected that if an ISP goes down the SNAT will fail to work) 
 
 *   you MUST also switch SNAT rules
 *   or temporarily SNAT them to ISP-2 IPs
