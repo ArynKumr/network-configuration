@@ -198,6 +198,16 @@ set log_users_mac {
 
 * * *
 
+### Block User Set
+**Purpose:**
+Upon user logout the ip is put into this set to mitigate conntrack percistance
+
+```set blocked_users_v4 {
+  type ipv4_addr
+  flags interval
+} 
+```
+
 Section 4: Chains (Packet Processing Logic)
 -------------------------------------------
 
@@ -236,7 +246,15 @@ Intercept packets **before routing decisions** are made.
 chain prerouting {
     type filter hook prerouting priority -100; policy accept;
 ```
+### Block User Set
+**Purpose:**
 
+Upon user logout the ip is put in blocked_user_v4 set and dropped here
+
+```
+ip saddr @blocked_users_v4 drop
+ip daddr @blocked_users_v4 drop
+```
 ### DNS Interception (NFQUEUE)
 
 **Purpose:**  
