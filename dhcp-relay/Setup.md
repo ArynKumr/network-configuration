@@ -11,15 +11,40 @@ This guide provides an implementation of a DHCP relay environment. It is split i
 
 ```bash
 curl -1sLf 'https://dl.cloudsmith.io/public/isc/kea-3-0/setup.deb.sh' | bash
-apt update && apt install -y isc-kea
+apt update && apt install -y isc-kea isc-kea-mysql
+```
+
+## 2. Configure database for kea leases.
+
+```bash
+root@localhost:~# mysql 
+
+MariaDB [(none)]> CREATE USER 'dilraj'@'localhost' IDENTIFIED BY 'dilraj';
+Query OK, 0 rows affected (0.016 sec)
+
+MariaDB [(none)]> CREATE DATABASE kea_dhcp;
+Query OK, 1 row affected (0.001 sec)
+
+MariaDB [(none)]> GRANT ALL PRIVILEGES ON kea_dhcp.* TO 'dilraj'@'localhost';
+Query OK, 0 rows affected (0.012 sec)
+
+MariaDB [(none)]> FLUSH PRIVILEGES;
+Query OK, 0 rows affected (0.001 sec)
+
+root@localhost:~$ kea-admin db-init mysql -u dilraj -p dilraj -n kea_dhcp
+Checking if there is a database initialized already...
+Verifying create permissions for dilraj
+MySQL Version is: 11.8.3-MariaDB-0+deb13u1 from Debian
+Initializing database using script /usr/share/kea/scripts/mysql/dhcpdb_create.mysql
+Schema version reported after initialization: 30.0
 ```
 
 ---
 
 ## 2. Configure Kea (`/etc/kea/kea-dhcp4.conf`)
 
-The `relay` block inside `subnet4` is the **anchor**.
-When Kea sees a packet where `giaddr` matches the relay IP, it assigns an address from the corresponding pool.
+> Note: The `relay` block inside `subnet4` is the **anchor**.
+> When Kea sees a packet where `giaddr` matches the relay IP, it assigns an address from the corresponding pool. (giaddr means the address directly assigned to port which faces clients directly)
 
 > ⚠ **Note**
 >
@@ -31,75 +56,156 @@ When Kea sees a packet where `giaddr` matches the relay IP, it assigns an addres
 
 ```json
 {
-  "Dhcp4": {
-    "interfaces-config": {
-      "interfaces": [
-        "<DIRECT_INTERFACE>",
-        "<VLAN_INTERFACE_IF_USED>",
-        "<BRIDGE_INTERFACE_IF_USED>"
-      ]
-    },
-
-    "lease-database": {
-      "type": "memfile",
-      "persist": true,
-      "name": "/var/lib/kea/kea-leases4.csv"
-    },
-
-    "subnet4": [
-
-      /* Flat DHCP */
-      {
-        "id": <ID_FLAT>,
-        "subnet": "<FLAT_SUBNET_CIDR>",
-        "pools": [
-          { "pool": "<FLAT_POOL_START> - <FLAT_POOL_END>" }
-        ]
-      },
-
-      /* Physical Port Relay */
-      {
-        "id": <ID_PHYSICAL>,
-        "subnet": "<PHYSICAL_SUBNET_CIDR>",
-        "relay": {
-          "ip-addresses": [ "<PHYSICAL_RELAY_IP>" ]
+    "Dhcp4": {
+        "interfaces-config": {
+            "interfaces": ["enp8s0","enp9s0", "enp11s0", "vlan10", "vlan20"] // Only mention interfaces we are listening on. no extras to avoid DHCP leaks to un-desired interfaces
         },
-        "pools": [
-          { "pool": "<PHYSICAL_POOL_START> - <PHYSICAL_POOL_END>" }
-        ]
-      },
-
-      /* VLAN-based Relay */
-      {
-        "id": <ID_VLAN>,
-        "subnet": "<VLAN_SUBNET_CIDR>",
-        "relay": {
-          "ip-addresses": [ "<VLAN_RELAY_IP>" ]
+        "control-socket": {
+            "socket-type": "unix",
+            "socket-name": "/var/run/kea/kea4-ctrl-socket"
         },
-        "pools": [
-          { "pool": "<VLAN_POOL_START> - <VLAN_POOL_END>" }
-        ]
-      },
-
-      /* Bridge-based Relay */
-      {
-        "id": <ID_BRIDGE>,
-        "subnet": "<BRIDGE_SUBNET_CIDR>",
-        "relay": {
-          "ip-addresses": [ "<BRIDGE_RELAY_IP>" ]
+        "lease-database": {
+            "type": "mysql",
+            "name": "kea_dhcp",
+            "user": "dilraj",
+            "password": "dilraj",
+            "host": "localhost",
+            "port": 3306,
+            "connect-timeout": 5,
+            "max-reconnect-tries": 10,
+            "reconnect-wait-time": 2000,
+            "on-fail": "stop-retry-exit"
         },
-        "pools": [
-          { "pool": "<BRIDGE_POOL_START> - <BRIDGE_POOL_END>" }
+        "hosts-database": {
+            "type": "mysql",
+            "name": "kea_dhcp",
+            "user": "dilraj",
+            "password": "dilraj",
+            "host": "127.0.0.1",
+            "port": 3306
+        },
+        "expired-leases-processing": {
+            "reclaim-timer-wait-time": 10,
+            "flush-reclaimed-timer-wait-time": 25,
+            "hold-reclaimed-time": 3600,
+            "max-reclaim-leases": 100,
+            "max-reclaim-time": 250,
+            "unwarned-reclaim-cycles": 5
+        },
+        "calculate-tee-times": true,
+        "valid-lifetime": 86400,
+        "option-data": [
+            {
+                "name": "domain-name-servers",
+                "data": "8.8.8.8"
+            }
+        ],
+
+        "hooks-libraries": [
+            {
+                "library": "/usr/lib/x86_64-linux-gnu/kea/hooks/libdhcp_mysql.so"
+            },
+            {
+                "library": "/usr/lib/x86_64-linux-gnu/kea/hooks/libdhcp_host_cmds.so"
+            }
+        ],
+
+        "subnet4": [
+            {
+                "id": 1,
+                "subnet": "10.9.0.0/24",
+                /* ^ Subnet to be alloted" */
+                "pools": [
+                    { "pool": "10.9.0.2 - 10.9.0.244" } // First and last ip that can be assigned in the subnet to clients
+                ],
+                "option-data": [
+                    { "name":"routers", "data":"10.9.0.1" },
+                    /* ^ This shows us how to push default route */
+                ]
+            },
+            {
+                "id": 2,
+                "subnet": "10.10.10.0/24",
+                "relay": {
+                    "ip-addresses": [ "10.10.10.1" ] // This address indicates where the DHCP assignments will be sent. If this address is not specified, it is assumed that the VLAN or physical interface is directly connected to the firewall. For example, enp13s0 is connected to a switch, which then connects to the client-facing port on the switch. Here the client-facing port's IP is mentioned here.
+                  },
+                "pools": [
+                    { "pool": "10.10.10.100 - 10.10.10.200" }
+                ],
+                "option-data": [
+                    { "name": "routers", "data": "10.10.10.1" }
+                ],
+                "interface" : "enp13s0" // this is the interface it will be bound to. such that only this interface will get the pool. In case of relays, we put the interface where the relay is accessible. In case its directly connected, we mention that. example: enp13s0 ----connected to a switch ----> port on switch
+            },
+            {
+                "id": 3,
+                "subnet": "10.20.20.0/24",
+                "relay": {
+                    "ip-addresses": [ "10.20.20.1" ]
+                },
+                "pools": [
+                    { "pool": "10.20.20.100 - 10.20.20.200" }
+                ],
+                "option-data": [
+                    { "name": "routers", "data": "10.20.20.1" }
+                ]
+            },
+            {
+            	"id": 4,
+            	"subnet": "10.10.0.0/24",
+            	"pools": [
+            	    { "pool": "10.10.0.69 - 10.10.0.200" }
+            	],
+            	"option-data": [
+            	    { "name": "routers", "data": "10.10.0.1" }
+            	],
+            	"interface" : "enp9s0"
+            },
+            {
+               	"id": 5,
+               	"subnet": "10.15.20.0/24",
+               	"relay": {
+               	    "ip-addresses": [ "10.15.20.1" ]
+               	},
+               	"pools": [
+               	    { "pool": "10.15.20.69 - 10.15.20.200" }
+               	],
+               	"option-data": [
+               	    { "name": "routers", "data": "10.15.20.1" }
+               	],
+               	"interface" : "enp9s0"
+           },
+           {
+               	"id": 6,
+               	"subnet": "10.30.30.0/24",
+               	"relay": {
+               	    "ip-addresses": [ "10.30.30.1" ]
+               	},
+               	"pools": [
+               	    { "pool": "10.30.30.69 - 10.30.30.200" }
+               	],
+               	"option-data": [
+               	    { "name": "routers", "data": "10.30.30.1" }
+               	]
+           },
+           {
+               	"id": 7,
+               	"subnet": "10.40.40.0/24",
+               	"relay": {
+               	    "ip-addresses": [ "10.40.40.1" ]
+               	},
+               	"pools": [
+               	    { "pool": "10.40.40.69 - 10.40.40.200" }
+               	],
+               	"option-data": [
+               	    { "name": "routers", "data": "10.40.40.1" }
+               	]
+           }
         ]
-      }
-
-    ],
-
-    "valid-lifetime": 3600,
-    "renew-timer": 900,
-    "rebind-timer": 1800
-  }
+        
+    }
 }
+
 ```
 
 Run:
@@ -152,7 +258,7 @@ The design demonstrates:
 
 ---
 
-## Case 1 – Flat DHCP (`<FLAT_SUBNET>`)
+## Case 1 – Flat DHCP
 
 ### Switch Configuration
 
@@ -189,14 +295,15 @@ flowchart TD
 
 ---
 
-## Case 2 – VLAN-based Relay (`<VLAN_SUBNET>`, VLAN `<VLAN_ID>`)
+## Case 2 – VLAN-based Relay
 
 ### Switch Configuration
 
 ```ini
 # vlan<VLAN_ID>.netdev
 [NetDev]
-Name=vlan<VLAN_ID>
+#Name=vlan<VLAN_ID>
+Name=vlan10 
 Kind=vlan
 
 [VLAN]
