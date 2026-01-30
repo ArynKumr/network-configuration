@@ -1,156 +1,219 @@
-* * *
 
-Per-Client Static SNAT via nftables Maps (ISP-Aware)
-====================================================
+SNAT Policy Documentation (nftables)
+====================================
 
-Purpose
--------
+This document describes **Source NAT (SNAT) using nftables maps**, covering:
 
-Provide **deterministic Source NAT** so that:
+*   **Case 1:** Complete traffic SNAT (user → single ISP IP)
+*   **Case 2:** Destination-specific SNAT (user → ISP IP only for selected destinations)
 
-*   each internal client is translated to a **specific public IP**, and
-*   that public IP **belongs to the same ISP** the client is **_routed_** through.
+It also explains the **routing and ISP-ID constraints** that **must** be respected for correctness.
 
 * * *
 
-Core Configuration
-------------------
+Design Principles (Read First)
+------------------------------
 
-### 1\. Define the SNAT Map
+1.  **SNAT does NOT choose the route**
+    *   Routing is decided **before** postrouting
+    *   SNAT only rewrites the **source IP**
+2.  **SNAT IP must belong to the egress ISP**
+    *   Otherwise return traffic breaks
+    *   Asymmetric routing = dropped replies
+3.  **Maps are used for scale**
+    *   No per-user rules
+    *   O(1) lookup
+    *   Safe for thousands of users
 
-```
-nft add map inet nat client_to_wan { type ipv4_addr : ipv4_addr; }
+* * *
+
+Case 1 — Complete Traffic SNAT (Per-User ISP Lock)
+--------------------------------------------------
+
+### Use Case
+
+*   A user must **always appear from a specific ISP IP**
+*   All destinations
+*   All ports
+*   All protocols
+*   Typical for:
+    *   static IP customers
+    *   compliance routing
+    *   ISP-locked users
+
+* * *
+
+### Configuration
+
+#### 1\. Create the SNAT Map
+
+```bash
+nft add map inet nat client_to_wan {
+    type ipv4_addr : ipv4_addr;
+}
 ```
 
 **Meaning:**
 
 | Key | Value |
 | --- | --- |
-| Client private IP | ISP SNAT IP |
-
-This is a **1 → 1 deterministic mapping**, not masquerade.
+| Client IPv4 | ISP public IPv4 |
 
 * * *
 
-### 2\. Add Client → Public IP Binding
+#### 2\. Add Mapping Entry
 
-```
+```bash
 nft add element inet nat client_to_wan {
-    <client_ip> : <isp_ip_from_isp_pool_map>
+    <client_ip> : <isp_ip_from_isp_pool>
 }
 ```
 
 Example:
 
 ```
-nft add element inet nat client_to_wan {
-    192.168.10.50 : 10.1.1.1
-}
+192.168.1.50 → 203.0.113.10
 ```
-
-That client will **always** exit using `10.1.1.1`.
 
 * * *
 
-### 3\. Apply SNAT Using the Map
+#### 3\. Apply SNAT Rule
 
+```bash
+nft insert rule inet nat postrouting \
+    snat to ip saddr map @client_to_wan
 ```
-nft insert rule inet nat postrouting snat to ip saddr map @client_to_wan
-```
-
-**What this does:**
-
-*   looks up the **source IP** in the map
-*   rewrites it to the mapped **public IP**
-*   only applies when a match exists
-*   unmapped users fall through to other NAT rules (e.g. masquerade)
-
-
-> **A client SNATed to a public IP MUST be MARKED to be routed via the same ISP that owns that IP.**
-
-
-Enforcing ISP Consistency (Design Rule)
----------------------------------------
-
-### Assumption
-
-You already use:
-
-*   **nftables mangle marks**  
-    `0x00<isp_id><tc_class>`
-*   **ip rule** based routing per ISP
 
 * * *
 
-### Required Invariant
+### Mandatory Constraint (CRITICAL)
 
-```
-client ISP_ID == SNAT public IP ISP_ID
-```
+> **The user MUST be routed via the same ISP as the SNAT IP**
 
 That means:
 
-| Component | Must match |
+*   User’s `isp_id` in `mangle` **must match**
+*   User’s routing table **must egress the same WAN**
+
+If this is violated:
+
+*   SYN goes out ISP-A
+*   Reply comes back ISP-B
+*   Connection breaks silently
+
+
+* * *
+
+### Behavior Summary (Case 1)
+
+| Aspect | Result |
 | --- | --- |
-| `user4_marks` ISP bits | ISP that owns SNAT IP |
-| `ip rule fwmark` | Routing table of same ISP |
-| `client_to_wan map value` | IP from same ISP pool |
+| Routing | Fixed to ISP |
+| SNAT | Always applied |
+| Destination awareness | None |
+| ISP-ID dependency | **Required** |
+| Safe for | Static users |
 
 * * *
 
-Practical Enforcement Patterns
-------------------------------
+Case 2 — Destination-Specific SNAT (Selective ISP Identity)
+-----------------------------------------------------------
 
-### Pattern 1: Operational Discipline (Minimum)
+### Use Case
 
-*   Maintain **separate IP pools per ISP**
-*   Only insert SNAT mappings from the correct pool
-*   Ensure provisioning logic checks ISP IDs
-
-* * *
-
-Interaction with Other NAT Rules
---------------------------------
-
-Order matters.
-
-**Correct order in `postrouting`:**
-
-1.  **Client-specific SNAT (this map)**
-2.  **Policy-based SNAT**
-3.  **Masquerade (fallback)**
-
-If masquerade runs first, this setup is useless.
+*   User normally routes via one ISP
+*   **Only specific destinations** can use a different ISP IP
+*   Common for:
+    *   banking sites
+    *   geo-restricted services
+    *   partner networks
+    *   split-egress designs
 
 * * *
 
-When You SHOULD Use This
-------------------------
+### Configuration
 
-Use this design for:
+#### 1\. Create the Destination-Aware Map
 
-*   servers with fixed public identity
-*   port-forwarded services
-*   ISP-mandated static IP bindings
-*   compliance / logging requirements
-*   multi-ISP environments with strict routing
+```bash
+nft add map inet nat destination_to_wan '{
+    type ipv4_addr . ipv4_addr : ipv4_addr;
+}'
+```
 
-* * *
+**Meaning:**
 
-When You SHOULD NOT Use This
-----------------------------
-
-Do **not** use this for:
-
-*   large user pools without automation
-*   dynamic ISP failover (unless remapped)
-*   unknown / transient devices
-
-Masquerade is better there.
+| Key | Value |
+| --- | --- |
+| Client IP + Destination IP | ISP public IP |
 
 * * *
 
-One-Line Summary
+#### 2\. Add Mapping Entry
+
+```bash
+nft add element inet nat destination_to_wan {
+    <client_ip_or_subnet> . <destination_ip_or_subnet> : <isp_ip>
+}
+```
+
+Examples:
+
+```
+192.168.1.50 . 8.8.8.8     → 198.51.100.20
+192.168.1.0/24 . 1.1.1.0/24 → 198.51.100.20
+```
+
+* * *
+
+#### 3\. Apply SNAT Rule
+
+```bash
+nft insert rule inet nat postrouting \
+    snat ip saddr . ip daddr map @destination_to_wan
+```
+
+* * *
+
+### Routing Constraint (Different from Case 1)
+
+> **User routing table does NOT need to match ISP of SNAT IP**
+
+Why this works:
+
+*   SNAT only triggers **when destination matches**
+*   You intentionally override identity **only for that destination**
+*   Other traffic remains untouched
+
+However:
+
+*   The destination **must be reachable via the ISP owning the SNAT IP**
+*   Otherwise return traffic still breaks
+
+* * *
+
+### Behavior Summary (Case 2)
+
+| Aspect | Result |
+| --- | --- |
+| Routing | User default |
+| SNAT | Conditional |
+| Destination awareness | **Yes** |
+| ISP-ID dependency | **Not required** |
+| Safe for | Split routing |
+
+* * *
+
+Comparison Table
 ----------------
 
-> This setup provides **per-client deterministic SNAT**, but it only works correctly if the **client’s routing ISP and SNAT IP belong to the same provider**
+| Feature | Case 1 | Case 2 |
+| --- | --- | --- |
+| Scope | All traffic | Destination-only |
+| Map key | Client IP | Client IP + Destination |
+| ISP-ID match required | **Yes** | No |
+| Routing flexibility | None | High |
+| Risk if misused | High | Medium |
+| Typical use | Static IP | Selective egress |
+
+* * *
