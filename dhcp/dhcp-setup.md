@@ -50,6 +50,7 @@ For Dhcp over IPv4:
         "option-data": [
             { "name": "domain-name-servers", "data": "8.8.8.8" }
         ],
+        //
         "subnet4": [
             {
                 "id": 1,
@@ -127,4 +128,4 @@ Similary for DHCP over IPv6
 
 ```
 Refer: [isc-kea](https://gitlab.isc.org/isc-projects/kea) repo for more info
-
+For More DHCP Option Related configurations (Like PXE,Voip,Classless Stateless Routing, Refer [here](https://gitlab.isc.org/isc-projects/kea)
