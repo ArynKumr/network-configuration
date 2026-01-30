@@ -1,260 +1,355 @@
+# The Setup
+---
+
 This guide provides an implementation of a DHCP relay environment. It is split into two parts: the **Relay Host (The Switch)** and the **DHCP Server (The Kea Instance)**.
 
 ---
 
-# Design Philosophy: Why this Architecture?
-
-Before implementation, it is important to understand the guardrails that make this configuration "production-grade":
-
-1.  **L2 Isolation (The Two-Bridge Rule):** We use two separate Open vSwitch bridges (`br-client` and `br-server`). This ensures the relay host does **not** act as a flat Layer-2 switch. DHCP broadcasts from clients are physically unable to "leak" into the server network. The only path between them is the Layer-3 Relay service.
-2.  **Explicit Routing via `giaddr`:** We use the Gateway IP Address (`giaddr`) for subnet selection rather than DHCP Option 82 (because we are taking the simplest path here). This keeps the configuration stateless, transparent, and avoids the "cargo cult" complexity of relay agent information circuits.
-3.  **Clean Physical Ports:** Physical interfaces (`eth0`, `eth1`) act as pure L2 pipes. They **never** receive IP addresses directly; all Layer-3 logic is bound to internal OVS interfaces.
-
----
-
 # Part 1: The DHCP Server (Kea 3.0)
-This machine acts as the central IP manager. It sits on the `192.168.1.0/24` network.
 
-### 1. Install ISC Kea 3.0
+## 1. Install ISC Kea 3.0
+
 ```bash
-# Add the repository
 curl -1sLf 'https://dl.cloudsmith.io/public/isc/kea-3-0/setup.deb.sh' | bash
-
-# Install Kea
 apt update && apt install -y isc-kea
 ```
 
-### 2. Configure Kea (`/etc/kea/kea-dhcp4.conf`)
-The `relay` block inside `subnet4` is the "anchor." When Kea sees a packet where `giaddr` is `192.168.10.1`, it knows to assign an address from this specific pool.
-> **Note:** `libdhcp_legal_log.so` enables forensic logging for DHCP lease activity.
+---
+
+## 2. Configure Kea (`/etc/kea/kea-dhcp4.conf`)
+
+The `relay` block inside `subnet4` is the **anchor**.
+When Kea sees a packet where `giaddr` matches the relay IP, it assigns an address from the corresponding pool.
+
+> ⚠ **Note**
+>
+> * Configuration below is **annotated**
+> * Remove comments and trailing commas before production
+> * Kea requires **strict JSON**
+
+### `/etc/kea/kea-dhcp4.conf` (Boilerplate)
 
 ```json
 {
   "Dhcp4": {
-    "interfaces-config": { "interfaces": ["enp7s0"] },
+    "interfaces-config": {
+      "interfaces": [
+        "<DIRECT_INTERFACE>",
+        "<VLAN_INTERFACE_IF_USED>",
+        "<BRIDGE_INTERFACE_IF_USED>"
+      ]
+    },
+
     "lease-database": {
       "type": "memfile",
       "persist": true,
       "name": "/var/lib/kea/kea-leases4.csv"
     },
-    "hooks-libraries": [
-      {
-        "library": "/usr/lib/x86_64-linux-gnu/kea/hooks/libdhcp_legal_log.so",
-        "parameters": {
-          "path": "/var/log/kea",
-          "base-name": "kea-forensic4"
-        }
-      }
-    ],
+
     "subnet4": [
+
+      /* Flat DHCP */
       {
-        "id": 1,
-        "subnet": "192.168.1.0/24",
-        "pools": [{ "pool": "192.168.1.10 - 192.168.1.240" }]
+        "id": <ID_FLAT>,
+        "subnet": "<FLAT_SUBNET_CIDR>",
+        "pools": [
+          { "pool": "<FLAT_POOL_START> - <FLAT_POOL_END>" }
+        ]
       },
 
+      /* Physical Port Relay */
       {
-        "id": 10,
-        "subnet": "192.168.10.0/24",
-        "relay": { "ip-addresses": ["192.168.10.1"] },
-        "pools": [{ "pool": "192.168.10.10 - 192.168.10.200" }],
-        "option-data": [{ "name": "routers", "data": "192.168.10.1" }]
+        "id": <ID_PHYSICAL>,
+        "subnet": "<PHYSICAL_SUBNET_CIDR>",
+        "relay": {
+          "ip-addresses": [ "<PHYSICAL_RELAY_IP>" ]
+        },
+        "pools": [
+          { "pool": "<PHYSICAL_POOL_START> - <PHYSICAL_POOL_END>" }
+        ]
+      },
+
+      /* VLAN-based Relay */
+      {
+        "id": <ID_VLAN>,
+        "subnet": "<VLAN_SUBNET_CIDR>",
+        "relay": {
+          "ip-addresses": [ "<VLAN_RELAY_IP>" ]
+        },
+        "pools": [
+          { "pool": "<VLAN_POOL_START> - <VLAN_POOL_END>" }
+        ]
+      },
+
+      /* Bridge-based Relay */
+      {
+        "id": <ID_BRIDGE>,
+        "subnet": "<BRIDGE_SUBNET_CIDR>",
+        "relay": {
+          "ip-addresses": [ "<BRIDGE_RELAY_IP>" ]
+        },
+        "pools": [
+          { "pool": "<BRIDGE_POOL_START> - <BRIDGE_POOL_END>" }
+        ]
       }
+
     ],
-    "loggers": [
-      {
-        "name": "kea-dhcp4",
-        "severity": "DEBUG",
-        "debuglevel": 99, 
-        "output_options": [{ "output": "/var/log/kea/kea-dhcp4-debug.log" }]
-      }
-    ]
+
+    "valid-lifetime": 3600,
+    "renew-timer": 900,
+    "rebind-timer": 1800
   }
 }
 ```
-> **Warning:** `debuglevel: 99` is extremely verbose and should not be used in production long-term.
 
-> **Note:** `relay:` keyword here implies the subnet is a relay one that's all the difference isc-kea needs to classify a network as a relay one
+Run:
 
-
-### 3. Server-Side Routing
-The DHCP Server must know how to route the *response* back to the client network.
 ```bash
-# Tell the server the client network is reached via the Relay Host
-ip route add 192.168.10.0/24 via 192.168.1.100
+kea-dhcp4 -t /etc/kea/kea-dhcp4.conf
 systemctl restart isc-kea-dhcp4-server
 ```
 
 ---
 
-# Part 2: The Relay Host (OVS Switch)
+# Multi-Subnet DHCP Deployment (Kea + systemd-networkd)
 
-### 1. Networking Infrastructure (OVS)
-**Note:** Physical interfaces (`eth0`, `eth1`) must remain "unaddressed." IPs are only assigned to internal OVS ports.
+This section documents a **multi-case DHCP serving setup** using **Kea DHCPv4** with
+interface and topology management handled entirely by **systemd-networkd**.
 
-```bash
-# Setup Client Bridge (L2 Isolation for Clients)
-ovs-vsctl add-br br-client
-ovs-vsctl add-port br-client eth0 tag=10
-ovs-vsctl add-port br-client vlan10 -- set interface vlan10 type=internal
-ovs-vsctl set port vlan10 tag=10
+The design demonstrates:
 
-# Setup Server Bridge (L2 Isolation for Upstream)
-ovs-vsctl add-br br-server
-ovs-vsctl add-port br-server eth1
-```
-
-> **Why two bridges?** 
-> If you "simplify" this into one bridge, you risk DHCP broadcast leakage. Two bridges ensure the only path between the client and server is the **ISC Relay Service** at Layer 3.
-
-### 2. IP Assignment & L3 Forwarding
-```bash
-ip link set vlan10 up
-ip link set br-server up
-
-# Assign Gateway IP (giaddr) and Relay Source IP
-ip addr add 192.168.10.1/24 dev vlan10
-ip addr add 192.168.1.100/24 dev br-server
-
-# Enable Layer-3 Forwarding and Fix Reverse Path
-sysctl -w net.ipv4.conf.all.rp_filter = 0
-sysctl -w net.ipv4.conf.default.rp_filter = 0
-sysctl -w net.ipv4.conf.<192.168.1.x interface>.rp_filter = 0
-sysctl -w net.ipv4.conf.<192.168.10.x interface>.rp_filter = 0
-
-```
-
-> **Why `ip_forward=1`?** 
-> This allows the Linux kernel to route the unicast DHCP packets between the two bridges. It does **not** turn the host into a bridge; OVS still maintains the L2 separation.
-
-### 3. Relay Service
-Configure `/etc/default/isc-dhcp-relay`:
-```bash
-SERVERS="192.168.1.1"
-INTERFACES="vlan10 br-server"
-```
-```bash
-systemctl restart isc-dhcp-relay
-```
----
-The relay service defines the explicit Layer-3 boundary between the isolated
-client and server bridges. Only internal OVS interfaces are used.
-
-- `vlan10` is the downstream interface where client DHCP broadcasts arrive.
-  Its IP address (`192.168.10.1`) becomes the `giaddr`.
-- `br-server` is the upstream interface used to unicast DHCP requests to the
-  Kea server.
-
-Physical interfaces (`eth0`, `eth1`) are intentionally excluded to preserve
-Layer-2 isolation and prevent broadcast leakage.
+* Flat (direct) DHCP serving
+* DHCP relay over physical interfaces
+* DHCP relay over VLANs
+* DHCP relay over Linux bridges
 
 ---
 
-# Architecture Overview
+## Topology Overview
+
+* **DHCP Server**
+
+  * Runs Kea DHCPv4
+  * Interfaces managed via `systemd-networkd`
+* **Switch (Linux-based)**
+
+  * L2 access
+  * L3 gateway
+  * DHCP relay
+  * VLAN termination
+  * Bridge endpoint
+
+---
+
+## Case Matrix (High Level)
+
+| Case | Subnet              | Mode                |
+| ---: | ------------------- | ------------------- |
+|    1 | `<FLAT_SUBNET>`     | Flat / Direct DHCP  |
+|    2 | `<VLAN_SUBNET>`     | VLAN-based Relay    |
+|    3 | `<PHYSICAL_SUBNET>` | Physical Port Relay |
+|    4 | `<BRIDGE_SUBNET>`   | Bridge-based Relay  |
+
+---
+
+## Case 1 – Flat DHCP (`<FLAT_SUBNET>`)
+
+### Switch Configuration
+
+```ini
+# <SWITCH_IFACE>.network
+[Match]
+Name=<SWITCH_IFACE>
+
+[Network]
+Address=<SWITCH_IP>/<PREFIX>
+```
+
+### Server Configuration
+
+```ini
+# <SERVER_IFACE>.network
+[Match]
+Name=<SERVER_IFACE>
+
+[Network]
+Address=<SERVER_IP>/<PREFIX>
+```
 
 ```mermaid
-graph TD
-    subgraph Client_Network [Client Network - VLAN 10]
-        C1[Client A]
-        C2[Client B]
-    end
+flowchart TD
+    SERVER[DHCP Server]
+    SWITCH[Switch]
+    CLIENT[Client]
 
-    subgraph Relay_Host [Relay Host / OVS Switch]
-        direction TB
-        subgraph OVS_Br_Client [Bridge: br-client]
-            eth0[Physical: eth0 - NO IP]
-            
-            vlan10[Internal: vlan10<br/>192.168.10.1]
-        end
-
-        subgraph Linux_L3 [Linux Layer 3]
-            DR[isc-dhcp-relay]
-            Forwarding[IP Forwarding]
-        end
-
-        subgraph OVS_Br_Server [Bridge: br-server]
-            br_server_int[Internal: br-server<br/>192.168.1.100]
-            eth1[Physical: eth1 - NO IP]
-        end
-    end
-
-    subgraph Server_Network [Server Network - Subnet 101]
-        Kea[Kea DHCP Server 3.0<br/>192.168.1.1]
-    end
-    %% Physical Connections
-    C1 & C2 -.->|Broadcast| eth0
-    eth1 --- Kea
-
-    %% Logical Flow
-    vlan10 <==>|giaddr: 192.168.10.1| DR
-    DR <==>|Unicast 67| br_server_int
+    SERVER --> SWITCH --> CLIENT
 ```
->Note: Vlans were made off eth0 for testing convienence as it allows flexibility to add multiple vlans simultaneously
----
-# Operational Warnings & Verification
 
-### ⚠️ NetworkManager Interference
-NetworkManager often tries to "help" by assigning DHCP or Auto-IP to physical ports like `eth0`. This will break the OVS topology. 
-*   **Check:** `nmcli device status`
-*   **Fix:** Ensure your OVS physical ports are marked as `unmanaged` in NetworkManager.
-
-### ⚠️ ARP / Neighbor Cache
-If you move interfaces between bridges or change IPs during testing, your ARP table may become stale, causing the system to appear "randomly broken."
-*   **Fix:** Flush the cache if you change the topology: 
-    ```bash
-    ip neigh flush all
-    ```
-
-### 1. Verify Packet Flow
-Run this on the **Relay Host**:
-```bash
-tcpdump -ni br-server udp port 67 -vv
-```
-**Expected:** You must see a packet from `192.168.1.100` to `192.168.1.1` containing `giaddr 192.168.10.1`.
-
-### 2. Verify Subnet Selection
-On the **DHCP Server**, check the Kea logs:
-```bash
-tail -f /var/log/kea/kea-dhcp4-debug.log | grep "selected"
-```
-**Expected:** `DHCP4_SUBNET_SELECTED subnet 192.168.10.0/24 selected`. If selection fails, your `giaddr` does not match the `relay` IP in the config.
-
->NOTE: If you have two dhcp server in stack ,you need to add isc-dhcp-relay setup at the downstream dhcp server as well
-
-Alright, judge + fix mode again.
-The **idea** of your note is correct, but the current wording is ambiguous and a bit… hand-wavy. Someone reading it cold could easily misconfigure a chained setup.
-
-Here’s a **clean, precise, production-safe version** you can drop straight into the guide.
-
+> No relay is configured for this case.
 
 ---
-#### Note: Chained / Downstream DHCP Servers
 
-> **Important:** In a stacked or chained DHCP topology, **every downstream DHCP server must also run a relay**.
+## Case 2 – VLAN-based Relay (`<VLAN_SUBNET>`, VLAN `<VLAN_ID>`)
 
- If the relay host is **not the final DHCP authority** but instead forwards requests to an upstream DHCP server, then:
+### Switch Configuration
 
- * The downstream DHCP/DNS server **must run `isc-dhcp-relay`**
- * It must forward requests upstream using its own `giaddr`
- * Subnet selection must remain deterministic at each hop
+```ini
+# vlan<VLAN_ID>.netdev
+[NetDev]
+Name=vlan<VLAN_ID>
+Kind=vlan
 
- This applies in particular when:
-
- * The relay host also runs **DHCP and DNS locally**, but is not authoritative for all client subnets
- * Multiple DHCP servers are deployed in a hierarchical or tiered design
-
- In such cases, the relay chain looks like:
+[VLAN]
+Id=<VLAN_ID>
 ```
- Client → Relay Host → Downstream DHCP/DNS → Upstream DHCP Authority
+
+```ini
+# vlan<VLAN_ID>.network
+[Match]
+Name=vlan<VLAN_ID>
+
+[Network]
+Address=<VLAN_GATEWAY_IP>/<PREFIX>
+IPForward=yes
 ```
- Each relay hop is responsible for:
 
- * Preserving Layer-2 isolation
- * Setting the correct `giaddr`
- * Forwarding DHCP packets via unicast only
+Relay:
 
-> **Do not assume DHCP packets will be automatically forwarded between servers.**
+```bash
+SERVERS="<DHCP_SERVER_IP>"
+OPTIONS="-4 -D -iu vlan<VLAN_ID> -id <UPLINK_IFACE>"
+```
 
->**Warning:** DHCP servers do not relay traffic unless explicitly configured to do so.
+### Server Configuration
+
+```ini
+# vlan<VLAN_ID>.netdev
+[NetDev]
+Name=vlan<VLAN_ID>
+Kind=vlan
+
+[VLAN]
+Id=<VLAN_ID>
+```
+
+```ini
+# vlan<VLAN_ID>.network
+[Match]
+Name=vlan<VLAN_ID>
+
+[Network]
+Address=<SERVER_VLAN_IP>/<PREFIX>
+```
+
+```mermaid
+flowchart TD
+    SERVER[Server VLAN]
+    SWITCH[VLAN Relay]
+    CLIENT[Clients]
+
+    SERVER -->|Tagged| SWITCH --> CLIENT
+```
+
+---
+
+## Case 3 – Physical Port Relay (`<PHYSICAL_SUBNET>`)
+
+### Switch Configuration
+
+```ini
+# <CLIENT_IFACE>.network
+[Match]
+Name=<CLIENT_IFACE>
+
+[Network]
+Address=<PHYSICAL_GATEWAY_IP>/<PREFIX>
+IPForward=yes
+```
+
+Relay:
+
+```bash
+SERVERS="<DHCP_SERVER_IP>"
+OPTIONS="-4 -D -iu <CLIENT_IFACE> -id <UPLINK_IFACE>"
+```
+
+### Server Configuration
+
+* No interface required in client subnet
+* Kea selects subnet via `giaddr`
+
+```mermaid
+flowchart TD
+    SERVER[Kea]
+    SWITCH[Physical Relay]
+    CLIENT[Clients]
+
+    SERVER --> SWITCH --> CLIENT
+```
+
+---
+
+## Case 4 – Bridge-based Relay (`<BRIDGE_SUBNET>`)
+
+### Switch Configuration
+
+```ini
+# <BRIDGE>.netdev
+[NetDev]
+Name=<BRIDGE>
+Kind=bridge
+```
+
+```ini
+# <BRIDGE>.network
+[Match]
+Name=<BRIDGE>
+
+[Network]
+Address=<BRIDGE_GATEWAY_IP>/<PREFIX>
+IPForward=yes
+```
+
+Relay:
+
+```bash
+SERVERS="<DHCP_SERVER_IP>"
+OPTIONS="-4 -D -iu <BRIDGE> -id <UPLINK_IFACE>"
+```
+
+### Server Configuration
+
+* No interface required in client subnet
+* Subnet selected via relay IP
+
+```mermaid
+flowchart TD
+    SERVER[Kea]
+    SWITCH[Bridge Relay]
+    CLIENT[Bridged Clients]
+
+    SERVER --> SWITCH --> CLIENT
+```
+
+---
+
+## Notes
+
+* Flat DHCP relies on broadcast domains
+* Relay-based DHCP relies **only** on `giaddr`
+* No NAT of DHCP packets
+* `rp_filter` must be loose (`0` or `2`)
+* Option 82 is not required
+
+---
+
+## Summary Table
+
+| Case | DHCP Mode    | Subnet Selection |
+| ---: | ------------ | ---------------- |
+|    1 | Flat         | Broadcast        |
+|    2 | VLAN Relay   | giaddr           |
+|    3 | Port Relay   | giaddr           |
+|    4 | Bridge Relay | giaddr           |
 
 ---
