@@ -22,7 +22,7 @@ Kind=vlan
 [VLAN]
 Id=10 #Each Vlan gets a specific id
 ```
-`vlan10-trunk.link`
+`vlan10-enp11s0.network`
 ```ini
 #Adds the vlans to the physical interface. 
 #Also this interface does not get an IP address. 
