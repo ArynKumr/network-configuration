@@ -34,7 +34,7 @@ SERVERS="10.50.50.1"
 # Additional options
 # -4: IPv4 only
 # -no-pid: Do not write a pid file (useful for some containers)
-OPTIONS="-4 -D -iu eth0 -id eth1 -id vlan10 -id br0"
+OPTIONS="-4 -D -a -iu eth0 -id eth1 -id vlan10 -id br0"
 ```
 
 ---
@@ -47,21 +47,21 @@ If you are testing or using a custom script, use these commands.
 Useful when the relay agent sits on a router with tagged traffic.
 ```bash
 # giaddr will be the IP assigned to vlan10
-dhcrelay -4 -D -i vlan10 -i eth0 10.50.50.1
+dhcrelay -4 -aD -i vlan10 -i eth0 10.50.50.1
 ```
 
 ### 3.2. Physical Port Relay
 Useful for simple L3 separation.
 ```bash
 # giaddr will be the IP assigned to eth1
-dhcrelay -4 -D -i eth1 -i eth0 10.50.50.1
+dhcrelay -4 -aD -i eth1 -i eth0 10.50.50.1
 ```
 
 ### 3.3. Bridge Relay
 Used in virtualization (Proxmox/KVM) where clients are on a software bridge.
 ```bash
 # giaddr will be the IP assigned to br0
-dhcrelay -4 -D -i br0 -i eth0 10.50.50.1
+dhcrelay -4 -aD -i br0 -i eth0 10.50.50.1
 ```
 
 ---
@@ -140,3 +140,6 @@ tcpdump -i any port 67 or port 68 -n -vv
 2.  **BOOTREQUEST** from `Relay_IP` to `Kea_IP` on the uplink interface.
 3.  **BOOTREPLY** from `Kea_IP` to `Relay_IP`.
 4.  **BOOTREPLY** from `Relay_IP` to `Client_MAC`.
+
+
+Refer to [man](https://kb.isc.org/docs/isc-dhcp-44-manual-pages-dhcrelay), for more info

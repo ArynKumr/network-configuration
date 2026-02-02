@@ -73,9 +73,11 @@ Address=10.1.1.1/24
 IPForward=yes
 ```
 
->Note: To Apply any new interface based config ,run `systemctl restart systemd-networkd`
+>Note: To Apply any new interface based config ,run `systemctl restart systemd-networkd`.
+For a more in-depth view over this module refer [this document](switch-behaviour-setup.md)
 ---
 
+---
 ## 🗄 Module 2: DHCP Server (Kea 3.0)
 The central engine for IP allocation. It listens for local broadcast requests and relayed unicast requests.
 
@@ -150,6 +152,7 @@ kea-dhcp4 -t /etc/kea/kea-dhcp4.conf
 # To Apply the config and restart the service
 systemctl restart isc-kea-dhcp4-server`
 ```
+>For further reference: [dhcp-setup](dhcp-setup.md)
 ---
 
 ## 📡 Module 3: DHCP Relay
@@ -169,12 +172,12 @@ The relay needs two pieces of information:
 **Example: Relay for VLAN 10**
 ```ini
 # SERVER_IP is the IP of the Kea Instance
-dhcrelay -4 -D -iu vlan10 -id enp8s0 10.9.0.1 
+dhcrelay -4 -a -D -iu vlan10 -id enp8s0 10.9.0.1 
 #This is only meant for quick debugging 
 #Please disable service ,via `systemctl stop isc-dhcp-relay.service`,whilst running this foreground 
 ```
 
-> NOTE: Ideally run the relay as a persistent service ,by editing the `/etc/default/isc-dhcp-relay`. In case of running multiple relays ,refer [this](multi-dhcp-relay-service.md)
+> NOTE: Ideally run the relay as a persistent service as suggested [here](dhcp-relay-setup.md),by editing the `/etc/default/isc-dhcp-relay`. In case of running multiple relays ,refer [this](multi-dhcp-relay-service.md)
 ---
 
 ## ⚙️ Firewall Kernel Tuning
