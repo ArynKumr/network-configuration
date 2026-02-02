@@ -127,28 +127,28 @@ set lan_ifaces {
 Section 2: IP ↔ MAC Binding (Anti-Spoofing)
 -------------------------------------------
 
-### IPv4 + MAC Binding Map
+### IPv4 + MAC Binding
 
 **Purpose:**  
 Bind a specific IPv4 address to a specific MAC address.  
 Prevents IP spoofing or users stealing vacant IPs.
 
 ```
-map allowed_ip4_mac {
-    type ipv4_addr . ether_addr : verdict
+set allowed_ip4_mac {
+    type ipv4_addr . ether_addr ;
 }
 ```
 
 * * *
 
-### IPv6 + MAC Binding Map
+### IPv6 + MAC Binding
 
 **Purpose:**  
-IPv6 equivalent of the IPv4 binding map.
+IPv6 equivalent of the IPv4 binding.
 
 ```
-map allowed_ip6_mac {
-    type ipv6_addr . ether_addr : verdict
+set allowed_ip6_mac {
+    type ipv6_addr . ether_addr ;
 }
 ```
 
@@ -200,13 +200,21 @@ set log_users_mac {
 
 ### Block User Set
 **Purpose:**
-Upon user logout the ip is put into this set to mitigate conntrack percistance
+Upon user logout the ip, ip-mac, mac is put into this set to mitigate conntrack percistance
 
 ```
 set blocked_users_v4 {
-  type ipv4_addr
-  flags interval
+  type ipv4_addr;
+  flags interval;
 } 
+
+set blocked_users_macs {
+    type ether_addr;
+}
+
+set blocked_users_v4_mac {
+    type ipv4_addr . ether_addr;
+}
 ```
 
 Section 4: Chains (Packet Processing Logic)
@@ -276,13 +284,16 @@ chain forward {
 ### Block User Set
 **Purpose:**
 
-Upon user logout the ip is put in blocked_user_v4 set and dropped here
+Upon user logout the ip is put in blocked_user_v4, blocked_users_macs, blocked_users_v4_mac set and dropped here
 
 ```
     ip saddr @blocked_users_v4 drop
     ip daddr @blocked_users_v4 drop
+    ip saddr @blocked_users_macs drop
+    ip daddr @blocked_users_macs drop
+    ip saddr @blocked_users_v4_mac drop
+    ip daddr @blocked_users_v4_mac drop
 ```
-
 * * *
 
 ### Protocol Suppression

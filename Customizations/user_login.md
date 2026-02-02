@@ -37,6 +37,7 @@ The user is identified purely by IPv4 address.
 Allow the user to pass traffic through the Firewall to the internet.
 
 ```
+nft delete element inet filter blocked_users_v4 { <client_ip> }
 nft add element inet filter allowed_ip4 { <client_ip> }
 ```
 
@@ -100,6 +101,7 @@ The device must remain authorized even if its IP changes.
 Authorize the device itself, independent of IP address.
 
 ```
+nft delete element inet filter blocked_users_macs { <client_mac> }
 nft add element inet filter allowed_macs { <client_mac> }
 ```
 
@@ -147,7 +149,7 @@ nft delete element inet filter allowed_macs { <client_mac> }
 nft delete element inet nat allowed_macs { <client_mac> }
 nft delete element inet mangle user_mac_marks { <client_mac> : 0x00<isp_mark><tc_class_marks> }
 nft delete element inet webfilter ALLOW_ACCESS { <client_ip> }
-nft add element inet filter blocked_users_v4 { <client_ip> }
+nft add element inet filter blocked_users_macs { <client_mac> }
 ```
 * * *
 
@@ -166,6 +168,7 @@ the IP and MAC pair match.
 Allow traffic only when `<client_ip>` is seen coming from `<client_mac>`.
 
 ```
+nft delete element inet filter blocked_users_v4_mac { <client_ip> . <mac_address> }
 nft add element inet filter allowed_ip4_mac { <client_ip> . <mac_address> }
 ```
 
@@ -209,6 +212,6 @@ nft delete element inet filter allowed_ip4_mac { <client_ip> . <mac_address> }
 nft delete element inet nat allowed_ip4_mac { <client_ip> . <mac_address> }
 nft delete element inet mangle user4_marks { <client_ip> : 0x00<isp_mark><tc_class_marks> }
 nft delete element inet webfilter ALLOW_ACCESS { <client_ip> }
-nft add element inet filter blocked_users_v4 { <client_ip> }
+nft add element inet filter blocked_users_v4_mac { <client_ip> . <mac_address> }
 ```
 * * *
