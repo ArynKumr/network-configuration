@@ -57,14 +57,14 @@ Kind=bridge
 [Match]                      
 Name = br0                               
 [Network]                    
-Address = 10.10.10.1/24 
+Address = 10.10.10.10/24 
 ```
 
 `bind.network`
 ```ini
 # /etc/systemd/network/bind.network
 [Match]
-Name=enp11s0
+Name=enp11s0 enp13s0
 
 [Network]
 Bridge=br0

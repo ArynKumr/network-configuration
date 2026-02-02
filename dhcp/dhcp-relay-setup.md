@@ -57,13 +57,6 @@ Useful for simple L3 separation.
 dhcrelay -4 -aD -i eth1 -i eth0 10.50.50.1
 ```
 
-### 3.3. Bridge Relay
-Used in virtualization (Proxmox/KVM) where clients are on a software bridge.
-```bash
-# giaddr will be the IP assigned to br0
-dhcrelay -4 -aD -i br0 -i eth0 10.50.50.1
-```
-
 ---
 
 ## 4. Kea Server Configuration (Matching the Relay)
