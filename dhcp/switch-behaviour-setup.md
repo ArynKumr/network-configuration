@@ -22,14 +22,13 @@ Kind=vlan
 [VLAN]
 Id=10 #Each Vlan gets a specific id
 ```
-`vlan10-enp11s0.network`
+`vlan10-trunk.network`
 ```ini
 #Adds the vlans to the physical interface. 
 #Also this interface does not get an IP address. 
 #It must remain un-addressed(In the case of tagged vlans).
 [Match]
 Name=enp11s0 #Physical Interface from which the Vlans are related to.
-
 [Network]
 VLAN=vlan10
 VLAN=vlan20
@@ -39,9 +38,8 @@ VLAN=vlan20
 #assigns the ip address to the vlan. similar with vlan20
 [Match]
 Name=vlan10
-
 [Network]
-Address=10.2.1.0/24
+Address=10.10.100.1/24
 ```
 
 #### 3. Bridge-based Topology
@@ -49,16 +47,25 @@ Grouping multiple ports into a single logical broadcast domain.
 `br0.netdev`
 ```ini
 # /etc/systemd/network/br0.netdev
-[NetDev]
-Name=br0
-Kind=bridge
+[NetDev]     
+Name=br0     
+Kind=bridge  
 ```
 `br0.network`
 ```ini
 # /etc/systemd/network/br0.network
+[Match]                      
+Name = br0                               
+[Network]                    
+Address = 10.10.10.1/24 
+```
+
+`bind.network`
+```ini
+# /etc/systemd/network/bind.network
 [Match]
-Name=br0
+Name=enp11s0
+
 [Network]
-Address=10.1.1.1/24
-IPForward=yes
+Bridge=br0
 ```
