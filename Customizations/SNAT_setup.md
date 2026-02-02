@@ -48,9 +48,9 @@ Case 1 — Complete Traffic SNAT (Per-User ISP Lock)
 #### 1\. Create the SNAT Map
 
 ```bash
-nft add map inet nat client_to_wan {
+nft add map inet nat client_to_wan '{
     type ipv4_addr : ipv4_addr;
-}
+}'
 ```
 
 **Meaning:**
