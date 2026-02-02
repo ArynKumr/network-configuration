@@ -26,7 +26,7 @@ sudo apt update && sudo apt install isc-dhcp-relay -y
 Edit this file to define your relay behavior permanently.
 ```bash
 # Interfaces the relay should listen on (Client-facing AND Server-facing)
-INTERFACES="eth1 vlan10 br0 eth0"
+INTERFACES=""
 
 # The IP address of the Kea DHCP Server
 SERVERS="10.50.50.1"
@@ -34,7 +34,7 @@ SERVERS="10.50.50.1"
 # Additional options
 # -4: IPv4 only
 # -no-pid: Do not write a pid file (useful for some containers)
-OPTIONS="-4"
+OPTIONS="-4 -D -iu eth0 -id eth1 -id vlan10 -id br0"
 ```
 
 ---
@@ -43,21 +43,21 @@ OPTIONS="-4"
 If you are testing or using a custom script, use these commands. 
 **Note:** In `isc-dhcp-relay`, the `-i` flag is used for **all** involved interfaces (both upstream and downstream).
 
-### Case A: VLAN-Based Relay
+### 3.1. VLAN-Based Relay
 Useful when the relay agent sits on a router with tagged traffic.
 ```bash
 # giaddr will be the IP assigned to vlan10
 dhcrelay -4 -D -i vlan10 -i eth0 10.50.50.1
 ```
 
-### Case B: Physical Port Relay
+### 3.2. Physical Port Relay
 Useful for simple L3 separation.
 ```bash
 # giaddr will be the IP assigned to eth1
 dhcrelay -4 -D -i eth1 -i eth0 10.50.50.1
 ```
 
-### Case C: Bridge Relay
+### 3.3. Bridge Relay
 Used in virtualization (Proxmox/KVM) where clients are on a software bridge.
 ```bash
 # giaddr will be the IP assigned to br0

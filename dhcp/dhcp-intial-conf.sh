@@ -184,11 +184,11 @@ write_dhcp4_config() {
         },
         "lease-database": {
             "type": "mysql",
-            "name": "kea_dhcp",
-            "user": "dilraj",
-            "password": "dilraj",
-            "host": "localhost",
-            "port": 3306
+            "name": "${DB_NAME}",
+            "user": "${DB_USER}",
+            "password": "${DB_USER_PASSWORD}",
+            "host": "${DB_HOST}",
+            "port": ${DB_PORT}
         },
         "hosts-database": {
             "type": "mysql",
@@ -272,11 +272,11 @@ write_dhcp6_config() {
         },
         "lease-database": {
             "type": "mysql",
-            "name": "kea_dhcp",
-            "user": "dilraj",
-            "password": "dilraj",
-            "host": "localhost",
-            "port": 3306
+            "name": "${DB_NAME}",
+            "user": "${DB_USER}",
+            "password": "${DB_USER_PASSWORD}",
+            "host": "${DB_HOST}",
+            "port": ${DB_PORT}
         },
         "hosts-database": {
             "type": "mysql",

@@ -1,6 +1,8 @@
-
 **Purpose:** Installation, Database initialization, and Configuration of the Kea DHCPv4 engine.
+
 >Note: Refer in the case dhcp-intial-conf.sh doesn't work out.
+
+---
 #### 1. Installation
 ```bash
 curl -1sLf 'https://dl.cloudsmith.io/public/isc/kea-3-0/setup.deb.sh' | bash
@@ -31,6 +33,28 @@ For Dhcp over IPv4:
         "interfaces-config": {
             "interfaces": ["enp8s0", "enp9s0", "enp11s0", "vlan10", "vlan20"]
         },
+        "control-socket": {
+            "socket-type": "unix",
+            "socket-name": "/var/run/kea/kea4-ctrl-socket"
+        },
+        "hooks-libraries": [
+          {
+            "library": "/usr/lib/aarch64-linux-gnu/kea/hooks/libdhcp_mysql.so"
+          },
+          {
+            "library": "/usr/lib/aarch64-linux-gnu/kea/hooks/libdhcp_host_cmds.so"
+          }
+        ],
+        "expired-leases-processing": {
+            "reclaim-timer-wait-time": 10,
+            "flush-reclaimed-timer-wait-time": 25,
+            "hold-reclaimed-time": 3600,
+            "max-reclaim-leases": 100,
+            "max-reclaim-time": 250,
+            "unwarned-reclaim-cycles": 5
+        },
+        "calculate-tee-times": true,
+        "valid-lifetime": 86400,
         "lease-database": {
             "type": "mysql",
             "name": "kea_dhcp",
@@ -50,7 +74,6 @@ For Dhcp over IPv4:
         "option-data": [
             { "name": "domain-name-servers", "data": "8.8.8.8" }
         ],
-        //
         "subnet4": [
             {
                 "id": 1,
@@ -64,13 +87,14 @@ For Dhcp over IPv4:
                 "relay": { "ip-addresses": ["10.10.10.1"] },
                 "pools": [{ "pool": "10.10.10.100 - 10.10.10.200" }],
                 "option-data": [{ "name": "routers", "data": "10.10.10.1" }],
-                "interface": "enp13s0"
+                "interface": "enp13s0" //To align the subnet to clients connected to a specific interface
             }
         ]
     }
 }
 ```
 **Validation:** `kea-dhcp4 -t /etc/kea/kea-dhcp4.conf`
+**Application:** `systemctl restart isc-kea-dhcp4-server.service`
 Similary for DHCP over IPv6
 ```json
 {
@@ -78,11 +102,32 @@ Similary for DHCP over IPv6
         "interfaces-config": {
             "interfaces": ["enp8s0", "enp9s0", "enp11s0", "vlan10", "vlan20"]
         },
+       "control-socket": {
+            "socket-type": "unix",
+            "socket-name": "/var/run/kea/kea4-ctrl-socket"
+        },
+        "hooks-libraries": [
+          {
+            "library": "/usr/lib/aarch64-linux-gnu/kea/hooks/libdhcp_mysql.so"
+          },
+          {
+            "library": "/usr/lib/aarch64-linux-gnu/kea/hooks/libdhcp_host_cmds.so"
+          }
+        ],
+        "expired-leases-processing": {
+            "reclaim-timer-wait-time": 10,
+            "flush-reclaimed-timer-wait-time": 25,
+            "hold-reclaimed-time": 3600,
+            "max-reclaim-leases": 100,
+            "max-reclaim-time": 250,
+            "unwarned-reclaim-cycles": 5
+        },
+        "calculate-tee-times": true,
         "lease-database": {
             "type": "mysql",
             "name": "kea_dhcp",
             "user": "dilraj",
-            "password": "dilraj",
+            "password": "dilraj",//Opt for stronger password in production
             "host": "localhost",
             "port": 3306
         },
@@ -128,4 +173,4 @@ Similary for DHCP over IPv6
 
 ```
 Refer: [isc-kea](https://gitlab.isc.org/isc-projects/kea) repo for more info
-For More DHCP Option Related configurations (Like PXE,Voip,Classless Stateless Routing, Refer [here](https://gitlab.isc.org/isc-projects/kea)
+For More DHCP Option Related configurations (Like PXE,Voip,Classless Stateless Routing), Refer [here](all-options.conf)

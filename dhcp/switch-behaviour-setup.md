@@ -1,6 +1,6 @@
 **Purpose:** Configuring the Firewall to act as a switch (For the case of Uplink DHCP) for L2/L3 connectivity including VLANs and Bridges.
 
-#### Case 1: Flat/Direct DHCP
+#### 1. Flat/Direct DHCP
 Direct connection between Server and Client (No relay).
 ```ini
 # /etc/systemd/network/10-flat.network
@@ -10,25 +10,41 @@ Name=eth0
 Address=10.9.0.1/24
 ```
 
-#### Case 2: VLAN-based Topology
+#### 2. VLAN-based Topology
 Creating tagged interfaces for segmented traffic.
+`10-vlan10.netdev`
 ```ini
-# /etc/systemd/network/vlan10.netdev
+# Creates the vlan itself, similarly we make vlan20---vlan_n
 [NetDev]
 Name=vlan10
 Kind=vlan
-[VLAN]
-Id=10
 
-# /etc/systemd/network/vlan10.network
+[VLAN]
+Id=10 #Each Vlan gets a specific id
+```
+`10-vlan10.network`
+```ini
+#Adds the vlans to the physical interface. 
+#Also this interface does not get an IP address. 
+#It must remain un-addressed(In the case of tagged vlans).
 [Match]
-Name=vlan10
+Name=enp11s0 #Physical Interface from which the Vlans are related to.
+
 [Network]
-Address=10.168.1.1/24
-IPForward=yes
+VLAN=vlan10
+VLAN=vlan20
 ```
 
-#### Case 3: Bridge-based Topology
+```ini
+# 10-vlan10.network, assigns the ip address to the vlan. similar with vlan20
+[Match]
+Name=vlan10
+
+[Network]
+Address=10.2.1.0/24
+```
+
+#### 3. Bridge-based Topology
 Grouping multiple ports into a single logical broadcast domain.
 ```ini
 # /etc/systemd/network/br0.netdev
