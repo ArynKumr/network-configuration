@@ -289,10 +289,10 @@ Upon user logout the ip is put in blocked_user_v4, blocked_users_macs, blocked_u
 ```
     ip saddr @blocked_users_v4 drop
     ip daddr @blocked_users_v4 drop
-    ip saddr @blocked_users_macs drop
-    ip daddr @blocked_users_macs drop
-    ip saddr @blocked_users_v4_mac drop
-    ip daddr @blocked_users_v4_mac drop
+    ether saddr @blocked_users_macs drop
+    ether daddr @blocked_users_macs drop
+    ip saddr . ether saddr @blocked_users_v4_mac drop
+    ip daddr . ether daddr @blocked_users_v4_mac drop
 ```
 * * *
 
