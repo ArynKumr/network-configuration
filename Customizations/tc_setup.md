@@ -17,6 +17,7 @@ This is where bandwidth limits **actually happen**.
 
 Interface-Level QoS Setup
 -------------------------
+> Note please reffer [Tc's actual documentation](https://www.man7.org/linux/man-pages/man8/tc.8.html) for a detailed explaination
 
 _(Run at interface configuration time and again at boot for all relevant interfaces)_
 
