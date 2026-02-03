@@ -9,7 +9,12 @@ Every policy case implemented in nftables **must correspond to one column in thi
 ```
 nft add element inet filter lan_ifaces { "<vpn_iface>" }
 nft add element inet nat lan_ifaces { "<vpn_iface>" }
-nft add element inet nat 
+nft add element inet webfilter lan_ifaces { "<vpn_iface>" }
+```
+
+> NOTE : If the VPN user's traffic is to be sent to netfilter apply following command with the vpn users ip
+```
+nft add element inet webfilter ALLOW_ACCESS { <policy_vpn_users_ip> }
 ```
 * * *
 
