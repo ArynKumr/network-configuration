@@ -1,4 +1,7 @@
-**Purpose:** Installation, Database initialization, and Configuration of the Kea DHCPv4 engine.
+# DHCP Configuration
+
+
+The central engine for IP allocation. It listens for local broadcast requests and relayed unicast requests.
 
 >Note: Refer in the case dhcp-intial-conf.sh doesn't work out.
 
@@ -100,7 +103,7 @@ Similary for DHCP over IPv6
 {
     "Dhcp6": {
         "interfaces-config": {
-            "interfaces": ["enp8s0", "enp9s0", "enp11s0", "vlan10", "vlan20"]
+            "interfaces": ["enp8s0", "enp9s0", "enp11s0", "vlan10", "vlan20"] 
         },
        "control-socket": {
             "socket-type": "unix",
@@ -172,5 +175,17 @@ Similary for DHCP over IPv6
     }
 
 ```
-Refer: [isc-kea](https://gitlab.isc.org/isc-projects/kea) repo for more info
+>TODO:Testing relay in dhcpv6 environments and simultaneous service of dhcpv4 and dhcpv6
+---
+>NOTE: Some variables here are default consts already (e.g; valid-lifetime:86400 is set by default to 86400), they are mentioned for reference ,if in future any of them loose their default status or values for them need to be customised.
+---
+To test the service
+```bash 
+#Performs a dry-run and tells whether there are any syntax errors
+kea-dhcp4 -t /etc/kea/kea-dhcp4.conf
+# To Apply the config and restart the service
+systemctl restart isc-kea-dhcp4-server`
+```
+>Refer: [isc-kea](https://gitlab.isc.org/isc-projects/kea) repo for more info
 For More DHCP Option Related configurations (Like PXE,Voip,Classless Stateless Routing), Refer [here](all-options.conf)
+---
