@@ -332,11 +332,12 @@ Log and validate IPv4 traffic based on IP+MAC binding.
 
 ```
     iifname @lan_ifaces oifname @wan_ifaces \
-        ip saddr @log_users_v4 \
-        log prefix "[FW-FILTER-FWD-IPMAC] " level info
+    ip saddr @log_users_v4 log prefix "[FW-FILTER-FWD-IPMAC] " \
+    level info
 
     iifname @lan_ifaces oifname @wan_ifaces \
-        ip saddr . ether saddr vmap @allowed_ip4_mac
+    ip saddr . ether saddr @allowed_ip4_mac \
+    accept
 ```
 
 * * *
@@ -346,11 +347,12 @@ Rule Group B: IPv6 + MAC Validation
 
 ```
     iifname @lan_ifaces oifname @wan_ifaces \
-        ip6 saddr @log_users_v6 \
-        log prefix "[FW-FILTER-FWD-IP6MAC] " level info
-
+    ip6 saddr @log_users_v6 log prefix \
+     "[FW-FILTER-FWD-IP6MAC] " level info
+    
     iifname @lan_ifaces oifname @wan_ifaces \
-        ip6 saddr . ether saddr vmap @allowed_ip6_mac
+    ip6 saddr . ether saddr @allowed_ip6_mac \
+    accept
 ```
 
 * * *
@@ -626,8 +628,8 @@ Stop NAT processing for authenticated users so they reach the real internet.
     iifname @lan_ifaces ip saddr @allowed_ip4 accept
     iifname @lan_ifaces ip6 saddr @allowed_ip6 accept
     iifname @lan_ifaces ether saddr @allowed_macs accept
-    iifname @lan_ifaces ip saddr . ether saddr vmap @allowed_ip4_mac
-    iifname @lan_ifaces ip6 saddr . ether saddr vmap @allowed_ip6_mac
+    iifname @lan_ifaces ip saddr . ether saddr @allowed_ip4_mac accept
+    iifname @lan_ifaces ip6 saddr . ether saddr @allowed_ip6_mac accept
 ```
 
 **Logic:**  
@@ -692,8 +694,8 @@ Enable multiple internal devices to share a single public IP.
     oifname @wan_ifaces ip saddr @allowed_ip4 masquerade
     oifname @wan_ifaces ip6 saddr @allowed_ip6 masquerade
     oifname @wan_ifaces ether saddr @allowed_macs masquerade
-    oifname @wan_ifaces ip saddr . ether saddr vmap @allowed_ip4_mac masquerade
-    oifname @wan_ifaces ip saddr . ether saddr vmap @allowed_ip6_mac masquerade
+    oifname @wan_ifaces ip saddr . ether saddr @allowed_ip4_mac masquerade
+    oifname @wan_ifaces ip6 saddr . ether saddr @allowed_ip6_mac masquerade
 ```
 
 * * *
