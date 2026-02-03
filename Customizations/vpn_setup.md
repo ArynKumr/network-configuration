@@ -24,9 +24,7 @@ VPN Client Traffic (Inbound → Forward)
 Allow traffic **originating from VPN clients** to pass through the Firewall.
 
 ```
-nft add rule inet filter forward \
-    iifname "<vpn_iface>" \
-    <action>
+nft add rule inet filter forward ip saddr <vpn_subnet>  <action>
 ```
 
 **Logic:**
@@ -50,9 +48,7 @@ VPN Client Replies (Outbound → Forward)
 Allow responses and return traffic **back into the VPN tunnel**.
 
 ```
-nft add rule inet filter forward \
-    oifname <vpn_iface> \
-    <action>
+nft add rule inet filter forward ip daddr <vpn_subnet>  <action>
 ```
 
 **Logic:**
