@@ -17,13 +17,13 @@ Initialize the lease and host database:
 ```sql
 -- Run in mysql shell
 CREATE DATABASE kea_dhcp;
-CREATE USER 'dilraj'@'localhost' IDENTIFIED BY 'dilraj';
-GRANT ALL PRIVILEGES ON kea_dhcp.* TO 'dilraj'@'localhost';
+CREATE USER 'db_user'@'localhost' IDENTIFIED BY 'db_user';
+GRANT ALL PRIVILEGES ON kea_dhcp.* TO 'db_user'@'localhost';
 FLUSH PRIVILEGES;
 ```
 Initialize the schema:
 ```bash
-kea-admin db-init mysql -u dilraj -p dilraj -n kea_dhcp
+kea-admin db-init mysql -u db_user -p test@123 -n kea_dhcp
 ```
 
 #### 3. Kea Configuration 
@@ -61,16 +61,16 @@ For Dhcp over IPv4:
         "lease-database": {
             "type": "mysql",
             "name": "kea_dhcp",
-            "user": "dilraj",
-            "password": "dilraj",
+            "user": "db_user",
+            "password": "test@123",
             "host": "localhost",
             "port": 3306
         },
         "hosts-database": {
             "type": "mysql",
             "name": "kea_dhcp",
-            "user": "dilraj",
-            "password": "dilraj",
+            "user": "db_user",
+            "password": "test@123",
             "host": "localhost",
             "port": 3306
         },
@@ -129,8 +129,8 @@ Similary for DHCP over IPv6
         "lease-database": {
             "type": "mysql",
             "name": "kea_dhcp",
-            "user": "dilraj",
-            "password": "dilraj",//Opt for stronger password in production
+            "user": "db_user",
+            "password": "test@123",//Opt for stronger password in production
             "host": "localhost",
             "port": 3306
         },
@@ -138,8 +138,8 @@ Similary for DHCP over IPv6
         "hosts-database": {
             "type": "mysql",
             "name": "kea_dhcp",
-            "user": "dilraj",
-            "password": "dilraj",
+            "user": "db_user",
+            "password": "test@123",
             "host": "localhost",
             "port": 3306
         },
