@@ -80,7 +80,7 @@ Example:
 #### 3\. Apply SNAT Rule
 
 ```bash
-nft insert rule inet nat postrouting \
+nft insert rule inet nat NAT_POST \
     snat to ip saddr map @client_to_wan
 ```
 
@@ -169,7 +169,7 @@ Examples:
 #### 3\. Apply SNAT Rule
 
 ```bash
-nft insert rule inet nat postrouting \
+nft insert rule inet nat NAT_POST \
     snat ip saddr . ip daddr map @destination_to_wan
 ```
 

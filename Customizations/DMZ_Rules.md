@@ -65,7 +65,7 @@ Ensures traffic hitting the public WAN IP on a specific port is redirected to th
 `insert rule` places this at the **top** of the NAT chain.
 
 ```
-nft insert rule inet nat prerouting \
+nft insert rule inet nat NAT_PRE \
     ip daddr <public_facing_isp_ip> <protocol> dport <public_facing_isp_port> \
     dnat to <client_ip>:<client_port>
 ```
@@ -78,7 +78,7 @@ nft insert rule inet nat prerouting \
 Since the `forward` chain policy is `drop`, forwarded packets must be explicitly allowed **after DNAT**.
 
 ```
-nft insert rule inet filter forward ip daddr <client_ip> <action>
+nft insert rule inet filter FILTER_FORWARD ip daddr <client_ip> <action>
 ```
 
 * * *
@@ -133,7 +133,7 @@ Ensures traffic hitting the public WAN IP on a specific pool of port eg: 64000 t
 `insert rule` places this at the **top** of the NAT chain.
 
 ```
-nft insert rule inet nat prerouting \
+nft insert rule inet nat NAT_PRE \
     ip daddr <public_facing_isp_ip> <protocol> dport <starting_public_facing_isp_port>-<ending_public_facing_isp_port> \
     dnat to <client_ip>:<starting_client_port>-<ending_client_port>
 ```
@@ -146,7 +146,7 @@ nft insert rule inet nat prerouting \
 Since the `forward` chain policy is `drop`, forwarded packets must be explicitly allowed **after DNAT**.
 
 ```
-nft insert rule inet filter forward ip daddr <client_ip> <action>
+nft insert rule inet filter FILTER_FORWARD ip daddr <client_ip> <action>
 ```
 
 * * *
@@ -185,7 +185,7 @@ All packets hitting the public ISP IP are destination-NATed to the internal clie
 before routing decisions occur.
 
 ```
-nft insert rule inet nat prerouting \
+nft insert rule inet nat NAT_PRE \
     ip daddr <public_facing_isp_ip> \
     dnat to <client_ip>
 ```
@@ -199,7 +199,7 @@ Explicitly allows traffic through the `forward` chain.
 Required when the default policy is `drop`.
 
 ```
-nft insert rule inet filter forward ip daddr <client_ip> <action>
+nft insert rule inet filter FILTER_FORWARD ip daddr <client_ip> <action>
 ```
 
 * * *

@@ -56,13 +56,13 @@ nft add chain inet filter <POLICY_NAME>
 nft add chain inet nat PRE_NAT_<POLICY_NAME>
 nft add chain inet nat POST_NAT_<POLICY_NAME>
 
-nft insert rule inet filter forward ip saddr @<policy_users_set> jump <POLICY_NAME>
-nft insert rule inet filter forward ip daddr @<policy_users_set> jump <POLICY_NAME>
+nft insert rule inet filter FILTER_FORWARD ip saddr @<policy_users_set> jump <POLICY_NAME>
+nft insert rule inet filter FILTER_FORWARD ip daddr @<policy_users_set> jump <POLICY_NAME>
 
-nft insert rule inet nat prerouting ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
-nft insert rule inet nat prerouting ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
+nft insert rule inet nat NAT_PRE ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
+nft insert rule inet nat NAT_PRE ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
 
-nft insert rule inet nat postrouting oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
+nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
 
 nft add rule inet filter <POLICY_NAME> <action>
 
@@ -97,13 +97,13 @@ nft add chain inet filter <POLICY_NAME>
 nft add chain inet nat PRE_NAT_<POLICY_NAME>
 nft add chain inet nat POST_NAT_<POLICY_NAME>
 
-nft insert rule inet filter forward ip saddr @<policy_users_set> jump <POLICY_NAME>
-nft insert rule inet filter forward ip daddr @<policy_users_set> jump <POLICY_NAME>
+nft insert rule inet filter FILTER_FORWARD ip saddr @<policy_users_set> jump <POLICY_NAME>
+nft insert rule inet filter FILTER_FORWARD ip daddr @<policy_users_set> jump <POLICY_NAME>
 
-nft insert rule inet nat prerouting ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
-nft insert rule inet nat prerouting ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
+nft insert rule inet nat NAT_PRE ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
+nft insert rule inet nat NAT_PRE ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
 
-nft insert rule inet nat postrouting oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
+nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
 
 nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> <protocol> sport <source_port> <action>
 nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> <protocol> dport <destination_port> <action>
@@ -141,13 +141,13 @@ nft add chain inet filter <POLICY_NAME>
 nft add chain inet nat PRE_NAT_<POLICY_NAME>
 nft add chain inet nat POST_NAT_<POLICY_NAME>
 
-nft insert rule inet filter forward ip saddr @<policy_users_set> jump <POLICY_NAME>
-nft insert rule inet filter forward ip daddr @<policy_users_set> jump <POLICY_NAME>
+nft insert rule inet filter FILTER_FORWARD ip saddr @<policy_users_set> jump <POLICY_NAME>
+nft insert rule inet filter FILTER_FORWARD ip daddr @<policy_users_set> jump <POLICY_NAME>
 
-nft insert rule inet nat prerouting ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
-nft insert rule inet nat prerouting ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
+nft insert rule inet nat NAT_PRE ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
+nft insert rule inet nat NAT_PRE ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
 
-nft insert rule inet nat postrouting oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
+nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
 
 nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> <action>
 nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> <action>
@@ -180,13 +180,13 @@ nft add chain inet filter <POLICY_NAME>
 nft add chain inet nat PRE_NAT_<POLICY_NAME>
 nft add chain inet nat POST_NAT_<POLICY_NAME>
 
-nft insert rule inet filter forward ip saddr @<policy_users_set> jump <POLICY_NAME>
-nft insert rule inet filter forward ip daddr @<policy_users_set> jump <POLICY_NAME>
+nft insert rule inet filter FILTER_FORWARD ip saddr @<policy_users_set> jump <POLICY_NAME>
+nft insert rule inet filter FILTER_FORWARD ip daddr @<policy_users_set> jump <POLICY_NAME>
 
-nft insert rule inet nat prerouting ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
-nft insert rule inet nat prerouting ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
+nft insert rule inet nat NAT_PRE ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
+nft insert rule inet nat NAT_PRE ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
 
-nft insert rule inet nat postrouting oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
+nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
 
 nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> <action>
 nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> <protocol> dport <destination_port>  <action>
@@ -224,13 +224,13 @@ nft add chain inet filter <POLICY_NAME>
 nft add chain inet nat PRE_NAT_<POLICY_NAME>
 nft add chain inet nat POST_NAT_<POLICY_NAME>
 
-nft insert rule inet filter forward ip saddr @<policy_users_set> jump <POLICY_NAME>
-nft insert rule inet filter forward ip daddr @<policy_users_set> jump <POLICY_NAME>
+nft insert rule inet filter FILTER_FORWARD ip saddr @<policy_users_set> jump <POLICY_NAME>
+nft insert rule inet filter FILTER_FORWARD ip daddr @<policy_users_set> jump <POLICY_NAME>
 
-nft insert rule inet nat prerouting ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
-nft insert rule inet nat prerouting ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
+nft insert rule inet nat NAT_PRE ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
+nft insert rule inet nat NAT_PRE ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
 
-nft insert rule inet nat postrouting oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
+nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
 
 nft add rule inet filter <POLICY_NAME> <protocol> dport <destination_port> <protocol> sport <source_port> <action>
 nft add rule inet filter <POLICY_NAME> <protocol> sport <destination_port> <protocol> dport <source_port> <action>
@@ -263,13 +263,13 @@ nft add chain inet filter <POLICY_NAME>
 nft add chain inet nat PRE_NAT_<POLICY_NAME>
 nft add chain inet nat POST_NAT_<POLICY_NAME>
 
-nft insert rule inet filter forward ip saddr @<policy_users_set> jump <POLICY_NAME>
-nft insert rule inet filter forward ip daddr @<policy_users_set> <action>
+nft insert rule inet filter FILTER_FORWARD ip saddr @<policy_users_set> jump <POLICY_NAME>
+nft insert rule inet filter FILTER_FORWARD ip daddr @<policy_users_set> <action>
 
-nft insert rule inet nat prerouting ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
-nft insert rule inet nat prerouting ip daddr @<policy_users_set> <action>
+nft insert rule inet nat NAT_PRE ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
+nft insert rule inet nat NAT_PRE ip daddr @<policy_users_set> <action>
 
-nft insert rule inet nat postrouting oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
+nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
 
 nft add rule inet filter <POLICY_NAME> <protocol> sport <source_port> <action>
 nft add rule inet filter <POLICY_NAME> return
@@ -299,13 +299,13 @@ nft add chain inet filter <POLICY_NAME>
 nft add chain inet nat PRE_NAT_<POLICY_NAME>
 nft add chain inet nat POST_NAT_<POLICY_NAME>
 
-nft insert rule inet filter forward ip daddr @<policy_users_set> jump <POLICY_NAME>
-nft insert rule inet filter forward ip saddr @<policy_users_set> <action>
+nft insert rule inet filter FILTER_FORWARD ip daddr @<policy_users_set> jump <POLICY_NAME>
+nft insert rule inet filter FILTER_FORWARD ip saddr @<policy_users_set> <action>
 
-nft insert rule inet nat prerouting ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
-nft insert rule inet nat prerouting ip saddr @<policy_users_set> <action>
+nft insert rule inet nat NAT_PRE ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
+nft insert rule inet nat NAT_PRE ip saddr @<policy_users_set> <action>
 
-nft insert rule inet nat postrouting oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
+nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
 
 nft add rule inet filter <POLICY_NAME> <protocol> dport <destination_port> <action>
 nft add rule inet filter <POLICY_NAME> return
@@ -335,13 +335,13 @@ nft add chain inet filter <POLICY_NAME>
 nft add chain inet nat PRE_NAT_<POLICY_NAME>
 nft add chain inet nat POST_NAT_<POLICY_NAME>
 
-nft insert rule inet filter forward ip saddr @<policy_users_set> jump <POLICY_NAME>
-nft insert rule inet filter forward ip daddr @<policy_users_set> jump <POLICY_NAME>
+nft insert rule inet filter FILTER_FORWARD ip saddr @<policy_users_set> jump <POLICY_NAME>
+nft insert rule inet filter FILTER_FORWARD ip daddr @<policy_users_set> jump <POLICY_NAME>
 
-nft insert rule inet nat prerouting ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
-nft insert rule inet nat prerouting ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
+nft insert rule inet nat NAT_PRE ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
+nft insert rule inet nat NAT_PRE ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
 
-nft insert rule inet nat postrouting oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
+nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
 
 nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> <action>
 nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> <protocol> sport <source_port> <action>

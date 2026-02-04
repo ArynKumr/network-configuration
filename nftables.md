@@ -296,19 +296,6 @@ Upon user logout the ip is put in blocked_user_v4, blocked_users_macs, blocked_u
 ```
 * * *
 
-### Protocol Suppression
-
-**Purpose:**  
-Prevent encrypted DNS and QUIC from bypassing inspection and QoS. Can be configured to be allowed from front.
->NOTE: These rules can be deleted from the firewall front on user request
-```
-    tcp dport 853 drop   # DNS over TLS
-    udp dport 853 drop
-    udp dport 443 drop   # QUIC / HTTP3
-```
-
-* * *
-
 ### Conntrack State Handling
 
 **Purpose:**  
@@ -323,6 +310,14 @@ Allow legitimate traffic, drop malformed packets.
 ```
 
 * * *
+
+Jump to NGFW Chain
+------------------
+**Purpose:**  
+To keep rules sequenced in a formal and intended manner we dont add rules in current chain we jump all the traffic to a chain which includes all the rules for firewalling.
+```
+jump filter_forward
+```
 
 Rule Group A: IPv4 + MAC Validation
 -----------------------------------
@@ -414,8 +409,27 @@ Log failures for watched users **before** the default drop policy triggers.
     ether saddr @log_users_mac log prefix "[FW-FILTER-FWD-DROP-MAC] " level info
 ```
 
-* * *
 
+NGFW Chain
+----------
+
+**Purpose:**  
+To keep rules sequenced in a formal and intended manner we dont add rules in current chain we jump all the traffic to a chain which includes all the rules for firewalling.
+```
+chain filter_forward{
+```
+### Protocol Suppression
+
+**Purpose:**  
+Prevent encrypted DNS and QUIC from bypassing inspection and QoS. Can be configured to be allowed from front.
+>NOTE: These rules can be added / deleted from the firewall front on user request
+```
+    tcp dport 853 drop   # DNS over TLS
+    udp dport 853 drop
+    udp dport 443 drop   # QUIC / HTTP3
+```
+
+* * *
 NAT, Captive Portal & DNS Redirection (nftables)
 ================================================
 
@@ -617,8 +631,15 @@ Force all DNS traffic to use the firewall’s DNS resolver — regardless of cli
 **Logic:**  
 Clients cannot bypass filtering by using external DNS (e.g. `8.8.8.8`).
 
-* * *
+Jump to NGFW Chain
+------------------
+**Purpose:**  
+To keep rules sequenced in a formal and intended manner we dont add rules in current chain we jump all the traffic to a chain which includes all the rules for firewalling.
+```
+jump NAT_POST_BASE
+```
 
+* * *
 ### Authentication Bypass (“Skip Rules”)
 
 **Purpose:**  
