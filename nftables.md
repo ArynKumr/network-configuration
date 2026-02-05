@@ -229,19 +229,13 @@ Handles traffic addressed **to the firewall itself**
 
 ```
 chain input {
-    type filter hook input priority 0; policy accept;
+    type filter hook input priority 0; policy drop;
 ```
-
-### Anti-DoS Protection (HTTP)
-
-**Purpose:**  
-Limit excessive new TCP connections to port 80.
-
 ```
-    tcp dport 80 ct state new \
-        tcp flags & (fin|syn|rst|ack) == syn \
-        ct count over 50 reject with tcp reset
-```
+    iifname @lan_ifaces accept
+    #only accepts traffic from lan ifaces to the firewall
+  }
+``` 
 
 * * *
 
