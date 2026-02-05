@@ -232,8 +232,8 @@ chain input {
     type filter hook input priority 0; policy drop;
 ```
 ```
+    ct state vmap { established : accept, related : accept, invalid : drop }
     iifname @lan_ifaces accept
-    #only accepts traffic from lan ifaces to the firewall
   }
 ``` 
 
