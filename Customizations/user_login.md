@@ -23,6 +23,15 @@ They **modify live sets/maps** — nothing here is persistent unless saved.
 >In the case of bandwidth pool the users under that pool are to to be assigned same class id.
 * * *
 
+When creating new users following commands must be ran.
+-------
+
+```
+nft delete element inet filter blocked_users_v4 { <client_ip> }
+nft delete element inet filter blocked_users_macs { <client_mac> }
+nft delete element inet filter blocked_users_v4_mac { <client_ip> . <mac_address> }
+```
+
 IPv4-Based Users
 ----------------
 
@@ -37,7 +46,6 @@ The user is identified purely by IPv4 address.
 Allow the user to pass traffic through the Firewall to the internet.
 
 ```
-nft delete element inet filter blocked_users_v4 { <client_ip> }
 nft add element inet filter allowed_ip4 { <client_ip> }
 ```
 
@@ -75,9 +83,9 @@ Send this user’s web traffic to the NFQUEUE inspection engine.
 nft add element inet webfilter ALLOW_ACCESS { <client_ip> }
 ```
 
-### 5\. Logging Ip-Based User out
+### 5\. Deleting Ip-Based User
 **Purpose:**  
-Logging out the user.
+Deleting the user.
 ```
 nft delete element inet filter allowed_ip4 { <client_ip> }
 nft delete element inet nat allowed_ip4 { <client_ip> }
@@ -101,7 +109,6 @@ The device must remain authorized even if its IP changes.
 Authorize the device itself, independent of IP address.
 
 ```
-nft delete element inet filter blocked_users_macs { <client_mac> }
 nft add element inet filter allowed_macs { <client_mac> }
 ```
 
@@ -141,9 +148,9 @@ The current IP must be explicitly added.
 ```
 nft add element inet webfilter ALLOW_ACCESS { <client_ip> }
 ```
-### 5\. Logging MAC-Based User out
+### 5\. Deleting MAC-Based User
 **Purpose:**  
-Logging out the user.
+Deleting the user.
 ```
 nft delete element inet filter allowed_macs { <client_mac> }
 nft delete element inet nat allowed_macs { <client_mac> }
@@ -168,7 +175,6 @@ the IP and MAC pair match.
 Allow traffic only when `<client_ip>` is seen coming from `<client_mac>`.
 
 ```
-nft delete element inet filter blocked_users_v4_mac { <client_ip> . <mac_address> }
 nft add element inet filter allowed_ip4_mac { <client_ip> . <mac_address> }
 ```
 
@@ -204,9 +210,9 @@ Activate web filtering for this user’s traffic.
 ```
 nft add element inet webfilter ALLOW_ACCESS { <client_ip> }
 ```
-### 5\. Logging IP–MAC-Based User out
+### 5\. Deleting IP–MAC-Based User
 **Purpose:**  
-Logging out the user.
+Deleting the user.
 ```
 nft delete element inet filter allowed_ip4_mac { <client_ip> . <mac_address> }
 nft delete element inet nat allowed_ip4_mac { <client_ip> . <mac_address> }
