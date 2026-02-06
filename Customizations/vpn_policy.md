@@ -5,11 +5,9 @@ VPN Policy Truth Table (Case Definitions)
 Define **authoritative traffic-matching semantics** for VPN user policies.
 
 Every policy case implemented in nftables **must correspond to one column in this table**.  
->NOTE : Rememeber to add the VPN tunnel IFACE to the lan_iface sets of both filter, nat and webfilter tables.
+>NOTE : Rememeber to add the VPN tunnel subnet to the webfilter tables.
 ```
-nft add element inet filter lan_ifaces { "<vpn_iface>" }
-nft add element inet nat lan_ifaces { "<vpn_iface>" }
-nft add element inet webfilter lan_ifaces { "<vpn_iface>" }
+nft add rule inet webfilter SYS_WEBFILTER ip saddr @<vpn_subnet> ip saddr = @ALLOW_ACCESS tcp dport { 80, 443 } queue flags bypass to 0
 ```
 
 > NOTE : If the VPN user's traffic is to be sent to netfilter apply following command with the vpn users ip
