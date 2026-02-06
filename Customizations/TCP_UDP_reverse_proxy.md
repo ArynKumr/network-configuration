@@ -278,37 +278,3 @@ Critical Design Rules (Do Not Break These)
 5.  **Firewall decides access, not NGINX**
 
 * * *
-
-Validation Checklist
---------------------
-
-```bash
-ss -lntup | grep 9000
-nft list chain inet filter input
-tcpdump -i <wan_iface> port 9000
-```
-
-Expected:
-
-*   socket listening on public IP
-*   packets accepted by input chain
-*   backend sees proxied traffic only
-
-* * *
-
-One-Line Summary
-----------------
-
-> This module exposes internal TCP/UDP services via NGINX stream on a public ISP IP, with nftables enforcing all access control at the firewall input layer.
-
-If you want next:
-
-*   multi-backend load balancing
-*   health checks
-*   proxy timeouts tuning
-*   nftables logging for stream traffic
-
-
-
----
-Powered by [ChatGPT Exporter](https://www.chatgptexporter.com)
