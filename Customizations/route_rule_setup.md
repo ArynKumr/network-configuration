@@ -65,6 +65,26 @@ Example:
 > Without these routes, replies to LAN/WAN traffic may fail  
 > even though interfaces are up.
 
+### 2\. Restore internet Connectivity
+
+**Purpose:**  
+Tell the kernel how to reach the internet from all the isps.
+
+```
+ip route add default via <gateway_ip1> dev <iface_name> metric <1>
+ip route add default via <gateway_ip2> dev <iface_name> metric <1+1>
+ip route add default via <gateway_ip3> dev <iface_name> metric <1+2>
+.
+.
+.
+.
+.
+
+ip route add default via <gateway_ip(n)> dev <iface_name> metric <1+n>
+```
+> **Why this matters:**  
+> Without this route, internet on the firewall itself will stop working.
+> even though interfaces are up.
 * * *
 
 Policy Rules (`ip rule`)

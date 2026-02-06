@@ -22,7 +22,13 @@ ip route add <relayed_subnet_or_ip> \
     via <switch_ip_or_gateway_ip> \
     dev <egress_iface>
 ```
+> NOTE : This commands shall be ran for all the routing tables like this
 
+```
+ip route add <relayed_subnet_or_ip> \
+    via <switch_ip_or_gateway_ip> \
+    dev <egress_iface> table <isp_table_id>
+```
 * * *
 
 What This Rule Actually Does
