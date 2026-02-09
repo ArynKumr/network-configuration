@@ -11,14 +11,16 @@ Every case implemented in nftables **must correspond to one column in this table
 Matching Truth Table
 ---------------------------
 
-| Field | Case 1 | Case 2 | Case 3 | Case 4 | Case 5 | Case 6 | Case 7 | Case 8 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Source IP | Specific | Specific | Specific | Specific | Specific | Specific | Specific | Specific |
-| Source Port | Any | Specific | Any | Any | Specific | Specific | Any | Specific |
-| Destination IP | Any | Specific | Specific | Specific | Any | Any | Any | Specific |
-| Destination Port | Any | Specific | Any | Specific | Specific | Any | Specific | Any |
-| Protocol | tcp/udp | tcp/udp | tcp/udp | tcp/udp | tcp/udp | tcp/udp | tcp/udp | tcp/udp |
-| Action | allow / drop | allow / drop | allow / drop | allow / drop | allow / drop | allow / drop | allow / drop | allow / drop |
+| Field | Source IP | Source Port | Destination IP | Destination Port | Protocol | Action |
+| --- | --- | --- | --- | --- | --- | --- |
+| Case 1 | Specific | ALL | ALL | ALL | ALL | allow / drop |
+| Case 2 | Specific | Specific | Specific | Specific | tcp/udp | allow / drop |
+| Case 3 | Specific | ALL | Specific | ALL | ALL | allow / drop |
+| Case 4 | Specific | ALL | Specific | Specific | tcp/udp | allow / drop |
+| Case 5 | Specific | Specific | ALL | Specific | tcp/udp | allow / drop |
+| Case 6 | Specific | Specific | ALL | ALL | tcp/udp | allow / drop |
+| Case 7 | Specific | ALL | ALL | Specific | tcp/udp | allow / drop |
+| Case 8 | Specific | Specific | Specific | ALL | tcp/udp | allow / drop |
 
 * * *
 
