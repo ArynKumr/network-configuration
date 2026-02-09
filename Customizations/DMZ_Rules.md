@@ -1,3 +1,17 @@
+Matching Truth Table
+---------------------------
+
+| Field | Remote Source IP | Public ISP IP | Public Port | Protocol | DNAT Target IP | DNAT Target Port | Action |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Case 1 | ALL | Specific | Specific | tcp/udp | Specific | Specific | allow |
+| Case 2 | ALL | Specific | Range | tcp/udp | Specific | Range | allow |
+| Case 3 | ALL | Specific | ALL | ALL | Specific | ALL | allow |
+| Case 4 | Specific | Specific | Specific | tcp/udp | Specific | Specific | allow |
+| Case 5 | Specific | Specific | Range | tcp/udp | Specific | Range | allow |
+| Case 6 | Specific | Specific | ALL | ALL | Specific | ALL | allow |
+
+* * *
+* * *
 
 * * *
 
