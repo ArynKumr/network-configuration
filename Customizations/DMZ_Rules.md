@@ -13,8 +13,7 @@ Matching Truth Table
 
 * * *
 
-Case 1
-================================
+# Case 1
 
 **Meaning:**  
 Selective Port Forwarding
@@ -40,8 +39,7 @@ Allows control of incoming bandwidth so downloads don’t saturate the network.
 5. Since the `forward` chain policy is `drop`, forwarded packets must be explicitly allowed **after DNAT**.
 * * *
 
-Case 2
--------------------------
+# Case 2
 **Meaning:**  
 Selective Port Pool Forwarding
 
@@ -68,8 +66,7 @@ Allows control of incoming bandwidth so downloads don’t saturate the network.
 5. Since the `forward` chain policy is `drop`, forwarded packets must be explicitly allowed **after DNAT**.
 * * *
 
-Case 3
--------------------------
+# Case 3
 **Meaning:**  
 Full DMZ (All Incoming Traffic → Single Host)
 
@@ -92,8 +89,7 @@ nft insert rule inet filter FILTER_FORWARD ip daddr <client_ip> <action>
 
 * * *
 
-Case 4
--------------------------
+# Case 4
 **Meaning:**  
 Selective Port Forwarding from a specific source ip
 
@@ -120,8 +116,7 @@ Allows control of incoming bandwidth so downloads don't saturate the network.
 5. Since the `forward` chain policy is `drop`, forwarded packets must be explicitly allowed **after DNAT**.
 * * *
 
-Case 5
--------------------------
+# Case 5
 **Meaning:**  
 Selective Port Pool Forwarding with selective remote ip
 
@@ -148,8 +143,7 @@ Allows control of incoming bandwidth so downloads don't saturate the network.
 5. Since the `forward` chain policy is `drop`, forwarded packets must be explicitly allowed **after DNAT**.
 * * *
 
-Case 6
--------------------------
+# Case 6
 **Meaning:**  
 Full DMZ (All Incoming Traffic → Single Host) selective Remote ip
 
