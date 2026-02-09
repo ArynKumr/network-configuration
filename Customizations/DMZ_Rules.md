@@ -16,7 +16,9 @@ Matching Truth Table
 # Case 1
 
 **Meaning:**  
-Selective Port Forwarding
+
+Forwards traffic arriving on a specific public IP and port combination to a specific internal client IP and port, allowing any remote source IP to access an internal service through port forwarding.
+
 
 **Rules:**  
 
@@ -41,7 +43,7 @@ Allows control of incoming bandwidth so downloads don’t saturate the network.
 
 # Case 2
 **Meaning:**  
-Selective Port Pool Forwarding
+Forwards traffic arriving on a specific public IP and a range of ports to a specific internal client IP and corresponding port range, allowing any remote source IP to access internal services through port pool forwarding.
 
 **Rules:**  
 
@@ -68,7 +70,7 @@ Allows control of incoming bandwidth so downloads don’t saturate the network.
 
 # Case 3
 **Meaning:**  
-Full DMZ (All Incoming Traffic → Single Host)
+Full DNAT to a specific internal client for all incoming traffic on a public IP, allowing any remote source IP to access all ports on the internal service.
 
 **Rules:**  
 
@@ -91,7 +93,7 @@ nft insert rule inet filter FILTER_FORWARD ip daddr <client_ip> <action>
 
 # Case 4
 **Meaning:**  
-Selective Port Forwarding from a specific source ip
+Forwards traffic arriving on a specific public IP and port from a specific remote source IP to a specific internal client IP and port, restricting access to the internal service to only the designated source IP.
 
 **Rules:**  
 
@@ -118,7 +120,7 @@ Allows control of incoming bandwidth so downloads don't saturate the network.
 
 # Case 5
 **Meaning:**  
-Selective Port Pool Forwarding with selective remote ip
+Forwards traffic arriving on a specific public IP and a range of ports from a specific remote source IP to a specific internal client IP and corresponding port range, restricting access to the internal service to only the designated source IP with port pool forwarding.
 
 **Rules:**  
 
@@ -145,7 +147,7 @@ Allows control of incoming bandwidth so downloads don't saturate the network.
 
 # Case 6
 **Meaning:**  
-Full DMZ (All Incoming Traffic → Single Host) selective Remote ip
+Full DNAT to a specific internal client for all incoming traffic on a public IP from a specific remote source IP, allowing only the designated source IP to access all ports on the internal service.
 
 **Rules:**  
 
