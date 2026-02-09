@@ -89,6 +89,29 @@ nft insert rule inet filter FILTER_FORWARD ip daddr <client_ip> <action>
 3. All packets hitting the public ISP IP are destination-NATed to the internal client before routing decisions occur.
 4. Explicitly allows traffic through the `forward` chain. Required when the default policy is `drop`.
 
+***
+OR(For specific protocol)
+-
+
+Full DNAT to a specific internal client for all incoming traffic using a specific protocol on a public IP, allowing any remote source IP to access all ports on the internal service.
+
+**Rules:**  
+
+```
+nft add element inet filter allowed_ip4 { <client_ip> }
+nft add element inet mangle user4_marks { <client_ip> : 0x00<isp_mark><tc_class_marks> }
+nft insert rule inet nat NAT_PRE ip daddr <public_facing_isp_ip> ip protocol <protocol> dnat to <client_ip>
+nft insert rule inet filter FILTER_FORWARD ip daddr <client_ip> <action>
+```
+
+* * *
+
+**Explanation:**  
+1. Allows the internal client to send traffic **out** to the internet. Without this, the host can receive packets but cannot reply.
+2. Labels all traffic from the client for bandwidth management. Ensures forwarded DMZ traffic still respects TC class limits.
+3. All packets hitting the public ISP IP are destination-NATed to the internal client before routing decisions occur.
+4. Explicitly allows traffic through the `forward` chain. Required when the default policy is `drop`.
+
 * * *
 
 # Case 4
@@ -154,7 +177,21 @@ Full DNAT to a specific internal client for all incoming traffic on a public IP 
 ```
 nft add element inet filter allowed_ip4 { <client_ip> }
 nft add element inet mangle user4_marks { <client_ip> : 0x00<isp_mark><tc_class_marks> }
-nft insert rule inet nat NAT_PRE ip saddr <public_remote_ip> ip daddr <public_facing_isp_ip> dnat to <client_ip>
+nft insert rule inet nat NAT_PRE ip saddr <public_remote_ip>  ip daddr <public_facing_isp_ip> dnat to <client_ip>
+nft insert rule inet filter FILTER_FORWARD ip saddr <public_remote_ip> ip daddr <client_ip> <action>
+```
+***
+OR (for a sepcific protocol)
+-
+
+Full DNAT to a specific internal client for all incoming traffic on a public IP from a specific remote source IP using a specific protocol, allowing only the designated source IP to access all ports on the internal service.
+
+**Rules:**  
+
+```
+nft add element inet filter allowed_ip4 { <client_ip> }
+nft add element inet mangle user4_marks { <client_ip> : 0x00<isp_mark><tc_class_marks> }
+nft insert rule inet nat NAT_PRE ip saddr <public_remote_ip> ip protocol <protocol> ip daddr <public_facing_isp_ip> dnat to <client_ip>
 nft insert rule inet filter FILTER_FORWARD ip saddr <public_remote_ip> ip daddr <client_ip> <action>
 ```
 
