@@ -82,6 +82,44 @@ nft add element inet mangle user4_marks { <policy_vpn_users_ip> : 0x00<isp_id><t
 nft add element inet filter <policy_vpn_users_set> { <policy_vpn_users_ip> }
 nft add element inet nat <policy_vpn_users_set> { <policy_vpn_users_ip> }
 ```
+
+**(Source IP and Protocol only)**
+
+*   Matches only on **who** the vpn user is and what protocol is being used
+*   No port, or destination restriction
+*   Used for:
+    *   trusted vpn users
+    *   admin bypass
+
+**This is the highest-risk case.**
+```
+nft add set inet filter <policy_vpn_users_set> '{ type ipv4_addr; flags interval; }'
+nft add set inet nat <policy_vpn_users_set> '{ type ipv4_addr; flags interval; }'
+
+nft add chain inet filter <POLICY_NAME>
+nft add chain inet nat PRE_NAT_<POLICY_NAME>
+nft add chain inet nat POST_NAT_<POLICY_NAME>
+
+nft insert rule inet filter FILTER_FORWARD ip saddr @<policy_vpn_users_set> jump <POLICY_NAME>
+nft insert rule inet filter FILTER_FORWARD ip daddr @<policy_vpn_users_set> jump <POLICY_NAME>
+
+nft insert rule inet nat NAT_PRE ip saddr @<policy_vpn_users_set> jump PRE_NAT_<POLICY_NAME>
+nft insert rule inet nat NAT_PRE ip daddr @<policy_vpn_users_set> jump PRE_NAT_<POLICY_NAME>
+
+nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr @<policy_vpn_users_set> jump POST_NAT_<POLICY_NAME>
+
+nft add rule inet filter <POLICY_NAME> ip protocol <protocol> <action>
+
+nft add rule inet nat PRE_NAT_<POLICY_NAME> <action>
+
+nft add rule inet nat POST_NAT_<POLICY_NAME> masquerade
+
+nft add element inet mangle user4_marks { <policy_vpn_users_ip> : 0x00<isp_id><tc_class_id>}
+
+nft add element inet filter <policy_vpn_users_set> { <policy_vpn_users_ip> }
+nft add element inet nat <policy_vpn_users_set> { <policy_vpn_users_ip> }
+```
+
 * * *
 
 ### Case 2 — Full 5-Tuple Policy
@@ -166,6 +204,10 @@ nft add rule inet nat PRE_NAT_<POLICY_NAME> return
 
 nft add rule inet nat POST_NAT_<POLICY_NAME> ip daddr <destination_ip> masquerade
 nft add rule inet nat POST_NAT_<POLICY_NAME> return
+nft add element inet mangle user4_marks { <policy_vpn_users_ip> : 0x00<isp_id><tc_class_id>}
+
+nft add element inet filter <policy_vpn_users_set> { <policy_vpn_users_ip> }
+nft add element inet nat <policy_vpn_users_set> { <policy_vpn_users_ip> }
 ```
 OR (for specific protocol)
 --
@@ -204,6 +246,11 @@ nft add rule inet nat PRE_NAT_<POLICY_NAME> return
 
 nft add rule inet nat POST_NAT_<POLICY_NAME> ip daddr <destination_ip> masquerade
 nft add rule inet nat POST_NAT_<POLICY_NAME> return
+
+nft add element inet mangle user4_marks { <policy_vpn_users_ip> : 0x00<isp_id><tc_class_id>}
+
+nft add element inet filter <policy_vpn_users_set> { <policy_vpn_users_ip> }
+nft add element inet nat <policy_vpn_users_set> { <policy_vpn_users_ip> }
 ```
 
 ### Case 4 — Destination IP + Port Policy
@@ -403,6 +450,15 @@ nft add element inet mangle user4_marks { <policy_vpn_users_ip> : 0x00<isp_id><t
 
 nft add element inet filter <policy_vpn_users_set> { <policy_vpn_users_ip> }
 nft add element inet nat <policy_vpn_users_set> { <policy_vpn_users_ip> }
+```
+VPN USER LOGOUT
+--
+For user logout we only need to remove ips of users from policy and mark sets
+
+```
+nft delete element inet mangle user4_marks {<policy_vpn_users_ip> : 0x00<isp_id><tc_class_id>}
+nft delete element inet filter <policy_vpn_users_set> { <policy_vpn_users_ip> }
+nft delete element inet nat <policy_vpn_users_set> { <policy_vpn_users_ip> }
 ```
 
 Enforcement Rules (Critical)

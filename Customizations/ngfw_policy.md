@@ -440,6 +440,16 @@ nft add element inet filter <policy_users_set> { <policy_users_ip> }
 nft add element inet nat <policy_users_set> { <policy_users_ip> }
 ```
 
+VPN USER LOGOUT
+--
+For user logout we only need to remove ips of users from policy and mark sets
+
+```
+nft delete element inet mangle user4_marks {<policy_vpn_users_ip> : 0x00<isp_id><tc_class_id>}
+nft delete element inet filter <policy_vpn_users_set> { <policy_vpn_users_ip> }
+nft delete element inet nat <policy_vpn_users_set> { <policy_vpn_users_ip> }
+```
+
 Enforcement Rules (Critical)
 ----------------------------
 
