@@ -221,3 +221,16 @@ nft delete element inet webfilter ALLOW_ACCESS { <client_ip> }
 nft add element inet filter blocked_users_v4_mac { <client_ip> . <mac_address> }
 ```
 * * *
+
+For a user that has been assigned a ngfw policy, upon the user logout following are the steps to logout that user:
+--
+
+USER LOGOUT/Delete
+--
+For user logout we only need to remove ips of users from policy and mark sets
+
+```
+nft delete element inet mangle user4_marks {<policy_vpn_users_ip> : 0x00<isp_id><tc_class_id>}
+nft delete element inet filter <policy_vpn_users_set> { <policy_vpn_users_ip> }
+nft delete element inet nat <policy_vpn_users_set> { <policy_vpn_users_ip> }
+```
