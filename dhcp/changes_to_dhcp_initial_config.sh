@@ -99,38 +99,78 @@ init_kea_schema() {
 write_dhcp4_config() {
   info "Writing DHCPv4 config to $DHCP4_CONF"
   cat >"$DHCP4_CONF" <<EOF
-{
-  "Dhcp4": {
-    "interfaces-config": { "interfaces": [ "$INTERFACE4" ] },
-    "control-socket": {
-        "socket-type": "unix",
-        "socket-name": "/var/run/kea/kea4-ctrl-socket"
-    },
-    "lease-database": {
-      "type": "mysql",
-      "name": "$DB_NAME",
-      "user": "$DB_USER",
-      "password": "$DB_USER_PASSWORD",
-      "host": "$DB_HOST",
-      "port": $DB_PORT
-    },
-    "option-data": [
-      { "name": "domain-name-servers", "data": "$DNS4" },
-      { "name": "routers", "data": "$ROUTER4" }
-    ],
-    "subnet4": [
-      {
-        "subnet": "$SUBNET4",
-        "pools": [ { "pool": "$POOL4" } ]
-      }
-    ],
-    "loggers": [{
-      "name": "kea-dhcp4",
-      "severity": "INFO",
-      "output_options": [{ "output": "/var/log/kea/kea-dhcp4.log" }]
-    }]
+  {
+    "Dhcp4": {
+        "interfaces-config": {
+            "interfaces": []
+        },
+        "control-socket": {
+            "socket-type": "unix",
+            "socket-name": "/var/run/kea/kea4-ctrl-socket"
+        },
+        "lease-database": {
+            "type": "mysql",
+            "name": "${DB_NAME}",
+            "user": "${DB_USER}",
+            "password": "${DB_USER_PASSWORD}",
+            "host": "${DB_HOST}",
+            "port": ${DB_PORT}
+        },
+        "hosts-database": {
+            "type": "mysql",
+            "name": "${DB_NAME}",
+            "user": "${DB_USER}",
+            "password": "${DB_USER_PASSWORD}",
+            "host": "${DB_HOST}",
+            "port": ${DB_PORT}
+        },
+        "expired-leases-processing": {
+            "reclaim-timer-wait-time": 10,
+            "flush-reclaimed-timer-wait-time": 25,
+            "hold-reclaimed-time": 3600,
+            "max-reclaim-leases": 100,
+            "max-reclaim-time": 250,
+            "unwarned-reclaim-cycles": 5
+        },
+        "calculate-tee-times": true,
+        "valid-lifetime": ${VALID_LIFETIME_IPv4},
+        "option-data": [
+            {
+                "name": "domain-name-servers",
+                "data": "${DNS_SERVERS}"
+            }
+        ],
+
+        "hooks-libraries": [
+          {
+            "library": "/usr/lib/aarch64-linux-gnu/kea/hooks/libdhcp_mysql.so"
+          },
+          {
+            "library": "/usr/lib/aarch64-linux-gnu/kea/hooks/libdhcp_host_cmds.so"
+          }
+        ],
+        
+        "subnet4": [
+        ],
+
+        "loggers": [
+            {
+                "name": "kea-dhcp4",
+                "output_options": [
+                    {
+                        "output": "/var/log/kea/kea-dhcp4.log",
+                        "pattern": "%d %-5p [%c] %m\n",
+                        "maxsize": 1048576,
+                        "maxver": 8
+                    }
+                ],
+                // Supported values: FATAL, ERROR, WARN, INFO, DEBUG
+                "severity": "INFO",
+                "debuglevel": 0
+            }
+        ]
+    }
   }
-}
 EOF
 }
 
@@ -138,33 +178,74 @@ write_dhcp6_config() {
   info "Writing DHCPv6 config to $DHCP6_CONF"
   cat >"$DHCP6_CONF" <<EOF
 {
-  "Dhcp6": {
-    "interfaces-config": { "interfaces": [ "$INTERFACE6" ] },
-    "control-socket": {
-        "socket-type": "unix",
-        "socket-name": "/var/run/kea/kea6-ctrl-socket"
-    },
-    "lease-database": {
-      "type": "mysql",
-      "name": "$DB_NAME",
-      "user": "$DB_USER",
-      "password": "$DB_USER_PASSWORD",
-      "host": "$DB_HOST",
-      "port": $DB_PORT
-    },
-    "subnet6": [
-      {
-        "subnet": "$SUBNET6",
-        "pools": [ { "pool": "$POOL6" } ]
-      }
-    ],
-    "option-data": [ { "name": "dns-servers", "data": "$DNS6" } ],
-    "loggers": [{
-      "name": "kea-dhcp6",
-      "severity": "INFO",
-      "output_options": [{ "output": "/var/log/kea/kea-dhcp6.log" }]
-    }]
-  }
+    "Dhcp6": {
+        "interfaces-config": {
+            "interfaces": []
+        },
+        "control-socket": {
+            "socket-type": "unix",
+            "socket-name": "/var/run/kea/kea6-ctrl-socket"
+        },
+        "lease-database": {
+            "type": "mysql",
+            "name": "${DB_NAME}",
+            "user": "${DB_USER}",
+            "password": "${DB_USER_PASSWORD}",
+            "host": "${DB_HOST}",
+            "port": ${DB_PORT}
+        },
+        "hosts-database": {
+            "type": "mysql",
+            "name": "${DB_NAME}",
+            "user": "${DB_USER}",
+            "password": "${DB_USER_PASSWORD}",
+            "host": "${DB_HOST}",
+            "port": ${DB_PORT}
+        },
+        "expired-leases-processing": {
+            "reclaim-timer-wait-time": 10,
+            "flush-reclaimed-timer-wait-time": 25,
+            "hold-reclaimed-time": 3600,
+            "max-reclaim-leases": 100,
+            "max-reclaim-time": 250,
+            "unwarned-reclaim-cycles": 5
+        },
+        "calculate-tee-times": true,
+        "valid-lifetime": ${VALID_LIFETIME_IPv6},
+        "option-data": [
+            {
+                "name": "dns-servers",
+                "data": "${DNS6_SERVERS}"
+            }
+        ],
+
+        "hooks-libraries": [
+          {
+            "library": "/usr/lib/aarch64-linux-gnu/kea/hooks/libdhcp_mysql.so"
+          },
+          {
+            "library": "/usr/lib/aarch64-linux-gnu/kea/hooks/libdhcp_host_cmds.so"
+          }
+        ],
+        "subnet6": [
+        ],
+        "loggers": [
+            {
+                "name": "kea-dhcp6",
+                "output_options": [
+                    {
+                        "output": "/var/log/kea/kea-dhcp6.log",
+                        "pattern": "%d %-5p [%c] %m\n",
+                        "maxsize": 1048576,
+                        "maxver": 8
+                    }
+                ],
+                // Supported values: FATAL, ERROR, WARN, INFO, DEBUG
+                "severity": "INFO",
+                "debuglevel": 0
+            }
+        ]
+    }
 }
 EOF
 }
