@@ -1,6 +1,6 @@
 # Route rules
 
-## Adding a Default Gateway to Multiple Tables
+## Adding a Default Gateway to Multiple Tables (DHCP)
 
 A default gateway can be added to a non-main routing table while still using DHCP.
 In this example, the interface `enp8s0` receives its address via DHCP, but a default route is also installed into routing table `100`.
@@ -52,8 +52,6 @@ root@localhost:/etc/systemd/network# ip r show table 69
 default via 10.9.0.1 dev enp8s0 proto dhcp metric 300 
 10.10.0.0/24 via 10.9.0.1 dev enp8s0 proto static metric 200 onlink 
 root@localhost:/etc/systemd/network# 
-
-
 ```
 
 ---
@@ -64,19 +62,26 @@ Specific network routes can be installed into multiple routing tables by definin
 
 Example: adding the network `10.10.0.0/24` to both table `100`, table `200` and the main table.
 
-```
+```conf
+# The interface must always match the Gateway.
+[Match]
+Name=enp8s0
+
+# This is equivalent to `ip route add 10.10.0.0/24 via 10.9.0.1 dev enp8s0 table 100 metric 200`
 [Route]
 Destination=10.10.0.0/24
 Gateway=10.9.0.1
 Table=100
 Metric=200
 
+# This is equivalent to `ip route add 10.10.0.0/24 via 10.9.0.1 dev enp8s0 table 200 metric 200`
 [Route]
 Destination=10.10.0.0/24
 Gateway=10.9.0.2
 Table=200
 Metric=200
 
+# This is equivalent to `ip route add 10.10.0.0/24 via 10.9.0.1 dev enp8s0 metric 200`
 [Route]
 Destination=10.10.0.0/24
 Gateway=10.9.0.2
@@ -90,4 +95,5 @@ This creates identical routes in multiple tables, allowing:
 * Policy-routed traffic to use table 100
 
 > Note: Here, we must define `[Route]` section for each table which requires it.<br>
-> For example, here we want it so 10.10.10.0/24 must be accessible via the tables 100 and 200.
+> For example, here we want it so 10.10.10.0/24 must be accessible via the tables 100 and 200. <br>
+> Make sure that metric is unique in each .network file.
