@@ -1,195 +1,130 @@
-* * *
 
-Linux Multipath Default Route (ECMP / Weighted Load Sharing)
-============================================================
+# Linux Multipath Default Route (ECMP / Weighted Load Sharing)
 
-Command
--------
+1. Command
 
-```bash
-ip route add default table <aggregated_table_id> \
-    nexthop via <isp1_gateway_ip> dev <isp1_iface> weight <w1> \
-    nexthop via <isp2_gateway_ip> dev <isp2_iface> weight <w2> \
-    ...
-    nexthop via <ispN_gateway_ip> dev <ispN_iface> weight <wN>
-```
+    ```bash
+    ip route add default table <aggregated_table_id> \
+        nexthop via <isp1_gateway_ip> dev <isp1_iface> weight <w1> \
+        nexthop via <isp2_gateway_ip> dev <isp2_iface> weight <w2> \
+        ...
+        nexthop via <ispN_gateway_ip> dev <ispN_iface> weight <wN>
+    ```
+    This command creates **a single default route** in a **non-main routing table** that contains **multiple next hops**.
 
-* * *
+    `table <aggregated_table_id>` means:
 
-1\. What This Actually Does
---------------------------------------
+    *   This route is **not active by default**
+    *   It is only used when matched by an `ip rule`
+    *   Selected via:
+        *   `fwmark` (from nftables mangle) <br><br>
 
-This command creates **a single default route** in a **non-main routing table** that contains **multiple next hops**.
+    ```bash
+    ip rule add fwmark 0x00XX0000/0x00FF0000 table <aggregated_table_id>
+    ```
+    Now this table can be assigned to the users for whom ISP agregation is to be enabled. We set the Fwmark as this table's for those users.
 
-Linux treats this as:
 
-*   **ECMP (Equal/Weighted Cost Multi-Path) routing**
-*   **Per-flow load balancing**, _not_ per-packet
-*   **Stateless distribution**, decided at connection start
+1. Nexthop Semantics
 
+    Each `nexthop` defines **one ISP path**:
 
-* * *
+    | Field | Meaning |
+    | --- | --- |
+    | `via <gateway>` | Layer-3 next router |
+    | `dev <iface>` | Physical/logical interface |
+    | `weight <w>` | Relative traffic share |
 
-2\. Why This Is in a Custom Table
----------------------------------
+    Example:
 
-`table <aggregated_table_id>` means:
+    ```bash
+    nexthop via 1.1.1.1 dev wan1 weight 3
+    nexthop via 2.2.2.2 dev wan2 weight 1
+    ```
 
-*   This route is **not active by default**
-*   It is only used when matched by an `ip rule`
-*   Selected via:
-    *   `fwmark` (from nftables mangle)
+    **Result:**  
+    ≈ 75% of _new flows_ go to `wan1`, ≈ 25% to `wan2`.
 
-### Typical selector
 
-```bash
-ip rule add fwmark 0x00XX0000/0x00FF0000 table <aggregated_table_id>
-```
+1. Weight Is Not Bandwidth
 
-This makes the multipath route **policy-controlled**, not global.
+    Weight only controls **probability of path selection**.
 
-* * *
+    If your ISPs are:
 
-3\. Nexthop Semantics (Critical)
---------------------------------
+    | ISP | Speed |
+    | --- | --- |
+    | ISP1 | 1 Gbps |
+    | ISP2 | 100 Mbps |
 
-Each `nexthop` defines **one ISP path**:
+    Correct weights would be **~10:1**, _not_ equal.
 
-| Field | Meaning |
-| --- | --- |
-| `via <gateway>` | Layer-3 next router |
-| `dev <iface>` | Physical/logical interface |
-| `weight <w>` | Relative traffic share |
+    Bad weighting causes:
 
-Example:
+    *   bufferbloat
+    *   asymmetric congestion
 
-```bash
-nexthop via 1.1.1.1 dev wan1 weight 3
-nexthop via 2.2.2.2 dev wan2 weight 1
-```
 
-**Result:**  
-≈ 75% of _new flows_ go to `wan1`, ≈ 25% to `wan2`.
+1. Failure Behavior
 
-* * *
+    1. What happens if an ISP dies?
+        - The kernel **does not remove** the nexthop automatically
+        - Traffic continues to be hashed to the dead path
+        - Connections fail silently
 
-4\. How Load Balancing Really Works (Important)
------------------------------------------------
+    ### You MUST add one of:
 
-Linux uses a **hash of the flow tuple**, typically:
+    - `nexthop ... dead` handling via:
+        - `ip monitor`
+        - `keepalived`
+        - `ifup/down`
+        - BFD / userspace watchdog
 
-```
-src IP
-dst IP
-src port
-dst port
-protocol
-```
+    **This route alone is NOT failover-safe.**
 
-This means:
 
-*   One TCP/UDP flow → **one ISP only**
-*   No packet reordering
-*   No mid-connection switching
+1. Interaction with nftables / QoS
 
-### Consequences
+    This setup is paired with:
 
-✅ Safe for TCP  
-❌ Not true bandwidth aggregation for a single download  
-✅ Excellent for many parallel users / sessions
+    ### nftables (mangle)
 
-* * *
+    ```bash
+    meta mark set 0x00<isp_id><tc_class>
+    ```
 
-5\. Weight Is Not Bandwidth
----------------------------
+    ### ip rule
 
-Weight only controls **probability of path selection**.
+    ```bash
+    ip rule add fwmark 0x00<isp_id>0000/0x00FF0000 table <aggregated_table_id>
+    ```
 
-If your ISPs are:
+    Without **mangle + ip rule**, this route does nothing.
 
-| ISP | Speed |
-| --- | --- |
-| ISP1 | 1 Gbps |
-| ISP2 | 100 Mbps |
 
-Correct weights would be **~10:1**, _not_ equal.
+1. Common Use Cases
 
-Bad weighting causes:
+    This design is **wrong** for:
 
-*   bufferbloat
-*   asymmetric congestion
+    *   single large downloads
+    *   VPN tunnel aggregation
+    *   TCP stream bonding
 
-* * *
+    * * *
 
-6\. Failure Behavior (Read Carefully)
--------------------------------------
+1. Minimal Validation Checklist
 
-### What happens if an ISP dies?
+    After configuring:
 
-*   The kernel **does not remove** the nexthop automatically
-*   Traffic continues to be hashed to the dead path
-*   Connections fail silently
+    ```bash
+    ip route show table <aggregated_table_id>
+    ip rule show
+    ```
 
-### You MUST add one of:
+    Then test:
 
-*   `nexthop ... dead` handling via:
-    *   `ip monitor`
-    *   `keepalived`
-    *   `ifup/down`
-    *   BFD / userspace watchdog
+    ```bash
+    ip route get 8.8.8.8 mark 0x00XX0000
+    ```
 
-**This route alone is NOT failover-safe.**
-
-* * *
-
-7\. Interaction with nftables / QoS
------------------------------------
-
-This setup is paired with:
-
-### nftables (mangle)
-
-```bash
-meta mark set 0x00<isp_id><tc_class>
-```
-
-### ip rule
-
-```bash
-ip rule add fwmark 0x00<isp_id>0000/0x00FF0000 table <aggregated_table_id>
-```
-
-Without **mangle + ip rule**, this route does nothing.
-
-* * *
-
-8\. Common Use Cases
---------------------
-
-This design is **wrong** for:
-
-*   single large downloads
-*   VPN tunnel aggregation
-*   TCP stream bonding
-
-* * *
-
-9\. Minimal Validation Checklist
---------------------------------
-
-After configuring:
-
-```bash
-ip route show table <aggregated_table_id>
-ip rule show
-```
-
-Then test:
-
-```bash
-ip route get 8.8.8.8 mark 0x00XX0000
-```
-
-You should see **one of the nexthops selected**, not all.
-
-* * *
+    You should see **one of the nexthops selected**, not all.
