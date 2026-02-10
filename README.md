@@ -6,7 +6,8 @@ The following document describes how to set up the networking, DHCP, DNS and nft
 ## Core Infrastucture
 1. Setup interfaces
     We must set up all the interfaces first before doing anything else. you can find the information on how to setup all types of interfaces [here](interfaces_setup.md)
-
+1. Routing & policy routing
+    * [How to configure ip route and ip rules](./Customizations/route_rule_setup.md)
 
 1. DNS & DHCP
 
@@ -75,20 +76,6 @@ The following document describes how to set up the networking, DHCP, DNS and nft
 
 
 ## Routing & ISP Management
-
-1. Routing & policy routing
-    * [How to configure ip route and ip rules](./Customizations/route_rule_setup.md)
-    ```
-    ip rule show
-    ip route show table main
-    ip route show table <isp_table>
-    ```
-
-    ✔ ISP rules present  
-    ✔ Default routes exist in ISP tables  
-    ✘ No routes = traffic will blackhole
-
-
 1. Multi-ISP / Policy Routing
 
     Refer [route_rule_setup.md](Customizations/route_rule_setup.md)
