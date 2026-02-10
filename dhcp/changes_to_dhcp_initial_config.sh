@@ -11,29 +11,31 @@ set -euo pipefail
 PING_HOST=${PING_HOST:-8.8.8.8}
 
 # Database Config
-DB_HOST=${DB_HOST:-127.0.0.1}
+DB_HOST=${DB_HOST:-localhost}
 DB_PORT=${DB_PORT:-3306}
 DB_NAME=${DB_NAME:-firewall}
 DB_USER=${DB_USER:-kea_user}
 DB_USER_PASSWORD=${DB_USER_PASSWORD:-kea@123}
 DB_ROOT_PASSWORD=${DB_ROOT_PASSWORD:-}
 
-# Networking - Emptied as requested
-INTERFACE4=${INTERFACE4:-}
-INTERFACE6=${INTERFACE6:-}
-SUBNET4=${SUBNET4:-}
-POOL4=${POOL4:-}
-ROUTER4=${ROUTER4:-}
-SUBNET6=${SUBNET6:-}
-POOL6=${POOL6:-}
-DNS4=${DNS4:-}
-DNS6=${DNS6:-}
+# Directory paths
+SUBNETS_DIR4=${SUBNETS_DIR4:-/etc/kea/kea-dhcp4-subnets.d}
+SUBNETS_DIR6=${SUBNETS_DIR6:-/etc/kea/kea-dhcp6-subnets.d}
+
+# DHCP configuration
+DNS_SERVERS=${DNS_SERVERS:-"8.8.4.4, 8.8.8.8"}
+DNS6_SERVERS=${DNS6_SERVERS:-"2001:4860:4860::8888, 2001:4860:4860::8844"}
+VALID_LIFETIME_IPv4=${VALID_LIFETIME_IPv4:-86400} #Can be left blank as defaults to this value
+VALID_LIFETIME_IPv6=${VALID_LIFETIME_IPv6:-86400} #Can be left blank as defaults to this value
+
+# Target config file paths
+DHCP4_CONF_PATH=${DHCP4_CONF_PATH:-/etc/kea/kea-dhcp4.conf}
+DHCP6_CONF_PATH=${DHCP6_CONF_PATH:-/etc/kea/kea-dhcp6.conf}
+
 
 # File Paths
 DHCP4_CONF=/etc/kea/kea-dhcp4.conf
 DHCP6_CONF=/etc/kea/kea-dhcp6.conf
-CTRL_CONF=/etc/kea/kea-ctrl-agent.conf
-
 # -----------------------------------------------------------------------------
 # Helpers
 # -----------------------------------------------------------------------------
@@ -55,13 +57,11 @@ preflight_checks() {
   require_cmd curl
   ping -c1 -W5 "$PING_HOST" >/dev/null || die "No internet connectivity"
 }
-
 install_kea_packages() {
   local packages=(
     isc-kea-admin isc-kea-common isc-kea-dhcp4 isc-kea-dhcp6
-    isc-kea-hooks isc-kea-ctrl-agent isc-kea-mysql mariadb-server
+    isc-kea-hooks isc-kea-mysql mariadb-server
   )
-  
   info "Installing Kea packages from Cloudsmith"
   curl -fsSL https://dl.cloudsmith.io/public/isc/kea-3-0/setup.deb.sh | bash
   apt update
@@ -102,6 +102,10 @@ write_dhcp4_config() {
 {
   "Dhcp4": {
     "interfaces-config": { "interfaces": [ "$INTERFACE4" ] },
+    "control-socket": {
+        "socket-type": "unix",
+        "socket-name": "/var/run/kea/kea4-ctrl-socket"
+    },
     "lease-database": {
       "type": "mysql",
       "name": "$DB_NAME",
@@ -136,6 +140,10 @@ write_dhcp6_config() {
 {
   "Dhcp6": {
     "interfaces-config": { "interfaces": [ "$INTERFACE6" ] },
+    "control-socket": {
+        "socket-type": "unix",
+        "socket-name": "/var/run/kea/kea6-ctrl-socket"
+    },
     "lease-database": {
       "type": "mysql",
       "name": "$DB_NAME",
@@ -161,29 +169,14 @@ write_dhcp6_config() {
 EOF
 }
 
-write_ctrl_agent_config() {
-  info "Configuring Control Agent"
-  cat >"$CTRL_CONF" <<EOF
-{
-  "Control-agent": {
-    "http-host": "127.0.0.1",
-    "http-port": 8000,
-    "control-sockets": {
-      "dhcp4": { "socket-type": "unix", "socket-name": "/run/kea/kea4-ctrl-socket" },
-      "dhcp6": { "socket-type": "unix", "socket-name": "/run/kea/kea6-ctrl-socket" }
-    }
-  }
-}
-EOF
-}
 
 finalize_system() {
   info "Finalizing: Log directories and services"
   mkdir -p /var/log/kea
   chown -R _kea:_kea /var/log/kea
 
-  systemctl enable isc-kea-dhcp4-server isc-kea-dhcp6-server isc-kea-ctrl-agent
-  systemctl restart isc-kea-dhcp4-server isc-kea-dhcp6-server isc-kea-ctrl-agent
+  systemctl enable isc-kea-dhcp4-server isc-kea-dhcp6-server
+  systemctl restart isc-kea-dhcp4-server isc-kea-dhcp6-server 
 }
 
 # -----------------------------------------------------------------------------
@@ -195,29 +188,19 @@ main() {
   install_kea_packages
   setup_mysql_permissions
   init_kea_schema
-  
   write_dhcp4_config
   write_dhcp6_config
-  write_ctrl_agent_config
-  
   finalize_system
-  
 info "Kea DHCP server setup COMPLETE"
-
 info "NOTE: DHCP interfaces and subnets may be empty."
 info "      Update the configuration files under /etc/kea/ before serving clients."
-
 info "NOTE: Verify services with:"
 info "      systemctl status isc-kea-dhcp4-server"
 info "      systemctl status isc-kea-dhcp6-server"
-info "      systemctl status isc-kea-ctrl-agent"
-
 info "NOTE: Review logs if services fail to start:"
 info "      journalctl -xeu isc-kea-dhcp4-server"
 info "      journalctl -xeu isc-kea-dhcp6-server"
-info "      journalctl -xeu isc-kea-ctrl-agent"
-info "HINT: Use kea-config-tool or kea-shell to reload configuration without restarting services."
-
+info "HINT: Use kea-config-tool or kea-shell to reload configuration without restarting services." #To be tested
 }
 
 main "$@"
