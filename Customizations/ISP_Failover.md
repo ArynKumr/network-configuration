@@ -1,7 +1,5 @@
-* * *
 
-ISP Failover Using fwmark-Based Policy Routing
-==============================================
+# ISP Failover Using fwmark-Based Policy Routing
 
 Goal
 ----
@@ -11,7 +9,6 @@ Ensure that traffic **marked for ISP-1** (`fwmark 0x00<isp1_mark>0000/0x00ff0000
 * * *
 
 Normal (Healthy) State
-----------------------
 
 Each ISP has its own routing table.
 
@@ -57,7 +54,7 @@ Failover Action (Manual / Scripted)
 ### Step 1: Remove the Rule
 
 ```
-ip rule del fwmark 0x00<isp1_mark>0000 lookup <isp1_table_id>
+ip rule del fwmark 0x00<isp1_mark>0000 lookup <isp1_table_id> priority <prio>
 ```
 
 This immediately prevents traffic marked `0x00<isp1_mark>0000` from being routed via ISP-1.
@@ -67,7 +64,7 @@ This immediately prevents traffic marked `0x00<isp1_mark>0000` from being routed
 ### Step 2: Rebind Mark to Backup ISP
 
 ```
-ip rule add fwmark 0x00<isp1_mark>0000 lookup <isp2_table_id>
+ip rule add fwmark 0x00<isp1_mark>0000 lookup <isp2_table_id> priority <prio> priority <prio>
 ```
 
 Now:
@@ -81,22 +78,14 @@ All traffic — including users originally assigned to ISP-1 — exits via ISP-2
 
 * * *
 
-Key Design Principle
---------------------
-
-> **Marks do not change.  
-> Routing interpretation of marks does.**
-
-* * *
-
 Recovery (Failback)
 -------------------
 
 When ISP-1 comes back:
 
 ```
-ip rule del fwmark 0x00<isp1_mark>0000 lookup <isp2_table_id>
-ip rule add fwmark 0x00<isp1_mark>0000 lookup <isp1_table_id>
+ip rule del fwmark 0x00<isp1_mark>0000 lookup <isp2_table_id> priority <prio>
+ip rule add fwmark 0x00<isp1_mark>0000 lookup <isp1_table_id> priority <prio>
 ```
 
 Traffic reverts back.
@@ -104,7 +93,7 @@ Traffic reverts back.
 * * *
 
 **REQUIRED** Supporting Pieces
------------------------------------------
+
 
 To make this reliable, you must also have:
 

@@ -40,18 +40,6 @@ This creates a **destination-specific route** that:
 *   Forces them to be sent to a **specific next hop**
 *   Bypasses default routing decisions
 
-* * *
-
-Packet Flow (Critical to Understand)
-------------------------------------
-
-1.  Packet arrives
-2.  Routing lookup happens
-3.  **If destination matches `<relayed_subnet_or_ip>` → this route wins**
-4.  Packet is forwarded to `<switch_ip_or_gateway_ip>` via `<egress_iface>`
-5.  NAT / mangle happen _after_ routing decision (if configured)
-
-* * *
 
 Parameter Breakdown
 -------------------
@@ -75,6 +63,6 @@ ip route add 10.50.0.0/16 via 192.168.1.2 dev lan0
 Design Rules (Non-Negotiable)
 -----------------------------
 
-1.  Gateway must be **directly reachable**
+1.  Gateway (via keyword in commands) must be **directly reachable**
 2.  Interface must be **UP**
 3.  Return path must exist

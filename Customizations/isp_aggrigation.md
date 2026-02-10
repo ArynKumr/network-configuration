@@ -1,6 +1,8 @@
 
 # Linux Multipath Default Route (ECMP / Weighted Load Sharing)
 
+> Warning: The table used in this is not created using systemd-networkd. You must manage all the routes manually in this.
+
 1. Command
 
     ```bash
@@ -11,6 +13,8 @@
         nexthop via <ispN_gateway_ip> dev <ispN_iface> weight <wN>
     ```
     This command creates **a single default route** in a **non-main routing table** that contains **multiple next hops**.
+
+    > Note: We must have this additional new table independant of all the other tables.
 
     `table <aggregated_table_id>` means:
 

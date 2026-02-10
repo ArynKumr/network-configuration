@@ -104,7 +104,7 @@ The following document describes how to set up the networking, DHCP, DNS and nft
 
 1. ISP Aggrigation
 
-    Refer [isp_aggrigation.md](Customizations/isp_aggrigation.md) for more details
+    Refer [isp_aggrigation.md](Customizations/isp_aggrigation.md) for more details.
 
     **Purpose:**
     This creates **a single default route** in a **non-main routing table** that contains **multiple next hops**.
@@ -118,7 +118,7 @@ The following document describes how to set up the networking, DHCP, DNS and nft
 
 1. ISP Failover
 
-    Refer [isp_failover.md](Customizations/isp_failover.md) for more details
+    Refer [isp_failover.md](Customizations/ISP_Failover.md) for more details
 
     **Purpose:**
 
