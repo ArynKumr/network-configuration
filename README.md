@@ -702,3 +702,83 @@ Define **VPN user traffic behavior** across all supported modes:
 *   IP-only vs IP+Port restrictions
 
 This document maps **12 operational cases** to their intent and rule groups.
+
+12\. Allow Traffic To Firewall
+-----------------------------------
+
+Refer [allow_traffic_to_firewall.md](Customizations/allow_traffic_to_firewall.md) for more details
+
+**Purpose:**  
+Define which traffic is allowed or now to the firewall itself:
+
+13\. Bandwidth quota
+--
+Refer [Bandwidth_Quota.md](Customizations/Bandwidth_Quota.md) for more details
+
+**Purpose:**  
+Perposal for how can we handle bandwidth quota:
+
+13\. ISP Aggrigation
+--
+Refer [isp_aggrigation.md](Customizations/isp_aggrigation.md) for more details
+
+**Purpose:**
+This creates **a single default route** in a **non-main routing table** that contains **multiple next hops**.
+
+Linux treats this as:
+
+*   **ECMP (Equal/Weighted Cost Multi-Path) routing**
+*   **Per-flow load balancing**, _not_ per-packet
+*   **Stateless distribution**, decided at connection start
+
+14\. ISP Failover
+--
+Refer [isp_failover.md](Customizations/isp_failover.md) for more details
+
+**Purpose:**
+
+Ensure that traffic **marked for ISP-1** (`fwmark 0x00<isp1_mark>0000/0x00ff0000`) is **automatically rerouted via ISP-2** when ISP-1 becomes unavailable — **without changing nftables rules or user marks**.
+
+* * *
+
+15\.Policy Based Routing
+--
+Refer [policy_based_route.md](Customizations/policy_based_route.md) for more details
+
+**Purpose:**
+This module implements **forced next-hop routing** for:
+
+*   relayed subnets,
+*   downstream switches,
+*   L3 hops behind intermediate gateways,
+
+It is used when traffic **must pass through a specific L3 device** before reaching its final destination.
+
+16\. SNAT
+--
+
+Refer [SNAT_setup.md](Customizations/SNAT_setup.md) for more details
+
+**Purpose:**
+This document describes **Source NAT (SNAT) using nftables maps**.
+
+It also explains the **routing and ISP-ID constraints** that **must** be respected for correctness.
+
+* * *
+
+17\. TCP/UDP Reverse Proxy
+
+
+Refer [TCP_UDP_reverse_proxy.md](Customizations/TCP_UDP_reverse_proxy.md) for more details
+
+**Purpose:**
+This module enables **Layer-4 reverse proxying** (TCP/UDP) using NGINX **stream** mode.
+
+Typical use cases:
+
+*   exposing internal services behind a firewall
+*   proxying non-HTTP protocols (VPNs, game servers, custom daemons)
+*   decoupling public ISP IP from backend service IP
+*   controlling access via nftables instead of application logic
+
+* * *
