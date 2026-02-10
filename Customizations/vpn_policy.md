@@ -16,14 +16,16 @@ nft add element inet webfilter ALLOW_ACCESS { <policy_vpn_users_ip> }
 Policy Matching Truth Table
 ---------------------------
 
-| Field | Case 1 | Case 2 | Case 3 | Case 4 | Case 5 | Case 6 | Case 7 | Case 8 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Source IP | Specific | Specific | Specific | Specific | Specific | Specific | Specific | Specific |
-| Source Port | Any | Specific | Any | Any | Specific | Specific | Any | Specific |
-| Destination IP | Any | Specific | Specific | Specific | Any | Any | Any | Specific |
-| Destination Port | Any | Specific | Any | Specific | Specific | Any | Specific | Any |
-| Protocol | tcp/udp | tcp/udp | tcp/udp | tcp/udp | tcp/udp | tcp/udp | tcp/udp | tcp/udp |
-| Action | allow / drop | allow / drop | allow / drop | allow / drop | allow / drop | allow / drop | allow / drop | allow / drop |
+| Field | Source IP | Source Port | Destination IP | Destination Port | Protocol | Action |
+| --- | --- | --- | --- | --- | --- | --- |
+| Case 1 | Specific | ALL | ALL | ALL | ALL | allow / drop |
+| Case 2 | Specific | Specific | Specific | Specific | tcp/udp | allow / drop |
+| Case 3 | Specific | ALL | Specific | ALL | ALL | allow / drop |
+| Case 4 | Specific | ALL | Specific | Specific | tcp/udp | allow / drop |
+| Case 5 | Specific | Specific | ALL | Specific | tcp/udp | allow / drop |
+| Case 6 | Specific | Specific | ALL | ALL | tcp/udp | allow / drop |
+| Case 7 | Specific | ALL | ALL | Specific | tcp/udp | allow / drop |
+| Case 8 | Specific | Specific | Specific | ALL | tcp/udp | allow / drop |
 
 * * *
 
@@ -156,6 +158,44 @@ nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr @<policy_vpn_user
 
 nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> <action>
 nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> <action>
+nft add rule inet filter <POLICY_NAME> return
+
+nft add rule inet nat PRE_NAT_<POLICY_NAME> ip saddr <destination_ip> <action>
+nft add rule inet nat PRE_NAT_<POLICY_NAME> ip daddr <destination_ip> <action>
+nft add rule inet nat PRE_NAT_<POLICY_NAME> return
+
+nft add rule inet nat POST_NAT_<POLICY_NAME> ip daddr <destination_ip> masquerade
+nft add rule inet nat POST_NAT_<POLICY_NAME> return
+```
+OR (for specific protocol)
+--
+**(Source IP specific protocol → Destination IP specific protocol)**
+
+*   Ignores ports entirely
+*   Allows all services **to one destination specific protocol**
+*   Common for:
+    *   site-to-site links
+    *   fixed backend services
+
+* * *
+```
+nft add set inet filter <policy_users_set> { type ipv4_addr; flags interval; }
+nft add set inet nat <policy_users_set> { type ipv4_addr; flags interval; }
+
+nft add chain inet filter <POLICY_NAME>
+nft add chain inet nat PRE_NAT_<POLICY_NAME>
+nft add chain inet nat POST_NAT_<POLICY_NAME>
+
+nft insert rule inet filter FILTER_FORWARD ip saddr @<policy_users_set> jump <POLICY_NAME>
+nft insert rule inet filter FILTER_FORWARD ip daddr @<policy_users_set> jump <POLICY_NAME>
+
+nft insert rule inet nat NAT_PRE ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
+nft insert rule inet nat NAT_PRE ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
+
+nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
+
+nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> ip protocol <protocol> <action>
+nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> ip protocol <protocol> <action>
 nft add rule inet filter <POLICY_NAME> return
 
 nft add rule inet nat PRE_NAT_<POLICY_NAME> ip saddr <destination_ip> <action>

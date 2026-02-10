@@ -62,6 +62,30 @@ nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr <user_ips/user_su
 nft add rule inet mangle prerouting ip saddr <user_ips/user_subnet> meta mark set 0x00<isp_id><tc_class_id>
 nft add rule inet mangle forward ip daddr <user_ips/user_subnet> meta mark set 0x00<isp_id><tc_class_id>
 ```
+***
+OR (for specific protocol)
+--
+**(Source IP and protocol only)**
+
+*   Matches only on **who** the user is
+*   No port, protocol, or destination restriction
+*   Used for:
+    *   trusted users
+    *   admin bypass
+
+**This is the highest-risk case.**
+```
+nft insert rule inet filter FILTER_FORWARD ip saddr <user_ips/user_subnet> <action>
+nft insert rule inet filter FILTER_FORWARD ip daddr <user_ips/user_subnet> <action>
+
+nft insert rule inet nat NAT_PRE ip saddr <user_ips/user_subnet> ip protocol <protocol> <action>
+nft insert rule inet nat NAT_PRE ip daddr <user_ips/user_subnet> ip protocol <protocol> <action>
+
+nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr <user_ips/user_subnet> masquerade
+
+nft add rule inet mangle prerouting ip saddr <user_ips/user_subnet> meta mark set 0x00<isp_id><tc_class_id>
+nft add rule inet mangle forward ip daddr <user_ips/user_subnet> meta mark set 0x00<isp_id><tc_class_id>
+```
 * * *
 
 ### Case 2 — Full 5-Tuple Policy
@@ -103,6 +127,30 @@ nft add rule inet mangle forward ip daddr <user_ips/user_subnet> ip saddr <desti
 ```
 nft insert rule inet filter FILTER_FORWARD ip saddr <user_ips/user_subnet> ip daddr <destination_ip/destination_subnet> <action>
 nft insert rule inet filter FILTER_FORWARD ip daddr <user_ips/user_subnet> ip saddr <destination_ip/destination_subnet> <action>
+
+nft insert rule inet nat NAT_PRE ip saddr <user_ips/user_subnet> ip daddr <destination_ip/destination_subnet> <action>
+nft insert rule inet nat NAT_PRE ip daddr <user_ips/user_subnet> ip saddr <destination_ip/destination_subnet> <action>
+
+nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr <user_ips/user_subnet> ip daddr <destination_ip/destination_subnet> masquerade
+
+nft add rule inet mangle prerouting ip saddr <user_ips/user_subnet> ip daddr <destination_ip/destination_subnet> meta mark set 0x00<isp_id><tc_class_id>
+nft add rule inet mangle forward ip daddr <user_ips/user_subnet> ip saddr <destination_ip/destination_subnet> meta mark set 0x00<isp_id><tc_class_id>
+```
+***
+OR (for specific protocol)
+--
+**(Source IP specific protocol → Destination IP specific protocol)**
+
+*   Ignores ports entirely
+*   Allows all services **to one destination and specific protocol only**
+*   Common for:
+    *   site-to-site links
+    *   fixed backend services
+
+* * *
+```
+nft insert rule inet filter FILTER_FORWARD ip saddr <user_ips/user_subnet> ip daddr <destination_ip/destination_subnet> ip protocol <protocol> <action>
+nft insert rule inet filter FILTER_FORWARD ip daddr <user_ips/user_subnet> ip saddr <destination_ip/destination_subnet> ip protocol <protocol> <action>
 
 nft insert rule inet nat NAT_PRE ip saddr <user_ips/user_subnet> ip daddr <destination_ip/destination_subnet> <action>
 nft insert rule inet nat NAT_PRE ip daddr <user_ips/user_subnet> ip saddr <destination_ip/destination_subnet> <action>
