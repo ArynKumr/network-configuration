@@ -3,7 +3,12 @@ Allow Traffic to firewall from WAN
 
 Case 1 — Fully Locked (IP + Port + Protocol)
 --------------------------------------------
-**What it does:** Adds an input rule that accepts packets only when originating from a specific source IP and port, destined for a specific firewall public IP and port, with a matching protocol.
+**Meaning:** A specific remote IP at a specific port using a specific protocol connecting to our firewall's specific ISP IP at a specific port connects through.
+
+**Example:**
+- Remote client at 203.45.67.89:5000 (TCP)
+- Connects to firewall's Airtel IP 49.12.34.56:8000
+- Connection allowed only for this exact combination
 
 ```bash
 nft add rule inet filter input \
@@ -18,7 +23,12 @@ nft add rule inet filter input \
 
 Case 2 — Public Service (Port Only)
 -----------------------------------
-**What it does:** Adds an input rule that accepts packets destined for a specific firewall public IP and port, regardless of source IP or port.
+**Meaning:** Anyone from public IP connecting to a specific port of our firewall's specific ISP IP connects through.
+
+**Example:**
+- Any remote IP at any port
+- Connects to firewall's Airtel IP 49.12.34.56:80
+- Connection allowed from any source
 
 ```bash
 nft add rule inet filter input \

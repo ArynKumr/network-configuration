@@ -13,9 +13,9 @@ Policy Matching Truth Table
 
 | Field | Source IP | Source Port | Destination IP | Destination Port | Protocol | Action |
 | --- | --- | --- | --- | --- | --- | --- |
-| Case 1 | Specific | ALL | ALL | ALL | ALL | allow / drop |
+| Case 1 | Specific | ALL | ALL | ALL | tcp/udp | allow / drop |
 | Case 2 | Specific | Specific | Specific | Specific | tcp/udp | allow / drop |
-| Case 3 | Specific | ALL | Specific | ALL | ALL | allow / drop |
+| Case 3 | Specific | ALL | Specific | ALL | tcp/udp | allow / drop |
 | Case 4 | Specific | ALL | Specific | Specific | tcp/udp | allow / drop |
 | Case 5 | Specific | Specific | ALL | Specific | tcp/udp | allow / drop |
 | Case 6 | Specific | Specific | ALL | ALL | tcp/udp | allow / drop |

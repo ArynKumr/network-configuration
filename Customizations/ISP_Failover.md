@@ -29,7 +29,7 @@ ip rule add fwmark 0x00<isp2_mark>0000 lookup <isp2_table_id>
 | `0x00<isp1_mark>0000` | `<isp1_table_id>` | Traffic exits via ISP-1 |
 | `0x00<isp2_mark>0000` | `<isp2_table_id>` | Traffic exits via ISP-2 |
 
-*   Marks are usually applied in **nftables (mangle)**
+*   Marks are applied in **nftables (mangle)**
 *   Routing decision happens **after marking**
 *   Each table has its own default gateway
 
@@ -49,14 +49,12 @@ If nothing changes:
 *   connections blackhole
 *   kernel does NOT auto-failover
 
-Linux **will not save you** here.
-
 * * *
 
 Failover Action (Manual / Scripted)
 -----------------------------------
 
-### Step 1: Remove the Broken Rule
+### Step 1: Remove the Rule
 
 ```
 ip rule del fwmark 0x00<isp1_mark>0000 lookup <isp1_table_id>
@@ -101,16 +99,16 @@ ip rule del fwmark 0x00<isp1_mark>0000 lookup <isp2_table_id>
 ip rule add fwmark 0x00<isp1_mark>0000 lookup <isp1_table_id>
 ```
 
-Traffic immediately reverts.
+Traffic reverts back.
 
 * * *
 
-REQUIRED Supporting Pieces (Non-Optional)
+**REQUIRED** Supporting Pieces
 -----------------------------------------
 
 To make this reliable, you must also have:
 
-> [How to configure routing tables](route_rule_setup.md)
+> [Configured routing tables](route_rule_setup.md)
 
 ### 1\. Per-ISP Routing Tables
 
@@ -132,21 +130,14 @@ If users marked `0x00<isp1_mark>0000` are SNATed to **ISP-1 public IPs**:
 
 
 * * *
+How to test For ISP Failure
+--
 
-Recommended Production Pattern
-------------------------------
+**Meaning:** Ping a publically accessable server while specifying an interface if the ping works the isp is up if not then the isp is down.
 
-| Component | Failover Action |
-| --- | --- |
-| fwmark → ip rule | remap mark |
-| SNAT maps | switch pools |
-| QoS | unchanged |
-| nftables | unchanged |
-| Users | unaware |
+**Example:**
+- ping -c 5 -I enp44s0 8.8.8.8 
 
-* * *
-
-One-Line Summary
-----------------
-
-> ISP failover is achieved by **repointing fwmark-based routing rules**, not by changing packet marks — when ISP-1 dies, you simply tell the kernel: “mark `0x00<isp1_mark>0000` now means ISP-2.”
+```bash
+ping -c <times_to_ping> -I <wan_iface> <public_server_ip/domain>
+```
