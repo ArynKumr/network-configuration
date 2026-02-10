@@ -7,7 +7,7 @@ Before we begin, you must have:
 # WAN interface
 
 ```bash
-    # /etc/systemd/network/wan.network
+# /etc/systemd/network/wan.network
 [Match]
 Name=eth0
 
