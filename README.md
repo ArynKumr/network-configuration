@@ -366,56 +366,23 @@ The following document describes how to set up the networking, DHCP, DNS and nft
 
 1. Web Filtering (NFQUEUE)
 
-        Refer [user_login.md](Customizations/user_login.md) and [nftables.md](nftables.md)
+    Refer [user_login.md](Customizations/user_login.md) and [nftables.md](nftables.md)
 
-        ```
-        curl http://example.com
-        ```
+    ```
+    curl http://example.com
+    ```
 
-        ✔ NFQUEUE daemon logs packet  
-        ✔ Page allowed or blocked by policy
+    ✔ NFQUEUE daemon logs packet  
+    ✔ Page allowed or blocked by policy
 
-        If daemon is stopped:
+    If daemon is stopped:
 
-        ```
-        systemctl stop <webfilter_service>
-        ```
-        >Currently the service planned for it is `netifyd`.
-        ✔ Traffic still flows (bypass works)  
-        ✘ Internet dies → `bypass` missing (critical bug)
-
-
-1. Geo-Blocking
-
-    Refer [geo_setup.md](Customizations/geo_setup.md)
-
-    1. Inbound test (from blocked region)
-
-        From a blocked country IP:
-
-        ```
-        nc -vz <public_ip> 80
-        ```
-
-        ✔ Connection dropped  
-        ✔ Log entry:
-
-        ```
-        [GEOFENCE-BLOCK-V4]
-        ```
-
-        ✘ Connection succeeds → geo table not active
-
-
-    1. Outbound test
-
-        ```
-        curl http://<blocked_country_ip>
-        ```
-
-        ✔ Connection blocked  
-        ✔ Log entry exists  
-        ✘ Connection succeeds → forward geo logic broken
+    ```
+    systemctl stop <webfilter_service>
+    ```
+    >Currently the service planned for it is `netifyd`.
+    ✔ Traffic still flows (bypass works)  
+    ✘ Internet dies → `bypass` missing (critical bug)
 
 
 
@@ -479,3 +446,36 @@ The following document describes how to set up the networking, DHCP, DNS and nft
 
     Logging is **diagnostic**, not enforcement.  
     Removing logging **must not change traffic behavior**.
+
+
+# Geo-Blocking
+
+Refer [geo_setup.md](Customizations/geo_setup.md)
+
+1. Inbound test (from blocked region)
+
+    From a blocked country IP:
+
+    ```
+    nc -vz <public_ip> 80
+    ```
+
+    ✔ Connection dropped  
+    ✔ Log entry:
+
+    ```
+    [GEOFENCE-BLOCK-V4]
+    ```
+
+    ✘ Connection succeeds → geo table not active
+
+
+1. Outbound test
+
+    ```
+    curl http://<blocked_country_ip>
+    ```
+
+    ✔ Connection blocked  
+    ✔ Log entry exists  
+    ✘ Connection succeeds → forward geo logic broken
