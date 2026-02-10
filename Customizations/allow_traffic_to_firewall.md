@@ -3,8 +3,7 @@ Allow Traffic to firewall from WAN
 
 Case 1 — Fully Locked (IP + Port + Protocol)
 --------------------------------------------
-
-**Most secure**
+**What it does:** Adds an input rule that accepts packets only when originating from a specific source IP and port, destined for a specific firewall public IP and port, with a matching protocol.
 
 ```bash
 nft add rule inet filter input \
@@ -15,16 +14,11 @@ nft add rule inet filter input \
     accept
 ```
 
-### Use when:
-
-*   static remote peer
-*   known client port
-*   strict compliance
-
 * * *
 
 Case 2 — Public Service (Port Only)
 -----------------------------------
+**What it does:** Adds an input rule that accepts packets destined for a specific firewall public IP and port, regardless of source IP or port.
 
 ```bash
 nft add rule inet filter input \
@@ -32,18 +26,14 @@ nft add rule inet filter input \
     <protocol> dport <firewall_public_isp_port> \
     accept
 ```
-
-### Use when:
-
-*   public-facing service
-*   client IPs unknown
-*   still protocol + port scoped
 
 * * *
 
 Case 3 — Port-Restricted Clients (Any IP)
 -----------------------------------------
 
+**What it does:** Adds an input rule that accepts packets from any source IP, but only if they originate from a specific source port and are destined for a specific firewall public IP and port.
+
 ```bash
 nft add rule inet filter input \
     <protocol> sport <source_remote_port> \
@@ -52,17 +42,12 @@ nft add rule inet filter input \
     accept
 ```
 
-### Use when:
-
-*   client software uses fixed source port
-*   IPs change (NAT, CGNAT)
-
-⚠️ Less secure than Case 1.
-
 * * *
 
 Case 4 — IP-Restricted Clients (Any Source Port)
 ------------------------------------------------
+
+**What it does:** Adds an input rule that accepts packets from a specific source IP destined for a specific firewall public IP and port, but allows any source port.
 
 ```bash
 nft add rule inet filter input \
@@ -71,22 +56,5 @@ nft add rule inet filter input \
     <protocol> dport <firewall_public_isp_port> \
     accept
 ```
-
-### Use when:
-
-*   trusted IP
-*   dynamic client ports
-
-* * *
-
-Security Model Summary
-----------------------
-
-| Case | IP Scoped | Port Scoped | Security |
-| --- | --- | --- | --- |
-| 1 | ✅ | ✅ | Highest |
-| 2 | ❌ | ✅ | Medium |
-| 3 | ❌ | ⚠️ partial | Medium-Low |
-| 4 | ✅ | ❌ | Medium |
 
 * * *
