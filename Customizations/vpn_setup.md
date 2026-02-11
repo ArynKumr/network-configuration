@@ -29,7 +29,6 @@ It also explains how VPN traffic interacts with webfilter / NFQUEUE.
             | OpenVPN | udp/tcp | 1194 |
             | IPsec IKE | udp | 500 / 4500 |
 
-
         1. Allow Traffic FROM VPN Subnet to Firewall
 
             Once the tunnel is up, packets originate from the VPN subnet, not the internet.
@@ -48,6 +47,24 @@ It also explains how VPN traffic interacts with webfilter / NFQUEUE.
                 *   access routed resources
 
             Without this rule, VPN users connect but can’t pass traffic.
+
+        1. Allow Traffic FROM VPN Subnet to lan clients unrestricted
+
+            Packets originate from the VPN subnet which acts like another lan network.
+
+            ```bash
+                nft add rule inet mangle prerouting ip daddr <vpn_subnet> iifname @lan_ifaces meta mark set 0x00000069
+                nft add rule inet mangle forward ip saddr <vpn_subnet> oifname @lan_ifaces meta mark set 0x00000069
+            ```
+
+            Purpose
+
+            *   Allows VPN users to:
+                *   reach firewall clients
+                *   not affect their download quota
+
+            Without this rule, VPN users connect but consumes its download quota.
+            
 
         1. Web Filtering Integration (Optional but Important)
 

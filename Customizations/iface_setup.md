@@ -37,6 +37,9 @@ nft add element inet filter lan_ifaces { "<lan_iface1>", "<lan_iface2>" }
 # Register LAN interfaces in the nat table (captive portal logic)
 nft add element inet nat lan_ifaces { "<lan_iface1>", "<lan_iface2>" }
 
+# Register LAN interfaces in the mangle table (captive portal logic)
+nft add element inet mangle lan_ifaces { "<lan_iface1>", "<lan_iface2>" }
+
 # Register LAN interfaces for webfilter/NFQUEUE inspection (internal-only web traffic)
 nft add element inet webfilter lan_ifaces { "<lan_iface1>", "<lan_iface2>" }
 ```

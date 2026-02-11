@@ -71,6 +71,32 @@ This is where bandwidth limits actually happen.
         Traffic is reshuffled every 10 seconds to maintain fairness.
 
 
+    1. DMZ / LAN-LAN Communication Lane
+
+        Purpose:  
+        Ensure untagged or unknown traffic does not starve the system.
+
+        ```
+        tc class add dev <iface_name> parent 1:1 classid 1:69 \
+            htb rate <speed>Gbit/Mbit/Kbit \
+            ceil <speed>Gbit/Mbit/Kbit
+        ```
+
+
+    1. Fairness Within the DMZ / LAN-LAN Communication Lane Lane
+
+        Purpose:
+        Prevent one flow from monopolizing the DMZ / LAN-LAN Communication Lane class.
+
+        ```
+        tc qdisc add dev <iface_name> parent 1:69 \
+            handle 69: sfq perturb 10
+        ```
+
+        Effect:  
+        Traffic is reshuffled every 10 seconds to maintain fairness.
+
+
 User-Level QoS Setup
 --------------------
 
