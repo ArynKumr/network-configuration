@@ -178,7 +178,7 @@ This guide describes the method to deploy an `ISC DHCP Relay Agent` with a `ISC-
     [dhcrelay-man](https://kb.isc.org/docs/isc-dhcp-44-manual-pages-dhcrelay)
 
     ---
-    >TODO: Testing of isc-dhcp-relay over dhcpv6
+    >TODO: Testing of isc-dhcp-relay over dhcpv6 and simultaneous over dhcpv4 and dhcpv6
     ---
 # Network Topologies as DHCP Relay Host
 Purpose: Configuring the Firewall to appropriately act as a relay agent (For the case of Uplink DHCP) for L2/L3 connectivity including VLANs and Bridges.
