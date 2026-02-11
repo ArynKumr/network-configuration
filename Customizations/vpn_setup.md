@@ -1,171 +1,143 @@
-VPN Firewall Integration
-===================================
+# VPN Firewall Integration
 
-This document defines **mandatory firewall rules** for:
+This document defines firewall rules for:
 
-*   **Remote-access (user) VPN**
-*   **Site-to-site VPN**
+- Remote-access (user) VPN
+- Site-to-site VPN
 
-It also explains how VPN traffic interacts with **webfilter / NFQUEUE**.
+It also explains how VPN traffic interacts with webfilter / NFQUEUE.
 
-* * *
 
-Common Assumptions
-------------------
+1. Remote-Access (User VPN)
+    - Remote Access VPN
+        1. Allow VPN Tunnel Establishment
 
-*   VPN server runs **on the firewall**
-*   VPN traffic terminates on the firewall (no DNAT)
-*   VPN assigns IPs from a dedicated **VPN subnet**
-*   VPN tunnel interface exists (e.g. `wg0`, `tun0`, `tap0`)
-*   Routing is already correct
+            This allows clients on the internet to establish the encrypted tunnel.
 
-* * *
+            ```bash
+            nft add rule inet filter input \
+                ip daddr <firewall_public_isp_ip> \
+                <protocol> dport <firewall_public_isp_port> \
+                accept
+            ```
 
-Part A — Remote-Access (User VPN)
----------------------------------
+            Examples
 
-### 1\. Allow VPN Tunnel Establishment
+            | VPN Type | Protocol | Port |
+            | --- | --- | --- |
+            | WireGuard | udp | 51820 |
+            | OpenVPN | udp/tcp | 1194 |
+            | IPsec IKE | udp | 500 / 4500 |
 
-This allows clients on the internet to **establish the encrypted tunnel**.
 
-```bash
-nft add rule inet filter input \
-    ip daddr <firewall_public_isp_ip> \
-    <protocol> dport <firewall_public_isp_port> \
-    accept
-```
+        1. Allow Traffic FROM VPN Subnet to Firewall
 
-### Examples
+            Once the tunnel is up, packets originate from the VPN subnet, not the internet.
 
-| VPN Type | Protocol | Port |
-| --- | --- | --- |
-| WireGuard | udp | 51820 |
-| OpenVPN | udp/tcp | 1194 |
-| IPsec IKE | udp | 500 / 4500 |
+            ```bash
+            nft add rule inet filter input \
+                ip daddr <vpn_subnet>/<prefix> \
+                accept
+            ```
 
-* * *
+            Purpose
 
-### 2\. Allow Traffic FROM VPN Subnet to Firewall
+            *   Allows VPN users to:
+                *   reach firewall services
+                *   authenticate
+                *   access routed resources
 
-Once the tunnel is up, packets originate from the **VPN subnet**, not the internet.
+            Without this rule, VPN users connect but can’t pass traffic.
 
-```bash
-nft add rule inet filter input \
-    ip daddr <vpn_subnet>/<prefix> \
-    accept
-```
+        1. Web Filtering Integration (Optional but Important)
 
-### Purpose
+            > NOTE:  
+            > VPN subnets must be explicitly integrated with the webfilter table.
 
-*   Allows VPN users to:
-    *   reach firewall services
-    *   authenticate
-    *   access routed resources
+            If VPN user traffic must be inspected by NFQUEUE:
 
-Without this rule, VPN users connect but **can’t pass traffic**.
+            ```bash
+            nft add rule inet webfilter SYS_WEBFILTER \
+                ip saddr @<vpn_subnet> \
+                ip saddr = @ALLOW_ACCESS \
+                tcp dport { 80, 443 } \
+                queue flags bypass to 0
+            ```
 
-* * *
+            What This Does
 
-### 3\. Web Filtering Integration (Optional but Important)
+            *   Sends VPN users’ HTTP/HTTPS traffic to netfilter
+            *   Applies the same content filtering rules as LAN users
+            *   `bypass` ensures internet still works if the filter crashes
 
-> **NOTE:**  
-> VPN subnets must be explicitly integrated with the webfilter table.
 
-If VPN user traffic **must be inspected** by NFQUEUE:
+            If Only Specific VPN Users Should Be Filtered
 
-```bash
-nft add rule inet webfilter SYS_WEBFILTER \
-    ip saddr @<vpn_subnet> \
-    ip saddr = @ALLOW_ACCESS \
-    tcp dport { 80, 443 } \
-    queue flags bypass to 0
-```
+            Add individual VPN user IPs to `ALLOW_ACCESS` instead of the whole subnet.
 
-### What This Does
+            ```bash
+            nft add element inet webfilter ALLOW_ACCESS { <vpn_user_ip> }
+            ```
 
-*   Sends VPN users’ HTTP/HTTPS traffic to netfilter
-*   Applies the same content filtering rules as LAN users
-*   `bypass` ensures internet still works if the filter crashes
 
-* * *
+1. Part B — Site-to-Site VPN
+    - Site-to-site VPNs require strict peer validation.
+        1. Allow Tunnel Establishment from Known Peer
 
-### If Only Specific VPN Users Should Be Filtered
+            ```bash
+            nft add rule inet filter input \
+                ip saddr <source_remote_ip> \
+                <protocol> sport <source_remote_port> \
+                ip daddr <firewall_public_isp_ip> \
+                <protocol> dport <firewall_public_isp_port> \
+                accept
+            ```
 
-Add **individual VPN user IPs** to `ALLOW_ACCESS` instead of the whole subnet.
+            Why This Is Required
 
-```bash
-nft add element inet webfilter ALLOW_ACCESS { <vpn_user_ip> }
-```
+            *   Prevents rogue tunnel attempts
+            *   Locks the VPN to a known peer
 
-* * *
 
-Part B — Site-to-Site VPN
--------------------------
+        1. Allow Traffic FROM Remote VPN Subnet
 
-Site-to-site VPNs require **strict peer validation**.
+            After tunnel setup, traffic appears as coming from the remote VPN subnet.
 
-* * *
+            ```bash
+            nft add rule inet filter input \
+                ip daddr <vpn_subnet>/<prefix> \
+                accept
+            ```
 
-### 1\. Allow Tunnel Establishment from Known Peer
+            Purpose
 
-```bash
-nft add rule inet filter input \
-    ip saddr <source_remote_ip> \
-    <protocol> sport <source_remote_port> \
-    ip daddr <firewall_public_isp_ip> \
-    <protocol> dport <firewall_public_isp_port> \
-    accept
-```
+            *   Enables:
+                *   routed inter-site traffic
+                *   service access
+                *   monitoring
 
-### Why This Is Required
 
-*   Prevents rogue tunnel attempts
-*   Locks the VPN to a **known peer**
+        1. Webfilter Considerations for Site-to-Site VPN
+        
 
-* * *
+            By default:
 
-### 2\. Allow Traffic FROM Remote VPN Subnet
+            *   Do NOT send site-to-site VPN traffic to webfilter
+            *   These links are typically:
+                *   trusted
+                *   application-specific
+                *   non-web traffic
 
-After tunnel setup, traffic appears as coming from the **remote VPN subnet**.
+            If filtering is required:
 
-```bash
-nft add rule inet filter input \
-    ip daddr <vpn_subnet>/<prefix> \
-    accept
-```
+            *   Treat remote subnet like LAN
 
-### Purpose
 
-*   Enables:
-    *   routed inter-site traffic
-    *   service access
-    *   monitoring
+        1. Security Model Summary
+            
 
-* * *
+            | VPN Type | Internet Rule | Subnet Rule | Webfilter |
+            | --- | --- | --- | --- |
+            | User VPN | Public IP + Port | VPN subnet | Optional |
+            | Site-to-site | IP + Port locked | VPN subnet | Usually No |
 
-Webfilter Considerations for Site-to-Site VPN
----------------------------------------------
-
-By default:
-
-*   **Do NOT** send site-to-site VPN traffic to webfilter
-*   These links are typically:
-    *   trusted
-    *   application-specific
-    *   non-web traffic
-
-If filtering is required:
-
-*   Treat remote subnet like LAN
-
-* * *
-
-Security Model Summary
-----------------------
-
-| VPN Type | Internet Rule | Subnet Rule | Webfilter |
-| --- | --- | --- | --- |
-| User VPN | Public IP + Port | VPN subnet | Optional |
-| Site-to-site | IP + Port locked | VPN subnet | Usually No |
-
-* * *
