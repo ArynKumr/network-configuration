@@ -97,3 +97,5 @@ This creates identical routes in multiple tables, allowing:
 > Note: Here, we must define `[Route]` section for each table which requires it.<br>
 > For example, here we want it so 10.10.10.0/24 must be accessible via the tables 100 and 200. <br>
 > Make sure that metric is unique in each .network file.
+
+> Note: All routes reachable via an interface must be added to every routing table. Otherwise, VPN traffic may fail to reach certain destinations. For example, if a VPN user is assigned to ISP 1, they will only be able to access the routes present in ISP 1’s routing table. Therefore, including the full set of routes in each ISP’s table ensures consistent accessibility regardless of which ISP a VPN user is mapped to.

@@ -76,13 +76,17 @@ They **modify live sets/maps** — nothing here is persistent unless saved.
     Tag all traffic from this IP with a composite mark:  
     `0x00[ISP][CLASS]`
 
-    For IP based users, and IP+Mac based users
+    For IP based users, and IP based users
         
         nft add element inet mangle user4_marks { <client_ip> : 0x00<isp_mark><tc_class_marks> }
 
     For Mac based users
         
         nft add element inet mangle user_mac_marks { <client_mac> : 0x00<isp_mark><tc_class_marks> }
+
+    For IP MAC based users, and IP MAC based users
+        
+        nft add element inet mangle user4_mac_marks { <client_ip> . <client_mac> : 0x00<isp_mark><tc_class_marks> }
 
 
 
@@ -118,7 +122,7 @@ They **modify live sets/maps** — nothing here is persistent unless saved.
     # For IP+Mac based users
     nft delete element inet filter allowed_ip4_mac { <client_ip> . <mac_address> }
     nft delete element inet nat allowed_ip4_mac { <client_ip> . <mac_address> }
-    nft delete element inet mangle user4_marks { <client_ip> : 0x00<isp_mark><tc_class_marks> }
+    nft delete element inet mangle user4_mac_marks { <client_ip> . <client_mac> : 0x00<isp_mark><tc_class_marks> }
     nft delete element inet webfilter ALLOW_ACCESS { <client_ip> }
     nft add element inet filter blocked_users_v4_mac { <client_ip> . <mac_address> }
 
