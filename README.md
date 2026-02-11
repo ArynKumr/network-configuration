@@ -374,8 +374,7 @@ The following document describes how to set up the networking, DHCP, DNS and nft
 
 ---
 ## VPN & Remote Access
-- Point — VPN & Remote Access
-Description — Handles secure remote connectivity using VPN tunnels, including verifying tunnel establishment, ensuring proper LAN/internet traffic forwarding, and applying policy controls such as split/full tunneling, captive portal integration, and IP/port-based access restrictions.
+- Handles secure remote connectivity using VPN tunnels, including verifying tunnel establishment, ensuring proper LAN/internet traffic forwarding, and applying policy controls such as split/full tunneling, captive portal integration, and IP/port-based access restrictions.
 
     1. VPN Connectivity
 
