@@ -74,7 +74,7 @@ This is where bandwidth limits actually happen.
     1. DMZ / LAN-LAN Communication Lane
 
         Purpose:  
-        Ensure untagged or unknown traffic does not starve the system.
+        Ensure traffic tagged with 0x69 go to 1:69 class.
 
         ```
         tc class add dev <iface_name> parent 1:1 classid 1:69 \
@@ -95,6 +95,15 @@ This is where bandwidth limits actually happen.
 
         Effect:  
         Traffic is reshuffled every 10 seconds to maintain fairness.
+
+    1. Associating tc class 69 with fw mark 0x69
+
+        ```
+        tc filter add dev <iface_name> protocol ip parent 1:0 prio 1 handle 0x00000069/0x0000FFFF fw flowid 1:69
+        ```
+
+        Effect:  
+        Any taffic marked with 0x69 will be sent to class 1:69.
 
 
 User-Level QoS Setup

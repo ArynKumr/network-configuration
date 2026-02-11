@@ -841,6 +841,17 @@ map user_mac_marks {
 
 * * *
 
+### vpn → Mark Map
+
+```
+set vpn_subnet {
+    type ipv4_addr
+    flags interval
+}
+```
+
+* * *
+
 Section 3: Tagging Logic (Chains)
 ---------------------------------
 
@@ -868,6 +879,7 @@ Identify the **sender** and apply their assigned mark.
     meta mark set ip6 saddr map @user6_marks
     meta mark set ether saddr map @user_mac_marks
     meta mark set ip saddr . ether saddr map @user4_mac_marks
+    ip daddr @vpn_subnet iifname @lan_ifaces meta mark set 0x00000069
 ```
 
 * * *
@@ -906,6 +918,7 @@ Identify the **receiver** and apply their mark.
     meta mark set ip6 daddr map @user6_marks
     meta mark set ether daddr map @user_mac_marks
     meta mark set ip daddr . ether daddr map @user4_mac_marks
+    ip saddr @vpn_subnet oifname @lan_ifaces meta mark set 0x00000069
 ```
 
 * * *

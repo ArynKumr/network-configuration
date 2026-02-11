@@ -53,8 +53,7 @@ It also explains how VPN traffic interacts with webfilter / NFQUEUE.
             Packets originate from the VPN subnet which acts like another lan network.
 
             ```bash
-                nft add rule inet mangle prerouting ip daddr <vpn_subnet> iifname @lan_ifaces meta mark set 0x00000069
-                nft add rule inet mangle forward ip saddr <vpn_subnet> oifname @lan_ifaces meta mark set 0x00000069
+                nft add element inet mangle vpn_subnet {<vpn_subnet>} 
             ```
 
             Purpose
