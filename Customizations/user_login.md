@@ -33,15 +33,18 @@ They **modify live sets/maps** — nothing here is persistent unless saved.
     **Purpose:**  
     Allow the user to pass traffic through the Firewall to the internet.
 
-    ```
-    # For IP based
-    nft add element inet filter allowed_ip4 { <client_ip> }
-    # For Mac based
-    nft add element inet filter allowed_macs { <client_mac> }
-    # For IP+Mac based
-    nft add element inet filter allowed_ip4_mac { <client_ip> . <mac_address> }
+    For IP based
 
-    ```
+        nft add element inet filter allowed_ip4 { <client_ip> }
+
+    For Mac based
+
+        nft add element inet filter allowed_macs { <client_mac> }
+    
+    For IP+Mac based
+    
+        nft add element inet filter allowed_ip4_mac { <client_ip> . <mac_address> }
+
 
 
 1. Captive Portal Bypass (NAT)
@@ -49,14 +52,20 @@ They **modify live sets/maps** — nothing here is persistent unless saved.
     **Purpose:**  
     Stop redirecting this user to the login / splash page.
 
-    ```
-    # For allowed ip based users
-    nft add element inet nat allowed_ip4 { <client_ip> }
-    # For allowed mac based users
-    nft add element inet nat allowed_macs { <client_mac> }
-    # For allowed IP+Mac based
-    nft add element inet nat allowed_ip4_mac { <client_ip> . <mac_address> }
-    ```
+    
+    
+    For allowed ip based users
+        
+        nft add element inet nat allowed_ip4 { <client_ip> }
+    
+    For allowed mac based users
+        
+        nft add element inet nat allowed_macs { <client_mac> }
+    
+    For allowed IP+Mac based
+        
+        nft add element inet nat allowed_ip4_mac { <client_ip> . <mac_address> }
+    
 
     > Note: Must keep these entries for users we don't want to show captive portal.
 
@@ -67,14 +76,14 @@ They **modify live sets/maps** — nothing here is persistent unless saved.
     Tag all traffic from this IP with a composite mark:  
     `0x00[ISP][CLASS]`
 
-    ```
-    # For IP based users, and IP+Mac based users
-    nft add element inet mangle user4_marks { <client_ip> : 0x00<isp_mark><tc_class_marks> }
+    For IP based users, and IP+Mac based users
+        
+        nft add element inet mangle user4_marks { <client_ip> : 0x00<isp_mark><tc_class_marks> }
 
-    # For Mac based users
-    nft add element inet mangle user_mac_marks { <client_mac> : 0x00<isp_mark><tc_class_marks> }
+    For Mac based users
+        
+        nft add element inet mangle user_mac_marks { <client_mac> : 0x00<isp_mark><tc_class_marks> }
 
-    ```
 
 
 1. Enable Web Inspection (HTTP / HTTPS and DNS)

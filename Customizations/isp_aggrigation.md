@@ -14,7 +14,7 @@
     ```
     This command creates **a single default route** in a **non-main routing table** that contains **multiple next hops**.
 
-    > Note: We must have this additional new table independant of all the other tables.
+    > Note: We must have a special table for aggregation. (independant of all the other ISP tables/main table).
 
     `table <aggregated_table_id>` means:
 

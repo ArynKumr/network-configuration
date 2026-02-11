@@ -1,5 +1,3 @@
-> headnote: The first `filter` rule in all the cases would effectively allow all the internet on the target machine. To prevent that, we can create a custom "ngfw policy" in which all traffic is dropped, except for traffic with source port 8000 (since in reverse direction, someone else's destination becomes our source.) Similar case for all the other rules
-
 Matching Truth Table
 ---------------------------
 
@@ -31,7 +29,6 @@ Matching Truth Table
 
 
     ```bash
-    # read headnote
     nft add element inet filter allowed_ip4 { <client_ip> }
     nft add rule inet mangle prerouting ip saddr <client_ip> <protocol> sport <client_port> meta mark set 0x00<isp_mark><tc_class_marks>
     nft add rule inet mangle forward ip daddr <client_ip> <protocol> dport <client_port> meta mark set 0x00<isp_mark><tc_class_marks>
@@ -61,7 +58,6 @@ Matching Truth Table
     **Rules:**  
 
     ```bash
-    # read headnote
     nft add element inet filter allowed_ip4 { <client_ip> }
     nft add rule inet mangle prerouting ip saddr <client_ip> <protocol> sport <starting_client_port>-<ending_client_port>  meta mark set 0x00<isp_mark><tc_class_marks>
     nft add rule inet mangle forward ip daddr <client_ip> <protocol> dport <starting_client_port>-<ending_client_port> meta mark set 0x00<isp_mark><tc_class_marks>
@@ -98,7 +94,6 @@ Matching Truth Table
     **Rules:**  
 
     ```bash
-    # read headnote
     nft add element inet filter allowed_ip4 { <client_ip> }
     nft add element inet mangle user4_marks { <client_ip> : 0x00<isp_mark><tc_class_marks> }
     nft insert rule inet nat NAT_PRE ip daddr <public_facing_isp_ip> dnat to <client_ip>
@@ -121,7 +116,6 @@ Matching Truth Table
     **Rules:**  
 
     ```bash
-    # read headnote
     nft add element inet filter allowed_ip4 { <client_ip> }
     nft add element inet mangle user4_marks { <client_ip> : 0x00<isp_mark><tc_class_marks> }
     nft insert rule inet nat NAT_PRE ip daddr <public_facing_isp_ip> ip protocol <protocol> dnat to <client_ip>
@@ -151,7 +145,6 @@ Matching Truth Table
     **Rules:**  
 
     ```bash
-    # read headnote
     nft add element inet filter allowed_ip4 { <client_ip> }
     nft add rule inet mangle prerouting ip saddr <client_ip> <protocol> sport <client_port> meta mark set 0x00<isp_mark><tc_class_marks>
     nft add rule inet mangle forward ip daddr <client_ip> <protocol> dport <client_port> meta mark set 0x00<isp_mark><tc_class_marks>
@@ -183,7 +176,6 @@ Matching Truth Table
     **Rules:**  
 
     ```bash
-    # read headnote
     nft add element inet filter allowed_ip4 { <client_ip> }
     nft add rule inet mangle prerouting ip saddr <client_ip> <protocol> sport <starting_client_port>-<ending_client_port> meta mark set 0x00<isp_mark><tc_class_marks>
     nft add rule inet mangle forward ip daddr <client_ip> <protocol> dport <starting_client_port>-<ending_client_port> meta mark set 0x00<isp_mark><tc_class_marks>
@@ -217,7 +209,6 @@ Matching Truth Table
     **Rules:**  
 
     ```bash
-    # read headnote
     nft add element inet filter allowed_ip4 { <client_ip> }
     nft add element inet mangle user4_marks { <client_ip> : 0x00<isp_mark><tc_class_marks> }
     nft insert rule inet nat NAT_PRE ip saddr <public_remote_ip>  ip daddr <public_facing_isp_ip> dnat to <client_ip>
@@ -232,7 +223,6 @@ Matching Truth Table
     **Rules:**  
 
     ```bash
-    # read headnote
     nft add element inet filter allowed_ip4 { <client_ip> }
     nft add element inet mangle user4_marks { <client_ip> : 0x00<isp_mark><tc_class_marks> }
     nft insert rule inet nat NAT_PRE ip saddr <public_remote_ip> ip protocol <protocol> ip daddr <public_facing_isp_ip> dnat to <client_ip>
