@@ -156,7 +156,7 @@ INTF_CMD=""
 Enable the instance:
 
 ```bash
-systemctl enable --now isc-dhcp-relay@br0
+systemctl enable --now isc-dhcp-relay@<instance>
 ```
 
 ---

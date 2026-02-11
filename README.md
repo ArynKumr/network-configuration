@@ -15,6 +15,8 @@ The following document describes how to set up the networking, DHCP, DNS and nft
 
         You must set up DHCP. you can find the information regarding it [here](dhcp/dhcp-server-config.md)
 
+        If we wish to use DHCP hosted somewhere else, we can find the info regarding it [here](./dhcp/dhcp-relay-config.md)
+
         For DNS, follow these steps:
 
         ```bash
