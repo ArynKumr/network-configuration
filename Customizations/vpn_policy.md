@@ -203,8 +203,7 @@ Case Semantics
     nft add element inet filter <policy_vpn_users_set> { <policy_vpn_users_ip> }
     nft add element inet nat <policy_vpn_users_set> { <policy_vpn_users_ip> }
     ```
-    OR (for specific protocol)
-    --
+    ### OR (for specific protocol)
     **(Source IP specific protocol → Destination IP specific protocol)**
 
     *   Ignores ports entirely

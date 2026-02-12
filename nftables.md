@@ -227,11 +227,10 @@ Input Chain (Traffic Directed at the Firewall)
 Handles traffic addressed **to the firewall itself**  
 (e.g. management UI, local services).
 
+
 ```
 chain input {
     type filter hook input priority 0; policy drop;
-```
-```
     ct state vmap { established : accept, related : accept, invalid : drop }
     iifname @lan_ifaces accept
   }
@@ -310,7 +309,7 @@ Jump to NGFW Chain
 **Purpose:**  
 To keep rules sequenced in a formal and intended manner we dont add rules in current chain we jump all the traffic to a chain which includes all the rules for firewalling.
 ```
-jump filter_forward
+jump FILTER_FORWARD
 ```
 
 Rule Group A: IPv4 + MAC Validation
@@ -456,8 +455,8 @@ Section 1: Identity & Control Sets
 ----------------------------------
 
 > **Important:**  
-> Sets are duplicated here because **each nftables table is independent**.  
-> The NAT table must know who is authenticated so it can decide **who to redirect** and **who to skip**.
+    >- Sets are duplicated here because **each nftables table is independent** and there is no global scope declaration of sets.
+    >- The NAT table must know who is authenticated so it can decide **who to redirect** and **who to skip**.
 
 * * *
 
@@ -1240,6 +1239,7 @@ chain forward {
 3.  Event is logged
 4.  Connection is terminated
 
+>For further info refer [geo_setup.md](Customizations/geo_setup.md)  
 * * *
 
 Refer [nftables](nftables.conf) for a more granular explanation of the rules.
