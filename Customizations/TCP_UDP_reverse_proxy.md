@@ -114,7 +114,7 @@ Each file defines **one listener**.
 ### Format
 `/etc/nginx/stream.d/<protocol>_<firewall_public_isp_port>.conf`
 
-```
+```nginx
 server {
     listen <firewall_public_isp_ip>:<firewall_public_isp_port> <protocol>;
     proxy_pass <actual_internal_server_ip>:<actual_internal_server_port>;

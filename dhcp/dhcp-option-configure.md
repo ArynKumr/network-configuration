@@ -32,12 +32,11 @@ ISC Kea allows `option-data` to be defined at multiple hierarchy levels, below i
 
     Scope: Only this subnet
 1. Client Class Level
+>TODO: client-class for this specific instance
+  Applies only to clients matching a defined class.
+  **Use case:** Phones, IoT devices, specific vendor class.
 
-      Applies only to clients matching a defined class.
-
-      **Use case:** Phones, IoT devices, specific vendor class.
-
-    ```json
+      ```json
     {
       "client-classes": [
         {
