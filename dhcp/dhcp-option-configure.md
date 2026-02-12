@@ -31,11 +31,6 @@ ISC Kea allows `option-data` to be defined at multiple hierarchy levels, below i
     ```
 
     Scope: Only this subnet
-    Override: Yes (by reservation or client class)
-
-
-
-
 1. Client Class Level
 
       Applies only to clients matching a defined class.
@@ -59,8 +54,7 @@ ISC Kea allows `option-data` to be defined at multiple hierarchy levels, below i
     }
     ```
 
-    Scope: Only matching clients
-    Override: Yes (by reservation)
+    Scope: Only matching clients that declare themself as IPPHONE.
 
 
 
