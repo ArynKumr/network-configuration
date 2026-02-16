@@ -217,6 +217,22 @@ set blocked_users_v4_mac {
 }
 ```
 
+### 1\. Define the Blocklist Set
+
+```nft
+  set perma_blocked_mac_users {
+    type ether_addr;
+  }
+```
+
+### Meaning
+
+*   `type ether_addr` → matches raw MAC addresses
+*   No interval flag (MAC ranges are rarely valid use cases)
+*   Set-based for O(1) lookup
+
+* * *
+
 Section 4: Chains (Packet Processing Logic)
 -------------------------------------------
 
@@ -235,6 +251,24 @@ chain input {
     iifname @lan_ifaces accept
   }
 ``` 
+
+### Enforce Block in INPUT Chain
+
+```nft
+    ether saddr @perma_blocked_mac_users drop
+```
+
+### Effect
+
+Blocks traffic **destined to the firewall itself** from blocked MACs.
+
+This prevents:
+
+*   Web UI access
+*   SSH access
+*   VPN negotiation
+*   DNS access
+*   Captive portal interaction
 
 * * *
 
@@ -273,6 +307,26 @@ Default policy is **deny**.
 chain forward {
     type filter hook forward priority 0; policy drop;
 ```
+
+### Enforce Block in FORWARD Chain
+
+```nft
+    ether saddr @perma_blocked_mac_users drop
+```
+
+### Effect
+
+Blocks traffic being routed **through** the firewall.
+
+This prevents:
+
+*   Internet access
+*   LAN-to-LAN routing
+*   VPN traversal
+*   Proxy access
+*   Split-tunnel access
+
+* * *
 
 ### Block User Set
 **Purpose:**
