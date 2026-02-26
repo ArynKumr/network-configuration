@@ -107,7 +107,7 @@ Design Principles
     | Safe for | Static users |
 
 
-1. Case 2 — Destination-Specific SNAT (Selective ISP Identity)
+1. Case 3 — Destination-Specific SNAT (Selective ISP Identity)
 
     Use Case
     - User normally routes via one ISP
