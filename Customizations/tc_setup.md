@@ -71,7 +71,7 @@ This is where bandwidth limits actually happen.
         Traffic is reshuffled every 10 seconds to maintain fairness.
 
 
-    1. DMZ / LAN-LAN Communication Lane
+    1. DMZ / NGFW / LAN-LAN Communication Lane
 
         Purpose:  
         Ensure traffic tagged with 0x69 go to 1:69 class.
@@ -83,10 +83,10 @@ This is where bandwidth limits actually happen.
         ```
 
 
-    1. Fairness Within the DMZ / LAN-LAN Communication Lane Lane
+    1. Fairness Within the DMZ / NGFW / LAN-LAN Communication Lane Lane
 
         Purpose:
-        Prevent one flow from monopolizing the DMZ / LAN-LAN Communication Lane class.
+        Prevent one flow from monopolizing the DMZ / NGFW / LAN-LAN Communication Lane class.
 
         ```
         tc qdisc add dev <iface_name> parent 1:69 \

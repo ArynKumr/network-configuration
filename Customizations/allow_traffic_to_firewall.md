@@ -1,5 +1,15 @@
 # Allow Traffic to firewall from WAN
 
+Truth-Table
+
+| Case | Source IP | Source Port | Public Facing ISP IP | Public Facing ISP Port | Protocol | 
+| --- | --- | --- | --- | --- | --- |
+| Case 1 | Specific | Specific | Specific | Specific | Specific | 
+| Case 2 | ALL | ALL | Specific | Specific | Specific | 
+| Case 3 | ALL | Specific | Specific | Specific | Specific |
+| Case 4 | Specific | ALL | Specific | Specific | Specific |
+
+
 1. Case 1 — Fully Locked (IP + Port + Protocol)
 
     **Meaning:** A specific remote IP at a specific port using a specific protocol connecting to our firewall's specific ISP IP at a specific port connects through.

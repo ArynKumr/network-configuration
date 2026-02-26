@@ -11,16 +11,16 @@ Every policy case implemented in nftables **must correspond to one column in thi
 Policy Matching Truth Table
 ---------------------------
 
-| Field | Source IP | Source Port | Destination IP | Destination Port | Protocol | Action |
-| --- | --- | --- | --- | --- | --- | --- |
-| Case 1 | Specific | ALL | ALL | ALL | tcp/udp | allow / drop |
-| Case 2 | Specific | Specific | Specific | Specific | tcp/udp | allow / drop |
-| Case 3 | Specific | ALL | Specific | ALL | tcp/udp | allow / drop |
-| Case 4 | Specific | ALL | Specific | Specific | tcp/udp | allow / drop |
-| Case 5 | Specific | Specific | ALL | Specific | tcp/udp | allow / drop |
-| Case 6 | Specific | Specific | ALL | ALL | tcp/udp | allow / drop |
-| Case 7 | Specific | ALL | ALL | Specific | tcp/udp | allow / drop |
-| Case 8 | Specific | Specific | Specific | ALL | tcp/udp | allow / drop |
+| Field | Source IP | Source Port | Destination IP | Destination Port | Protocol | Action | ISP ID | TC Class ID |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Case 1 | Specific | ALL | ALL | ALL | tcp/udp | allow / drop | ISP ID | TC Class ID |
+| Case 2 | Specific | Specific | Specific | Specific | tcp/udp | allow / drop | ISP ID | TC Class ID |
+| Case 3 | Specific | ALL | Specific | ALL | tcp/udp | allow / drop | ISP ID | TC Class ID |
+| Case 4 | Specific | ALL | Specific | Specific | tcp/udp | allow / drop | ISP ID | TC Class ID |
+| Case 5 | Specific | Specific | ALL | Specific | tcp/udp | allow / drop | ISP ID | TC Class ID |
+| Case 6 | Specific | Specific | ALL | ALL | tcp/udp | allow / drop | ISP ID | TC Class ID |
+| Case 7 | Specific | ALL | ALL | Specific | tcp/udp | allow / drop | ISP ID | TC Class ID |
+| Case 8 | Specific | Specific | Specific | ALL | tcp/udp | allow / drop | ISP ID | TC Class ID |
 
 
 
