@@ -2,16 +2,16 @@
 
 Truth Table
 
-| Field | Source IP | Source Port | Destination IP | Destination Port | Protocol | 
-| --- | --- | --- | --- | --- | --- |
-| Case 1 | Specific | ALL | ALL | ALL | tcp/udp |
-| Case 2 | Specific | Specific | Specific | Specific | tcp/udp |
-| Case 3 | Specific | ALL | Specific | ALL | tcp/udp |
-| Case 4 | Specific | ALL | Specific | Specific | tcp/udp |
-| Case 5 | Specific | Specific | ALL | Specific | tcp/udp |
-| Case 6 | Specific | Specific | ALL | ALL | tcp/udp |
-| Case 7 | Specific | ALL | ALL | Specific | tcp/udp |
-| Case 8 | Specific | Specific | Specific | ALL | tcp/udp |
+| Field | Source IP | Source Port | Destination IP | Destination Port | Protocol | ISP IP
+| --- | --- | --- | --- | --- | --- | --- |
+| Case 1 | Specific | ALL | ALL | ALL | tcp/udp | ISP IP
+| Case 2 | Specific | Specific | Specific | Specific | tcp/udp | ISP IP
+| Case 3 | Specific | ALL | Specific | ALL | tcp/udp | ISP IP
+| Case 4 | Specific | ALL | Specific | Specific | tcp/udp | ISP IP
+| Case 5 | Specific | Specific | ALL | Specific | tcp/udp | ISP IP
+| Case 6 | Specific | Specific | ALL | ALL | tcp/udp | ISP IP
+| Case 7 | Specific | ALL | ALL | Specific | tcp/udp | ISP IP
+| Case 8 | Specific | Specific | Specific | ALL | tcp/udp | ISP IP
 
 # Case 1 — Complete traffic SNAT (client → single ISP IP)
 
@@ -24,7 +24,7 @@ nft add map inet nat client_to_wan { type ipv4_addr : ipv4_addr; }
 **Example element**
 
 ```bash
-nft add element inet nat client_to_wan { 192.168.1.50 : 203.0.113.10 }
+nft add element inet nat client_to_wan { <client_ip/client_subnet> : <isp_ip_from_isp_pool> }
 ```
 
 **Rule**
