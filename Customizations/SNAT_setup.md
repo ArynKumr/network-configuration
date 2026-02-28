@@ -1,195 +1,174 @@
+# SNAT 
 
-SNAT Policy Documentation (nftables)
-====================================
+## Truth Table
 
-This document describes **Source NAT (SNAT) using nftables maps**, covering:
+| Field | Source IP | Source Port | Destination IP | Destination Port | Protocol | ISP IP
+| --- | --- | --- | --- | --- | --- | --- |
+| Case 1 | Specific | ALL | ALL | ALL | tcp/udp | ISP IP
+| Case 2 | Specific | Specific | Specific | Specific | tcp/udp | ISP IP
+| Case 3 | Specific | ALL | Specific | ALL | tcp/udp | ISP IP
+| Case 4 | Specific | ALL | Specific | Specific | tcp/udp | ISP IP
+| Case 5 | Specific | Specific | ALL | Specific | tcp/udp | ISP IP
+| Case 6 | Specific | Specific | ALL | ALL | tcp/udp | ISP IP
+| Case 7 | Specific | ALL | ALL | Specific | tcp/udp | ISP IP
+| Case 8 | Specific | Specific | Specific | ALL | tcp/udp | ISP IP
 
-*   **Case 1:** Complete traffic SNAT (user → single ISP IP)
-*   **Case 2:** Destination-specific SNAT (user → ISP IP only for selected destinations)
+# Case 1 — Complete traffic SNAT (client → single ISP IP)
 
-It also explains the **routing and ISP-ID constraints** that **must** be respected for correctness.
+**Map**
 
----
-Design Principles
+```bash
+nft add map inet nat client_to_wan '{ type ipv4_addr . inet_proto : ipv4_addr; }'
+```
 
--  SNAT does NOT choose the route
-        - Routing is decided before postrouting
-        - SNAT only rewrites the source IP (of the traffic going out the ISP with multiple IP pool)
--  SNAT IP must belong to the egress ISP
-        - Otherwise return traffic breaks
-        - Asymmetric routing = dropped replies
--  Maps are used for scale
-        - No per-user rules
-        - O(1) lookup
-        - Safe for thousands of users
+**Example element**
 
----
+```bash
+nft add element inet nat client_to_wan '{ <client_ip/client_subnet> . <protocol> : <isp_ip_from_isp_pool> }'
+```
 
+**Rule**
 
-1. Case 1 — Complete Traffic SNAT (Per-User ISP Lock)
+```bash
+nft insert rule inet nat NAT_POST meta l4proto '{ tcp, udp }' snat to ip saddr . meta l4proto map @client_to_wan
+```
 
-    1. Use Case:
-        *   A user must **always appear from a specific ISP IP**
-        *   All destinations
-        *   All ports
-        *   All protocols
-        *   Typical for:
-            *   static IP customers
-            *   compliance routing
-            *   ISP-locked users
+# Case 2 — Exact 4-tuple SNAT (src IP + src port + dst IP + dst port)
 
+**Map**
 
-    1. Configuration
+```bash
+nft add map inet nat client_dst_ports '{ type ipv4_addr . inet_service . ipv4_addr . inet_service . inet_proto : ipv4_addr; }'
+```
 
-        1. Create the SNAT Map
+**Example element**
 
-            ```bash
-            nft add map inet nat client_to_wan '{
-                type ipv4_addr : ipv4_addr;
-            }'
-            ```
+```bash
+nft add element inet nat client_dst_ports '{ <client_ip/client_subnet> . <source_port> . <destination_ip_or_subnet>  . <destination_port> . <protocol> : <isp_ip_from_isp_pool> }'
+```
 
-            **Meaning:**
+**Rules**
 
-            | Key | Value |
-            | --- | --- |
-            | Client IPv4 | ISP public IPv4 |
+```bash
+nft insert rule inet nat NAT_POST meta l4proto '{ tcp, udp }' snat to ip saddr . th sport . ip daddr . th dport . meta l4proto map @client_dst_ports
+```
 
+# Case 3 — Destination-aware SNAT (client + destination)
 
-        1. Add Mapping Entry
+**Map**
 
-            ```bash
-            nft add element inet nat client_to_wan {
-                <client_ip> : <isp_ip_from_isp_pool>
-            }
-            ```
+```bash
+nft add map inet nat destination_to_wan '{ type ipv4_addr . ipv4_addr . inet_proto : ipv4_addr; }'
+```
 
-            Example:
+**Example elements**
 
-            ```
-            192.168.1.50 → 203.0.113.10
-            ```
+```bash
+nft add element inet nat destination_to_wan '{ <client_ip/client_subnet> . <destination_ip_or_subnet> . <protocol> : <isp_ip_from_isp_pool> }'
+```
 
+**Rule**
 
-        1. Apply SNAT Rule
+```bash
+nft insert rule inet nat NAT_POST meta l4proto '{ tcp, udp }' snat ip saddr . ip daddr . meta l4proto map @destination_to_wan
+```
 
-            ```bash
-            nft insert rule inet nat NAT_POST \
-                snat to ip saddr map @client_to_wan
-            ```
+# Case 4 — Client + destination IP + destination port (src-port = any)
 
+**Map**
 
-    Mandatory Constraint
+```bash
+nft add map inet nat client_dstport '{ type ipv4_addr . ipv4_addr . inet_service . inet_proto : ipv4_addr; }'
+```
 
-    > **The user MUST be routed via the same ISP as the SNAT IP**
+**Example**
 
-    That means:
+```bash
+nft add element inet nat client_dstport '{ <client_ip/client_subnet> . <destination_ip_or_subnet>  . <destination_port> . <protcol> : <isp_ip_from_isp_pool> }'
+```
 
-    *   User’s `isp_id` in `mangle` **must match**
-    *   User’s routing table **must egress the same WAN**
+**Rules**
 
-    If this is violated:
+```bash
+nft insert rule inet nat NAT_POST meta l4proto '{ tcp, udp }' snat to ip saddr . ip daddr . th dport . meta l4proto map @client_dstport
+```
 
-    *   SYN goes out ISP-A
-    *   Reply comes back ISP-B
-    *   Connection breaks silently
+# Case 5 — Client + source port + destination port (dst IP = any)
 
+**Map**
 
+```bash
+nft add map inet nat client_sport_dport '{ type ipv4_addr . inet_service . inet_service . inet_proto : ipv4_addr; }'
+```
 
-    Behavior Summary (Case 1)
+**Example**
 
-    | Aspect | Result |
-    | --- | --- |
-    | Routing | Fixed to ISP |
-    | SNAT | Always applied |
-    | Destination awareness | None |
-    | ISP-ID dependency | **Required** |
-    | Safe for | Static users |
+```bash
+nft add element inet nat client_sport_dport '{ <client_ip/client_subnet> . <source_port> . <destination_port> . <protocol> : <isp_ip_from_isp_pool> }'
+```
 
+**Rules**
 
-1. Case 2 — Destination-Specific SNAT (Selective ISP Identity)
+```bash
+nft insert rule inet nat NAT_POST meta l4proto '{ tcp, udp }' snat to ip saddr . th sport . th dport . meta l4proto map @client_sport_dport
+```
 
-    Use Case
-    - User normally routes via one ISP
-    - **Only specific destinations** can use a different ISP IP
+# Case 6 — Client + source port (dst IP & dst port = any)
 
-    Configuration
+**Map**
 
-    1. Create the Destination-Aware Map
+```bash
+nft add map inet nat client_sport '{ type ipv4_addr . inet_service . inet_proto : ipv4_addr; }'
+```
 
-        ```bash
-        nft add map inet nat destination_to_wan '{
-            type ipv4_addr . ipv4_addr : ipv4_addr;
-        }'
-        ```
+**Example**
 
-        **Meaning:**
+```bash
+nft add element inet nat client_sport '{ <client_ip/client_subnet> . <source_port> . <protocol> : <isp_ip_from_isp_pool> }'
+```
 
-        | Key | Value |
-        | --- | --- |
-        | Client IP + Destination IP | ISP public IP |
+**Rules**
 
+```bash
+nft insert rule inet nat NAT_POST meta l4proto '{ tcp, udp }' snat to ip saddr . th sport . meta l4proto map @client_sport
+```
 
-    1. Add Mapping Entry
+# Case 7 — Client + destination port (src-port = any, dst-ip = any)
 
-        ```bash
-        nft add element inet nat destination_to_wan {
-            <client_ip_or_subnet> . <destination_ip_or_subnet> : <isp_ip>
-        }
-        ```
+**Map**
 
-        Examples:
+```bash
+nft add map inet nat client_dport '{ type ipv4_addr . inet_service . inet_proto : ipv4_addr; }'
+```
 
-        ```
-        192.168.1.50 . 8.8.8.8     → 198.51.100.20
-        192.168.1.0/24 . 1.1.1.0/24 → 198.51.100.20
-        ```
+**Example**
 
+```bash
+nft add element inet nat client_dport '{ <client_ip/client_subnet> . <destination_port> . <protocol> : <isp_ip_from_isp_pool> }'
+```
 
-    1. Apply SNAT Rule
+**Rules**
 
-        ```bash
-        nft insert rule inet nat NAT_POST \
-            snat ip saddr . ip daddr map @destination_to_wan
-        ```
+```bash
+nft insert rule inet nat NAT_POST meta l4proto '{ tcp, udp }' snat to ip saddr . th dport . meta l4proto map @client_dport
+```
 
+# Case 8 — Client + source port + destination IP (dst port = any)
 
-    Routing Constraint (Different from Case 1)
+**Map**
 
-    > **User routing table does NOT need to match ISP of SNAT IP**
+```bash
+nft add map inet nat client_sport_dst '{ type ipv4_addr . inet_service . ipv4_addr . inet_proto : ipv4_addr; }'
+```
 
-    Why this works:
+**Example**
 
-        - SNAT only triggers **when destination matches**
-        - You intentionally override identity **only for that destination**
-        - Other traffic remains untouched
+```bash
+nft add element inet nat client_sport_dst '{ <client_ip/client_subnet> . <source_port> . <destination_ip_or_subnet> . <protocol> : <isp_ip_from_isp_pool> }'
+```
 
-    However:
+**Rules**
 
-        - The destination **must be reachable via the ISP owning the SNAT IP**
-        - Otherwise return traffic still breaks
-
-
-    Behavior Summary (Case 2)
-
-    | Aspect | Result |
-    | --- | --- |
-    | Routing | User default |
-    | SNAT | Conditional |
-    | Destination awareness | **Yes** |
-    | ISP-ID dependency | **Not required** |
-    | Safe for | Split routing |
-
-
-    Comparison Table
-    ----------------
-
-    | Feature | Case 1 | Case 2 |
-    | --- | --- | --- |
-    | Scope | All traffic | Destination-only |
-    | Map key | Client IP | Client IP + Destination |
-    | ISP-ID match required | **Yes** | No |
-    | Routing flexibility | None | High |
-    | Risk if misused | High | Medium |
-    | Typical use | Static IP | Selective egress |
-
+```bash
+nft insert rule inet nat NAT_POST meta l4proto '{ tcp, udp }' snat to ip saddr . th sport . ip daddr . meta l4proto map @client_sport_dst
+```
