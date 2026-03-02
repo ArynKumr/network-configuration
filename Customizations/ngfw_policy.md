@@ -18,9 +18,7 @@ Policy Matching Truth Table
 | Case 3 | Specific | ALL | Specific | ALL | tcp/udp | allow / drop | ISP ID | TC Class ID |
 | Case 4 | Specific | ALL | Specific | Specific | tcp/udp | allow / drop | ISP ID | TC Class ID |
 | Case 5 | Specific | Specific | ALL | Specific | tcp/udp | allow / drop | ISP ID | TC Class ID |
-| Case 6 | Specific | Specific | ALL | ALL | tcp/udp | allow / drop | ISP ID | TC Class ID |
-| Case 7 | Specific | ALL | ALL | Specific | tcp/udp | allow / drop | ISP ID | TC Class ID |
-| Case 8 | Specific | Specific | Specific | ALL | tcp/udp | allow / drop | ISP ID | TC Class ID |
+| Case 6 | Specific | Specific | Specific | ALL | tcp/udp | allow / drop | ISP ID | TC Class ID |
 
 # Policy Creation Common Rules
 
@@ -29,9 +27,20 @@ These are the common rules **To be applied before policy creation** before defin
 ```
 nft add set inet filter <policy_users_set> '{ type ipv4_addr; flags interval; }'
 nft add set inet nat <policy_users_set> '{ type ipv4_addr; flags interval; }'
+
 nft add chain inet filter <POLICY_NAME>
+
 nft add chain inet nat PRE_NAT_<POLICY_NAME>
 nft add chain inet nat POST_NAT_<POLICY_NAME>
+
+nft insert rule inet filter FILTER_FORWARD ip saddr @<policy_users_set> jump <POLICY_NAME>
+nft insert rule inet filter FILTER_FORWARD ip daddr @<policy_users_set> jump <POLICY_NAME>
+
+nft insert rule inet nat NAT_PRE ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
+nft insert rule inet nat NAT_PRE ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
+
+nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
+
 ```
 
 Case Semantics 
@@ -49,15 +58,6 @@ Case Semantics
 
     **This is the highest-risk case.**
     ```
-
-    nft insert rule inet filter FILTER_FORWARD ip saddr @<policy_users_set> jump <POLICY_NAME>
-    nft insert rule inet filter FILTER_FORWARD ip daddr @<policy_users_set> jump <POLICY_NAME>
-
-    nft insert rule inet nat NAT_PRE ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
-    nft insert rule inet nat NAT_PRE ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
-
-    nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
-
     nft add rule inet filter <POLICY_NAME> <action>
 
     nft add rule inet nat PRE_NAT_<POLICY_NAME> <action>
@@ -78,15 +78,6 @@ Case Semantics
 
 
     ```
-
-    nft insert rule inet filter FILTER_FORWARD ip saddr @<policy_users_set> jump <POLICY_NAME>
-    nft insert rule inet filter FILTER_FORWARD ip daddr @<policy_users_set> jump <POLICY_NAME>
-
-    nft insert rule inet nat NAT_PRE ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
-    nft insert rule inet nat NAT_PRE ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
-
-    nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
-
     nft add rule inet filter <POLICY_NAME> ip protocol <protocol> <action>
 
     nft add rule inet nat PRE_NAT_<POLICY_NAME> <action>
@@ -109,15 +100,6 @@ Case Semantics
 
 
     ```
-
-    nft insert rule inet filter FILTER_FORWARD ip saddr @<policy_users_set> jump <POLICY_NAME>
-    nft insert rule inet filter FILTER_FORWARD ip daddr @<policy_users_set> jump <POLICY_NAME>
-
-    nft insert rule inet nat NAT_PRE ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
-    nft insert rule inet nat NAT_PRE ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
-
-    nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
-
     nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> <protocol> sport <source_port> <action>
     nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> <protocol> dport <destination_port> <action>
     nft add rule inet filter <POLICY_NAME> return
@@ -143,15 +125,6 @@ Case Semantics
 
 
     ```
-
-    nft insert rule inet filter FILTER_FORWARD ip saddr @<policy_users_set> jump <POLICY_NAME>
-    nft insert rule inet filter FILTER_FORWARD ip daddr @<policy_users_set> jump <POLICY_NAME>
-
-    nft insert rule inet nat NAT_PRE ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
-    nft insert rule inet nat NAT_PRE ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
-
-    nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
-
     nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> <action>
     nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> <action>
     nft add rule inet filter <POLICY_NAME> return
@@ -176,15 +149,6 @@ Case Semantics
 
 
     ```
-
-    nft insert rule inet filter FILTER_FORWARD ip saddr @<policy_users_set> jump <POLICY_NAME>
-    nft insert rule inet filter FILTER_FORWARD ip daddr @<policy_users_set> jump <POLICY_NAME>
-
-    nft insert rule inet nat NAT_PRE ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
-    nft insert rule inet nat NAT_PRE ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
-
-    nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
-
     nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> ip protocol <protocol> <action>
     nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> ip protocol <protocol> <action>
     nft add rule inet filter <POLICY_NAME> return
@@ -209,15 +173,6 @@ Case Semantics
 
 
     ```
-
-    nft insert rule inet filter FILTER_FORWARD ip saddr @<policy_users_set> jump <POLICY_NAME>
-    nft insert rule inet filter FILTER_FORWARD ip daddr @<policy_users_set> jump <POLICY_NAME>
-
-    nft insert rule inet nat NAT_PRE ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
-    nft insert rule inet nat NAT_PRE ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
-
-    nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
-
     nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> <action>
     nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> <protocol> dport <destination_port>  <action>
     nft add rule inet filter <POLICY_NAME> return
@@ -243,15 +198,6 @@ Case Semantics
 
 
     ```
-
-    nft insert rule inet filter FILTER_FORWARD ip saddr @<policy_users_set> jump <POLICY_NAME>
-    nft insert rule inet filter FILTER_FORWARD ip daddr @<policy_users_set> jump <POLICY_NAME>
-
-    nft insert rule inet nat NAT_PRE ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
-    nft insert rule inet nat NAT_PRE ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
-
-    nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
-
     nft add rule inet filter <POLICY_NAME> <protocol> dport <destination_port> <protocol> sport <source_port> <action>
     nft add rule inet filter <POLICY_NAME> <protocol> sport <destination_port> <protocol> dport <source_port> <action>
     nft add rule inet filter <POLICY_NAME> return
@@ -264,71 +210,11 @@ Case Semantics
     nft add rule inet nat POST_NAT_<POLICY_NAME> return
 
     ```
-
-1. Case 6 — Source-Port Anchored Policy
-
-    **(Source IP + Source Port → Any Destination)**
-
-    ```
-
-    nft insert rule inet filter FILTER_FORWARD ip saddr @<policy_users_set> jump <POLICY_NAME>
-    nft insert rule inet filter FILTER_FORWARD ip daddr @<policy_users_set> <action>
-
-    nft insert rule inet nat NAT_PRE ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
-    nft insert rule inet nat NAT_PRE ip daddr @<policy_users_set> <action>
-
-    nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
-
-    nft add rule inet filter <POLICY_NAME> <protocol> sport <source_port> <action>
-    nft add rule inet filter <POLICY_NAME> return
-
-    nft add rule inet nat PRE_NAT_<POLICY_NAME> <protocol> sport <source_port> <action>
-    nft add rule inet nat PRE_NAT_<POLICY_NAME> return
-
-    nft add rule inet nat POST_NAT_<POLICY_NAME> <protocol> sport <source_port> masquerade
-    nft add rule inet nat POST_NAT_<POLICY_NAME> return
-
-    ```
-
-1. Case 7 — Destination Port Policy
-
-    **(Source IP → Any Destination: Specific Port)**
-
-    ```
-
-    nft insert rule inet filter FILTER_FORWARD ip daddr @<policy_users_set> jump <POLICY_NAME>
-    nft insert rule inet filter FILTER_FORWARD ip saddr @<policy_users_set> <action>
-
-    nft insert rule inet nat NAT_PRE ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
-    nft insert rule inet nat NAT_PRE ip saddr @<policy_users_set> <action>
-
-    nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
-
-    nft add rule inet filter <POLICY_NAME> <protocol> dport <destination_port> <action>
-    nft add rule inet filter <POLICY_NAME> return
-
-    nft add rule inet nat PRE_NAT_<POLICY_NAME> <protocol> dport <destination_port> <action>
-    nft add rule inet nat PRE_NAT_<POLICY_NAME> return
-
-    nft add rule inet nat POST_NAT_<POLICY_NAME> <protocol> dport <destination_port> masquerade
-    nft add rule inet nat POST_NAT_<POLICY_NAME> return
-
-    ```
-
-1. Case 8 — Destination IP with Source Port
+1. Case 6 — Destination IP with Source Port
 
     **(Source IP:Port → Destination IP)**
 
     ```
-
-    nft insert rule inet filter FILTER_FORWARD ip saddr @<policy_users_set> jump <POLICY_NAME>
-    nft insert rule inet filter FILTER_FORWARD ip daddr @<policy_users_set> jump <POLICY_NAME>
-
-    nft insert rule inet nat NAT_PRE ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
-    nft insert rule inet nat NAT_PRE ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
-
-    nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
-
     nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> <action>
     nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> <protocol> sport <source_port> <action>
     nft add rule inet filter <POLICY_NAME> return
