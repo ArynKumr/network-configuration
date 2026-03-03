@@ -117,6 +117,9 @@ write_dhcp4_config() {
   cat >"$DHCP4_CONF" <<EOF
 {
   "Dhcp4": {
+      "interfaces-config": {
+    "interfaces": [ ]
+  },
     "control-socket": {
       "socket-type": "unix",
       "socket-name": "/var/run/kea/kea4-ctrl-socket"
@@ -174,6 +177,9 @@ write_dhcp6_config() {
   cat >"$DHCP6_CONF" <<EOF
 {
   "Dhcp6": {
+          "interfaces-config": {
+    "interfaces": [ ]
+  },
     "control-socket": {
       "socket-type": "unix",
       "socket-name": "/var/run/kea/kea6-ctrl-socket"
