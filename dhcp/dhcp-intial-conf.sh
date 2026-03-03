@@ -44,11 +44,6 @@ require_root() {
   [[ "$(id -u)" -eq 0 ]] || die "This script must be run as root"
 }
 
-detect_hook_path() {
-  local arch
-  arch=$(dpkg --print-architecture)
-  echo "/usr/lib/${arch}-linux-gnu/kea/hooks"
-}
 
 # -----------------------------------------------------------------------------
 # Core Functions
@@ -116,17 +111,12 @@ init_kea_schema() {
 }
 
 write_dhcp4_config() {
-  local hook_path
-  hook_path=$(detect_hook_path)
 
   info "Writing DHCPv4 config"
 
   cat >"$DHCP4_CONF" <<EOF
 {
   "Dhcp4": {
-    "interfaces-config": {
-      "interfaces": []
-    },
     "control-socket": {
       "socket-type": "unix",
       "socket-name": "/var/run/kea/kea4-ctrl-socket"
@@ -148,18 +138,12 @@ write_dhcp4_config() {
       "port": ${KEA_DB_PORT}
     },
     "valid-lifetime": ${VALID_LIFETIME_IPv4},
-    "option-data": [
-      {
-        "name": "domain-name-servers",
-        "data": "${DNS_SERVERS}"
-      }
-    ],
     "hooks-libraries": [
       {
-        "library": "${hook_path}/libdhcp_mysql.so"
+        "library": "/usr/lib/aarch64-linux-gnu/kea/hooks/libdhcp_mysql.so"
       },
       {
-        "library": "${hook_path}/libdhcp_host_cmds.so"
+        "library": "/usr/lib/aarch64-linux-gnu/kea/hooks/libdhcp_host_cmds.so"
       }
     ],
     "subnet4": [],
@@ -184,17 +168,12 @@ EOF
 }
 
 write_dhcp6_config() {
-  local hook_path
-  hook_path=$(detect_hook_path)
 
   info "Writing DHCPv6 config"
 
   cat >"$DHCP6_CONF" <<EOF
 {
   "Dhcp6": {
-    "interfaces-config": {
-      "interfaces": []
-    },
     "control-socket": {
       "socket-type": "unix",
       "socket-name": "/var/run/kea/kea6-ctrl-socket"
@@ -216,18 +195,12 @@ write_dhcp6_config() {
       "port": ${KEA_DB_PORT}
     },
     "valid-lifetime": ${VALID_LIFETIME_IPv6},
-    "option-data": [
-      {
-        "name": "dns-servers",
-        "data": "${DNS6_SERVERS}"
-      }
-    ],
     "hooks-libraries": [
       {
-        "library": "${hook_path}/libdhcp_mysql.so"
+        "library": "/usr/lib/aarch64-linux-gnu/kea/hooks/libdhcp_mysql.so"
       },
       {
-        "library": "${hook_path}/libdhcp_host_cmds.so"
+        "library": "/usr/lib/aarch64-linux-gnu/kea/hooks/libdhcp_host_cmds.so"
       }
     ],
     "subnet6": [],
