@@ -49,9 +49,9 @@ nft insert rule inet mangle postrouting meta mark set ip daddr . meta l4proto . 
 nft add element inet mangle src_client_mark {<destination_ip> . <protocol> . <destination_port> : 0x00<isp_id><tc_class_id>}
 nft add element inet mangle dst_client_mark {<destination_ip> . <protocol> . <destination_port> : 0x00<isp_id><tc_class_id>}
 
-nft add set inet nat <dmz_set_name> '{type ipv4_addr . ipv4_addr}'
+nft add set inet nat <dmz_set_name> '{type ipv4_addr . inet_service . ipv4_addr}'
 
-nft insert rule inet nat NAT_PRE ip daddr . ip saddr @<dmz_set_name> dnat to <destination_ip>:<destination_port>
+nft insert rule inet nat NAT_PRE ip daddr . th dport . ip saddr @<dmz_set_name> dnat to <destination_ip>:<destination_port>
 ```
 
 ### On Login
