@@ -57,7 +57,7 @@ nft insert rule inet nat NAT_PRE ip daddr . th dport . ip saddr @<dmz_set_name> 
 ### On Login
 
 ```bash
-nft add element inet nat <dmz_set_name> {<public_facing_isp_ip> . <public_remote_ip>}
+nft add element inet nat <dmz_set_name> {<public_facing_isp_ip> . <public_facing_isp_port> . <public_remote_ip>}
 ```
 
 ---
