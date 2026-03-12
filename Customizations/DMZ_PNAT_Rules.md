@@ -40,12 +40,6 @@ The DNAT rule is static, but the **allowed remote IP is dynamically inserted dur
 ```bash
 nft add element inet filter allowed_ip4 { <destination_ip> }
 
-nft add map inet mangle src_client_mark '{type ipv4_addr . inet_proto . inet_service : mark ;}'
-nft add map inet mangle dst_client_mark '{type ipv4_addr . inet_proto . inet_service : mark ;}'
-
-nft insert rule inet mangle prerouting meta mark set ip saddr . meta l4proto . th sport map @src_client_mark
-nft insert rule inet mangle postrouting meta mark set ip daddr . meta l4proto . th dport map @dst_client_mark
-
 nft add element inet mangle src_client_mark {<destination_ip> . <protocol> . <destination_port> : 0x00<isp_id><tc_class_id>}
 nft add element inet mangle dst_client_mark {<destination_ip> . <protocol> . <destination_port> : 0x00<isp_id><tc_class_id>}
 
