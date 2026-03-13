@@ -45,7 +45,7 @@ nft add element inet mangle dst_client_mark {<destination_ip> . <protocol> . <de
 
 nft add set inet nat <dmz_set_name> '{type ipv4_addr . inet_service . ipv4_addr}'
 
-nft insert rule inet nat NAT_PRE ip daddr . th dport . ip saddr @<dmz_set_name> dnat to <destination_ip>:<destination_port>
+nft insert rule inet nat NAT_PRE meta l4proto { tcp, udp } ip daddr . th dport . ip saddr @<dmz_set_name> dnat to <destination_ip>:<destination_port>
 ```
 
 ### On Login
