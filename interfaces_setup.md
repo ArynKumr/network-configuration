@@ -17,6 +17,8 @@ DHCP=yes
 
 `systemctl restart systemd-networkd`
 
+For configuring an interface using DHCP, place the wan-dhcp-monitor file at /etc/networkd-dispatcher/routable.d/50-wan-dhcp-monitor
+
 ---
 # LAN interface
 
