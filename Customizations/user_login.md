@@ -76,7 +76,7 @@ They **modify live sets/maps** — nothing here is persistent unless saved.
     Tag all traffic from this IP with a composite mark:  
     `0x00[ISP][CLASS]`
 
-    For IP based users, and IP based users
+    For IP based users
         
         nft add element inet mangle user4_marks { <client_ip> : 0x00<isp_mark><tc_class_marks> }
 
@@ -96,9 +96,18 @@ They **modify live sets/maps** — nothing here is persistent unless saved.
     Send this user’s web traffic to the NFQUEUE inspection engine.
 
     ```
-    nft add element inet webfilter ALLOW_ACCESS { <client_ip> }
+    For IP based users
+        
+        nft add element inet webfilter allowed_ip4 { <client_ip> }
+
+    For Mac based users
+        
+        nft add element inet webfilter allowed_macs { <client_mac> }
+
+    For IP MAC based users, and IP MAC based users
+        
+        nft add element inet webfilter allowed_ip4_mac { <client_ip> . <mac_address> }
     ```
-    > Note: Same as above, only IPs are added to webfilter
 
 
 1. Deleting Users
@@ -109,21 +118,21 @@ They **modify live sets/maps** — nothing here is persistent unless saved.
     nft delete element inet filter allowed_ip4 { <client_ip> }
     nft delete element inet nat allowed_ip4 { <client_ip> }
     nft delete element inet mangle user4_marks { <client_ip> }
-    nft delete element inet webfilter ALLOW_ACCESS { <client_ip> }
+    nft delete element inet webfilter allowed_ip4 { <client_ip> }
     nft add element inet filter blocked_users_v4 { <client_ip> }
 
     # For mac based users
     nft delete element inet filter allowed_macs { <client_mac> }
     nft delete element inet nat allowed_macs { <client_mac> }
     nft delete element inet mangle user_mac_marks { <client_mac> : 0x00<isp_mark><tc_class_marks> }
-    nft delete element inet webfilter ALLOW_ACCESS { <client_ip> }
+    nft delete element inet webfilter allowed_macs { <client_mac> }
     nft add element inet filter blocked_users_macs { <client_mac> }
 
     # For IP+Mac based users
     nft delete element inet filter allowed_ip4_mac { <client_ip> . <mac_address> }
     nft delete element inet nat allowed_ip4_mac { <client_ip> . <mac_address> }
     nft delete element inet mangle user4_mac_marks { <client_ip> . <client_mac> : 0x00<isp_mark><tc_class_marks> }
-    nft delete element inet webfilter ALLOW_ACCESS { <client_ip> }
+    nft delete element inet webfilter allowed_ip4_mac { <client_ip> . <mac_address> }
     nft add element inet filter blocked_users_v4_mac { <client_ip> . <mac_address> }
 
     ```
