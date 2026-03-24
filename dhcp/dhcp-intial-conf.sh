@@ -9,12 +9,10 @@ set -euo pipefail
 # Configuration
 # -----------------------------------------------------------------------------
 
-PING_HOST=${PING_HOST:-8.8.8.8}
-
 # Kea DB Configuration
 KEA_DB_HOST=${KEA_DB_HOST:-localhost}
 KEA_DB_PORT=${KEA_DB_PORT:-3306}
-KEA_DB_NAME=${KEA_DB_NAME:-kea-dhcp}
+KEA_DB_NAME=${KEA_DB_NAME:-kea_dhcp}
 KEA_DB_USER=${KEA_DB_USER:-kea_user}
 KEA_DB_PASSWORD=${KEA_DB_PASSWORD:-kea@123}
 DB_ROOT_PASSWORD=${DB_ROOT_PASSWORD:-}
@@ -56,10 +54,6 @@ preflight_checks() {
   require_cmd curl
   require_cmd mysql
   require_cmd systemctl
-
-  if ! ping -c1 -W5 "$PING_HOST" >/dev/null 2>&1; then
-    info "Internet connectivity check failed (continuing anyway)"
-  fi
 }
 
 install_kea_packages() {
@@ -90,7 +84,22 @@ GRANT ALL PRIVILEGES ON \`${KEA_DB_NAME}\`.* TO '${KEA_DB_USER}'@'%';
 FLUSH PRIVILEGES;
 EOF
 }
+detect_lib_path() {
+  local arch
+  arch=$(arch)
 
+  case "$arch" in
+    x86_64)
+      echo "/usr/lib/x86_64-linux-gnu/kea/hooks"
+      ;;
+    aarch64 | arm64)
+      echo "/usr/lib/aarch64-linux-gnu/kea/hooks"
+      ;;
+    *)
+      die "Unsupported architecture: $arch"
+      ;;
+  esac
+}
 init_kea_schema() {
   info "Checking Kea schema state"
 
@@ -109,7 +118,8 @@ init_kea_schema() {
     info "Kea schema already present"
   fi
 }
-
+KEA_HOOKS_PATH=$(detect_lib_path)
+info "Using Kea hooks path: $KEA_HOOKS_PATH"
 write_dhcp4_config() {
 
   info "Writing DHCPv4 config"
@@ -143,10 +153,10 @@ write_dhcp4_config() {
     "valid-lifetime": ${VALID_LIFETIME_IPv4},
     "hooks-libraries": [
       {
-        "library": "/usr/lib/aarch64-linux-gnu/kea/hooks/libdhcp_mysql.so"
+        "library": "${KEA_HOOKS_PATH}/libdhcp_mysql.so"
       },
       {
-        "library": "/usr/lib/aarch64-linux-gnu/kea/hooks/libdhcp_host_cmds.so"
+        "library": "${KEA_HOOKS_PATH}/libdhcp_host_cmds.so"
       }
     ],
     "subnet4": [],
@@ -203,10 +213,10 @@ write_dhcp6_config() {
     "valid-lifetime": ${VALID_LIFETIME_IPv6},
     "hooks-libraries": [
       {
-        "library": "/usr/lib/aarch64-linux-gnu/kea/hooks/libdhcp_mysql.so"
+        "library": "${KEA_HOOKS_PATH}/libdhcp_mysql.so"
       },
       {
-        "library": "/usr/lib/aarch64-linux-gnu/kea/hooks/libdhcp_host_cmds.so"
+        "library": "${KEA_HOOKS_PATH}/libdhcp_host_cmds.so"
       }
     ],
     "subnet6": [],
