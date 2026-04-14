@@ -81,7 +81,7 @@ user_exists() {
   local count
   count=$(mysql_root -N -B \
     -e "SELECT COUNT(*) FROM mysql.user
-        WHERE user='${KEA_DB_USER}';" 2>/dev/null || echo 0)
+        WHERE user='${KEA_DB_USER}' AND host='%';" 2>/dev/null || echo 0)
   [[ "$count" -gt 0 ]]
 }
 
@@ -108,12 +108,11 @@ FLUSH PRIVILEGES;
 EOF
 }
 
-# Combines db + user setup — single entry point used by main()
+# Always run setup_mysql_user; only skip DB creation if it exists
 setup_mysql() {
-  db_exists   && skip "Database '${KEA_DB_NAME}' already exists"   || setup_mysql_db
-  user_exists && skip "User '${KEA_DB_USER}' already exists"       || setup_mysql_user
+  db_exists || setup_mysql_db
+  setup_mysql_user  # Always ensure user+grants are correct
 }
-
 init_kea_schema() {
   if schema_exists; then
     skip "Kea schema already present"
