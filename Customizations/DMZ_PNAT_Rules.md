@@ -35,6 +35,8 @@ The DNAT rule is static, but the **allowed remote IP is dynamically inserted dur
 
 ---
 
+# IPV4
+
 ## Rules
 
 ```bash
@@ -52,6 +54,27 @@ nft insert rule inet nat NAT_PRE meta l4proto { tcp, udp } ip daddr . th dport .
 
 ```bash
 nft add element inet nat <dmz_set_name> {<public_facing_isp_ip> . <public_facing_isp_port> . <public_remote_ip>}
+```
+
+# IPV6
+
+## Rules
+
+```bash
+nft add element inet filter allowed_ip6 { <destination_ip6> }
+
+nft add element inet mangle src_client_mark {<destination_ip6> . <protocol> . <destination_port> : 0x00<isp_id><tc_class_id>}
+nft add element inet mangle dst_client_mark {<destination_ip6> . <protocol> . <destination_port> : 0x00<isp_id><tc_class_id>}
+
+nft add set inet nat <dmz_set_name> '{type ipv6_addr . inet_service . ipv4_addr}'
+
+nft insert rule inet nat NAT_PRE meta l4proto { tcp, udp } ip6 daddr . th dport . ip6 saddr @<dmz_set_name> dnat to <destination_ip6>:<destination_port>
+```
+
+### On Login
+
+```bash
+nft add element inet nat <dmz_set_name> {<public_facing_isp_ip6> . <public_facing_isp_port> . <public_remote_ip6>}
 ```
 
 ---
@@ -89,6 +112,8 @@ This case provides **full DNAT access to the internal host**, but only for **rem
 
 ---
 
+# IPV4
+
 ## Rules
 
 ```bash
@@ -105,6 +130,26 @@ nft insert rule inet nat NAT_PRE ip daddr . ip saddr @<dmz_set_name> dnat to <de
 
 ```bash
 nft add element inet nat <dmz_set_name> {<public_facing_isp_ip> . <public_remote_ip>}
+```
+
+# IPV6
+
+## Rules
+
+```bash
+nft add element inet filter allowed_ip6 { <destination_ip6> }
+
+nft add element inet mangle user6_marks { <destination_ip6> : 0x00<isp_id><tc_class_id> }
+
+nft add set inet nat <dmz_set_name> '{type ipv6_addr . ipv6_addr}'
+
+nft insert rule inet nat NAT_PRE ip6 daddr . ip6 saddr @<dmz_set_name> dnat to <destination_ip6>
+```
+
+### On Login
+
+```bash
+nft add element inet nat <dmz_set_name> {<public_facing_isp_ip6> . <public_remote_ip6>}
 ```
 
 ---

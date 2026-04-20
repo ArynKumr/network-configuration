@@ -24,6 +24,8 @@ Policy Matching Truth Table
 
 These are the common rules **To be applied before policy creation** before defining policies 
 
+# IPV4
+
 ```
 nft add set inet filter <policy_users_set> '{ type ipv4_addr; flags interval; }'
 nft add set inet nat <policy_users_set> '{ type ipv4_addr; flags interval; }'
@@ -40,6 +42,27 @@ nft insert rule inet nat NAT_PRE ip saddr @<policy_users_set> jump PRE_NAT_<POLI
 nft insert rule inet nat NAT_PRE ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
 
 nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
+
+```
+
+# IPV6
+
+```
+nft add set inet filter <policy_users_set> '{ type ipv6_addr; flags interval; }'
+nft add set inet nat <policy_users_set> '{ type ipv6_addr; flags interval; }'
+
+nft add chain inet filter <POLICY_NAME>
+
+nft add chain inet nat PRE_NAT_<POLICY_NAME>
+nft add chain inet nat POST_NAT_<POLICY_NAME>
+
+nft insert rule inet filter FILTER_FORWARD ip6 saddr @<policy_users_set> jump <POLICY_NAME>
+nft insert rule inet filter FILTER_FORWARD ip6 daddr @<policy_users_set> jump <POLICY_NAME>
+
+nft insert rule inet nat NAT_PRE ip6 saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
+nft insert rule inet nat NAT_PRE ip6 daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
+
+nft insert rule inet nat NAT_POST oifname @wan_ifaces ip6 saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
 
 ```
 
@@ -76,9 +99,21 @@ Case Semantics
         *   trusted users
         *   admin bypass
 
+    # IPV4
 
     ```
     nft add rule inet filter <POLICY_NAME> ip protocol <protocol> <action>
+
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> <action>
+
+    nft add rule inet nat POST_NAT_<POLICY_NAME> masquerade
+
+    ```
+
+    # IPV6
+
+    ```
+    nft add rule inet filter <POLICY_NAME> ip6 protocol <protocol> <action>
 
     nft add rule inet nat PRE_NAT_<POLICY_NAME> <action>
 
@@ -97,7 +132,7 @@ Case Semantics
         *   SSH jump hosts
         *   API consumers
 
-
+    # IPV4
 
     ```
     nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> <protocol> sport <source_port> <action>
@@ -113,6 +148,22 @@ Case Semantics
 
     ```
 
+    # IPV6
+
+    ```
+    nft add rule inet filter <POLICY_NAME> ip6 daddr <destination_ip6> <protocol> sport <source_port> <action>
+    nft add rule inet filter <POLICY_NAME> ip6 saddr <destination_ip6> <protocol> dport <destination_port> <action>
+    nft add rule inet filter <POLICY_NAME> return
+
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip6 saddr <destination_ip6> <protocol> dport <destination_port> <action>
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip6 daddr <destination_ip6> <protocol> sport <source_port> <action>
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> return
+
+    nft add rule inet nat POST_NAT_<POLICY_NAME> ip6 daddr <destination_ip6> <protocol> dport <destination_port> masquerade
+    nft add rule inet nat POST_NAT_<POLICY_NAME> return
+
+    ```
+
 1. Case 3 — Destination IP Policy
 
     **(Source IP → Destination IP)**
@@ -123,6 +174,7 @@ Case Semantics
         *   site-to-site links
         *   fixed backend services
 
+    # IPV4
 
     ```
     nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> <action>
@@ -136,6 +188,22 @@ Case Semantics
     nft add rule inet nat POST_NAT_<POLICY_NAME> ip daddr <destination_ip> masquerade
     nft add rule inet nat POST_NAT_<POLICY_NAME> return
     ```
+
+    # IPV6
+
+    ```
+    nft add rule inet filter <POLICY_NAME> ip6 daddr <destination_ip6> <action>
+    nft add rule inet filter <POLICY_NAME> ip6 saddr <destination_ip6> <action>
+    nft add rule inet filter <POLICY_NAME> return
+
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip6 saddr <destination_ip6> <action>
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip6 daddr <destination_ip6> <action>
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> return
+
+    nft add rule inet nat POST_NAT_<POLICY_NAME> ip6 daddr <destination_ip6> masquerade
+    nft add rule inet nat POST_NAT_<POLICY_NAME> return
+    ```
+
     ***
     OR (for specific protocol)
     --
@@ -147,6 +215,7 @@ Case Semantics
         *   site-to-site links
         *   fixed backend services
 
+    # IPV4
 
     ```
     nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> ip protocol <protocol> <action>
@@ -161,6 +230,22 @@ Case Semantics
     nft add rule inet nat POST_NAT_<POLICY_NAME> return
     ```
 
+    # IPV6
+
+    ```
+    nft add rule inet filter <POLICY_NAME> ip6 daddr <destination_ip> ip6 protocol <protocol> <action>
+    nft add rule inet filter <POLICY_NAME> ip6 saddr <destination_ip> ip6 protocol <protocol> <action>
+    nft add rule inet filter <POLICY_NAME> return
+
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip6 saddr <destination_ip6> <action>
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip6 daddr <destination_ip6> <action>
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> return
+
+    nft add rule inet nat POST_NAT_<POLICY_NAME> ip daddr <destination_ip> masquerade
+    nft add rule inet nat POST_NAT_<POLICY_NAME> return
+    ```
+
+
 1. Case 4 — Destination IP + Port Policy
 
     **(Source IP → Destination IP:Port)**
@@ -171,6 +256,7 @@ Case Semantics
         *   HTTPS-only access
         *   single exposed service
 
+    # IPV4
 
     ```
     nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> <action>
@@ -186,6 +272,22 @@ Case Semantics
 
     ```
 
+    # IPV6
+
+    ```
+    nft add rule inet filter <POLICY_NAME> ip6 daddr <destination_ip6> <action>
+    nft add rule inet filter <POLICY_NAME> ip6 saddr <destination_ip6> <protocol> dport <destination_port>  <action>
+    nft add rule inet filter <POLICY_NAME> return
+
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip6 saddr <destination_ip6> <protocol> dport <destination_port>  <action>
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip6 daddr <destination_ip6> <action>
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> return
+
+    nft add rule inet nat POST_NAT_<POLICY_NAME> ip6 daddr <destination_ip6> <protocol> dport <destination_port>  masquerade
+    nft add rule inet nat POST_NAT_<POLICY_NAME> return
+
+    ```
+
 1. Case 5 — Port-Constrained Egress
 
     **(Source IP + Source Port → Any Destination: Specific Port)**
@@ -196,6 +298,7 @@ Case Semantics
         *   pinned application ports
         *   legacy systems
 
+    # IPV4 / IPV6
 
     ```
     nft add rule inet filter <POLICY_NAME> <protocol> dport <destination_port> <protocol> sport <source_port> <action>
@@ -210,9 +313,12 @@ Case Semantics
     nft add rule inet nat POST_NAT_<POLICY_NAME> return
 
     ```
+
 1. Case 6 — Destination IP with Source Port
 
     **(Source IP:Port → Destination IP)**
+
+    # IPV4
 
     ```
     nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> <action>
@@ -228,22 +334,59 @@ Case Semantics
 
     ```
 
+    # IPV6
+
+    ```
+    nft add rule inet filter <POLICY_NAME> ip6 saddr <destination_ip6> <action>
+    nft add rule inet filter <POLICY_NAME> ip6 daddr <destination_ip6> <protocol> sport <source_port> <action>
+    nft add rule inet filter <POLICY_NAME> return
+
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip6 daddr <destination_ip6> <protocol> sport <source_port> <action>
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip6 saddr <destination_ip6> <action>
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> return
+
+    nft add rule inet nat POST_NAT_<POLICY_NAME> ip6 daddr <destination_ip6>  <protocol> sport <source_port> masquerade
+    nft add rule inet nat POST_NAT_<POLICY_NAME> return
+
+    ```
+
     USER LOGIN
     --
+
+    # IPV4
+
     ```
     nft add element inet mangle user4_marks { <policy_users_ip> : 0x00<isp_id><tc_class_id> }
     nft add element inet filter <policy_users_set> { <policy_users_ip> }
     nft add element inet nat <policy_users_set> { <policy_users_ip> }   
+    ```
+
+    # IPV6
+
+    ```
+    nft add element inet mangle user6_marks { <policy_users_ip6> : 0x00<isp_id><tc_class_id> }
+    nft add element inet filter <policy_users_set> { <policy_users_ip6> }
+    nft add element inet nat <policy_users_set> { <policy_users_ip6> }   
     ```
     
     USER LOGOUT
     --
     For user logout we only need to remove ips of users from policy and mark sets
 
+    # IPV4
+
     ```
     nft delete element inet mangle user4_marks { <policy_users_ip> : 0x00<isp_id><tc_class_id>}
     nft delete element inet filter <policy_users_set> { <policy_users_ip> }
     nft delete element inet nat <policy_users_set> { <policy_users_ip> }
+    ```
+
+    # IPV6
+
+    ```
+    nft delete element inet mangle user6_marks { <policy_users_ip6> : 0x00<isp_id><tc_class_id>}
+    nft delete element inet filter <policy_users_set> { <policy_users_ip6> }
+    nft delete element inet nat <policy_users_set> { <policy_users_ip6> }
     ```
 
 Enforcement Rules

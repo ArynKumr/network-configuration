@@ -99,7 +99,7 @@ This is where bandwidth limits actually happen.
     1. Associating tc class 69 with fw mark 0x69
 
         ```
-        tc filter add dev <iface_name> protocol ip parent 1:0 prio 1 handle 0x00000069/0x0000FFFF fw flowid 1:69
+        tc filter add dev <iface_name> protocol all parent 1:0 prio 1 handle 0x00000069/0x0000FFFF fw flowid 1:69
         ```
 
         Effect:  
@@ -151,7 +151,7 @@ _(Run when a user comes online and is assigned a class)_
         This is the bridge between nftables and traffic control.
 
         ```
-        tc filter add dev <iface_name> protocol ip parent 1:0 prio 1 \
+        tc filter add dev <iface_name> protocol all parent 1:0 prio 1 \
             handle 0x0000<tc_class_marks>/0x0000FFFF fw \
             flowid 1:<user_class_id>
         ```
@@ -212,7 +212,7 @@ _(Run when a set of user comes online and is assigned the same class)_
         This is the bridge between nftables and traffic control.
 
         ```
-        tc filter add dev <iface_name> protocol ip parent 1:0 prio 1 \
+        tc filter add dev <iface_name> protocol all parent 1:0 prio 1 \
             handle 0x0000<tc_class_marks>/0x0000FFFF fw \
             flowid 1:<Bandwidth-Pool_class_id>
         ```

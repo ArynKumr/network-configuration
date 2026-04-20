@@ -32,7 +32,7 @@ They **modify live sets/maps** — nothing here is persistent unless saved.
 
     **Purpose:**  
     Allow the user to pass traffic through the Firewall to the internet.
-
+     
     For IP based
 
         nft add element inet filter allowed_ip4 { <client_ip> }
@@ -45,14 +45,20 @@ They **modify live sets/maps** — nothing here is persistent unless saved.
     
         nft add element inet filter allowed_ip4_mac { <client_ip> . <mac_address> }
 
+    For IP6 based
+
+        nft add element inet filter allowed_ip6 { <client_ip> }
+
+    For IP6+Mac based
+    
+        nft add element inet filter allowed_ip6_mac { <client_ip> . <mac_address> }
+
 
 
 1. Captive Portal Bypass (NAT)
 
     **Purpose:**  
     Stop redirecting this user to the login / splash page.
-
-    
     
     For allowed ip based users
         
@@ -65,6 +71,16 @@ They **modify live sets/maps** — nothing here is persistent unless saved.
     For allowed IP+Mac based
         
         nft add element inet nat allowed_ip4_mac { <client_ip> . <mac_address> }
+    
+    For allowed ip6 based users
+        
+        nft add element inet nat allowed_ip6 { <client_ip> }
+    
+    For allowed IP6+Mac based
+        
+        nft add element inet nat allowed_ip6_mac { <client_ip6> . <mac_address> }
+    
+    
     
 
     > Note: Must keep these entries for users we don't want to show captive portal.

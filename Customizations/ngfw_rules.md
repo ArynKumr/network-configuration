@@ -39,6 +39,8 @@ Case Semantics
         *   admin bypass
 
     **This is the highest-risk case.**
+    # IPV4
+
     ```
     nft insert rule inet filter FILTER_FORWARD ip saddr <source_ips/source_subnet> <action>
     nft insert rule inet filter FILTER_FORWARD ip daddr <source_ips/source_subnet> <action>
@@ -51,6 +53,22 @@ Case Semantics
     nft add rule inet mangle prerouting ip saddr <source_ips/source_subnet> meta mark set 0x00<isp_id><tc_class_id>
     nft add rule inet mangle forward ip daddr <source_ips/source_subnet> meta mark set 0x00<isp_id><tc_class_id>
     ```
+
+    # IPV6
+    
+    ```
+    nft insert rule inet filter FILTER_FORWARD ip6 saddr <source_ip6s/source_prefix> <action>
+    nft insert rule inet filter FILTER_FORWARD ip6 daddr <source_ip6s/source_prefix> <action>
+
+    nft insert rule inet nat NAT_PRE ip6 saddr <source_ip6s/source_prefix> <action>
+    nft insert rule inet nat NAT_PRE ip6 daddr <source_ip6s/source_prefix> <action>
+
+    nft insert rule inet nat NAT_POST oifname @wan_ifaces ip6 saddr <source_ip6s/source_prefix> masquerade
+
+    nft add rule inet mangle prerouting ip6 saddr <source_ip6s/source_prefix> meta mark set 0x00<isp_id><tc_class_id>
+    nft add rule inet mangle forward ip6 daddr <source_ip6s/source_prefix> meta mark set 0x00<isp_id><tc_class_id>
+    ```
+
     ***
     OR (for specific protocol)
     --
@@ -63,6 +81,9 @@ Case Semantics
         *   admin bypass
 
     **This is the highest-risk case.**
+
+    # IPV4
+
     ```
     nft insert rule inet filter FILTER_FORWARD ip saddr <source_ips/source_subnet> <action>
     nft insert rule inet filter FILTER_FORWARD ip daddr <source_ips/source_subnet> <action>
@@ -75,6 +96,21 @@ Case Semantics
     nft add rule inet mangle prerouting ip saddr <source_ips/source_subnet> meta mark set 0x00<isp_id><tc_class_id>
     nft add rule inet mangle forward ip daddr <source_ips/source_subnet> meta mark set 0x00<isp_id><tc_class_id>
     ```
+    
+    # IPV6
+
+    ```
+    nft insert rule inet filter FILTER_FORWARD ip6 saddr <source_ip6s/source_prefix> <action>
+    nft insert rule inet filter FILTER_FORWARD ip6 daddr <source_ip6s/source_prefix> <action>
+
+    nft insert rule inet nat NAT_PRE ip6 saddr <source_ip6s/source_prefix> ip6 protocol <protocol> <action>
+    nft insert rule inet nat NAT_PRE ip6 daddr <source_ip6s/source_prefix> ip6 protocol <protocol> <action>
+
+    nft insert rule inet nat NAT_POST oifname @wan_ifaces ip6 saddr <source_ip6s/source_prefix> masquerade
+
+    nft add rule inet mangle prerouting ip6 saddr <source_ip6s/source_prefix> meta mark set 0x00<isp_id><tc_class_id>
+    nft add rule inet mangle forward ip6 daddr <source_ip6s/source_prefix> meta mark set 0x00<isp_id><tc_class_id>
+    ```
 
 1. Case 2 — Full 5-Tuple Policy
 
@@ -86,7 +122,7 @@ Case Semantics
         *   SSH jump hosts
         *   API consumers
 
-
+    # IPV4
     
     ```
     nft insert rule inet filter FILTER_FORWARD ip saddr <source_ips/source_subnet> ip daddr <destination_ip/destination_subnet> <protocol> sport <source_port> <action>
@@ -101,6 +137,21 @@ Case Semantics
     nft add rule inet mangle forward ip daddr <source_ips/source_subnet> ip saddr <destination_ip/destination_subnet> <protocol> dport <destination_port> meta mark set 0x00<isp_id><tc_class_id>
     ```
 
+    # IPV6
+    
+    ```
+    nft insert rule inet filter FILTER_FORWARD ip6 saddr <source_ips/source_subnet> ip6 daddr <destination_ip6/destination_prefix> <protocol> sport <source_port> <action>
+    nft insert rule inet filter FILTER_FORWARD ip6 daddr <source_ips/source_subnet> ip6 saddr <destination_ip6/destination_prefix> <protocol> dport <destination_port> <action>
+
+    nft insert rule inet nat NAT_PRE ip6 saddr <source_ips/source_subnet> ip6 daddr <destination_ip6/destination_prefix> <protocol> sport <source_port> <action>
+    nft insert rule inet nat NAT_PRE ip6 daddr <source_ips/source_subnet> ip6 saddr <destination_ip6/destination_prefix> <protocol> dport <destination_port> <action>
+
+    nft insert rule inet nat NAT_POST oifname @wan_ifaces ip6 saddr <source_ips/source_subnet> ip6 daddr <destination_ip6/destination_prefix> <protocol> dport <destination_port> masquerade
+
+    nft add rule inet mangle prerouting ip6 saddr <source_ips/source_subnet> ip6 daddr <destination_ip6/destination_prefix> <protocol> sport <source_port> meta mark set 0x00<isp_id><tc_class_id>
+    nft add rule inet mangle forward ip6 daddr <source_ips/source_subnet> ip6 saddr <destination_ip6/destination_prefix> <protocol> dport <destination_port> meta mark set 0x00<isp_id><tc_class_id>
+    ```
+
 1. Case 3 — Destination IP Policy
 
     **(Source IP → Destination IP)**
@@ -111,6 +162,7 @@ Case Semantics
         *   site-to-site links
         *   fixed backend services
 
+    # IPV4
     
     ```
     nft insert rule inet filter FILTER_FORWARD ip saddr <source_ips/source_subnet> ip daddr <destination_ip/destination_subnet> <action>
@@ -124,6 +176,21 @@ Case Semantics
     nft add rule inet mangle prerouting ip saddr <source_ips/source_subnet> ip daddr <destination_ip/destination_subnet> meta mark set 0x00<isp_id><tc_class_id>
     nft add rule inet mangle forward ip daddr <source_ips/source_subnet> ip saddr <destination_ip/destination_subnet> meta mark set 0x00<isp_id><tc_class_id>
     ```
+
+    # IPV6
+    
+    ```
+    nft insert rule inet filter FILTER_FORWARD ip6 saddr <source_ip6s/source_subnet> ip6 daddr <destination_ip6/destination_prefix> <action>
+    nft insert rule inet filter FILTER_FORWARD ip6 daddr <source_ip6s/source_subnet> ip6 saddr <destination_ip6/destination_prefix> <action>
+
+    nft insert rule inet nat NAT_PRE ip6 saddr <source_ip6s/source_subnet> ip6 daddr <destination_ip6/destination_prefix> <action>
+    nft insert rule inet nat NAT_PRE ip6 daddr <source_ip6s/source_subnet> ip6 saddr <destination_ip6/destination_prefix> <action>
+
+    nft insert rule inet nat NAT_POST oifname @wan_ifaces ip6 saddr <source_ip6s/source_subnet> ip6 daddr <destination_ip6/destination_prefix> masquerade
+
+    nft add rule inet mangle prerouting ip6 saddr <source_ip6s/source_subnet> ip6 daddr <destination_ip6/destination_prefix> meta mark set 0x00<isp_id><tc_class_id>
+    nft add rule inet mangle forward ip6 daddr <source_ip6s/source_subnet> ip6 saddr <destination_ip6/destination_prefix> meta mark set 0x00<isp_id><tc_class_id>
+    ```
     ***
     OR (for specific protocol)
     --
@@ -135,6 +202,7 @@ Case Semantics
         *   site-to-site links
         *   fixed backend services
 
+    # IPV4
     
     ```
     nft insert rule inet filter FILTER_FORWARD ip saddr <source_ips/source_subnet> ip daddr <destination_ip/destination_subnet> ip protocol <protocol> <action>
@@ -149,6 +217,21 @@ Case Semantics
     nft add rule inet mangle forward ip daddr <source_ips/source_subnet> ip saddr <destination_ip/destination_subnet> meta mark set 0x00<isp_id><tc_class_id>
     ```
 
+    # IPV6
+    
+    ```
+    nft insert rule inet filter FILTER_FORWARD ip6 saddr <source_ip6s/source_prefix> ip6 daddr <destination_ip6/destination_prefix> ip6 protocol <protocol> <action>
+    nft insert rule inet filter FILTER_FORWARD ip6 daddr <source_ip6s/source_prefix> ip6 saddr <destination_ip6/destination_prefix> ip6 protocol <protocol> <action>
+
+    nft insert rule inet nat NAT_PRE ip6 saddr <source_ip6s/source_prefix> ip6 daddr <destination_ip6/destination_prefix> <action>
+    nft insert rule inet nat NAT_PRE ip6 daddr <source_ip6s/source_prefix> ip6 saddr <destination_ip6/destination_prefix> <action>
+
+    nft insert rule inet nat NAT_POST oifname @wan_ifaces ip6 saddr <source_ip6s/source_prefix> ip6 daddr <destination_ip6/destination_prefix> masquerade
+
+    nft add rule inet mangle prerouting ip6 saddr <source_ip6s/source_prefix> ip6 daddr <destination_ip6/destination_prefix> meta mark set 0x00<isp_id><tc_class_id>
+    nft add rule inet mangle forward ip6 daddr <source_ip6s/source_prefix> ip6 saddr <destination_ip6/destination_prefix> meta mark set 0x00<isp_id><tc_class_id>
+    ```
+
 1. Case 4 — Destination IP + Port Policy
 
     **(Source IP → Destination IP:Port)**
@@ -159,6 +242,7 @@ Case Semantics
         *   HTTPS-only access
         *   single exposed service
 
+    # IPV4
     
     ```
     nft insert rule inet filter FILTER_FORWARD ip saddr <source_ips/source_subnet> ip daddr <destination_ip/destination_subnet> <action>
@@ -173,6 +257,21 @@ Case Semantics
     nft add rule inet mangle forward ip daddr <source_ips/source_subnet> ip saddr <destination_ip/destination_subnet> <protocol> dport <destination_port> meta mark set 0x00<isp_id><tc_class_id>
     ```
 
+    # IPV6
+    
+    ```
+    nft insert rule inet filter FILTER_FORWARD ip6 saddr <source_ip6s/source_prefix> ip6 daddr <destination_ip/des6tination_prefix> <action>
+    nft insert rule inet filter FILTER_FORWARD ip6 daddr <source_ip6s/source_prefix> ip6 saddr <destination_ip/des6tination_prefix> <protocol> dport <destination_port> <action>
+
+    nft insert rule inet nat NAT_PRE ip6 saddr <source_ip6s/source_prefix> ip6 daddr <destination_ip/des6tination_prefix> <action>
+    nft insert rule inet nat NAT_PRE ip6 daddr <source_ip6s/source_prefix> ip6 saddr <destination_ip/des6tination_prefix> <protocol> dport <destination_port>  <action>
+
+    nft insert rule inet nat NAT_POST oifname @wan_ifaces ip6 saddr <source_ip6s/source_prefix> ip6 daddr <destination_ip/des6tination_prefix> <protocol> dport <destination_port>  masquerade
+
+    nft add rule inet mangle prerouting ip6 saddr <source_ip6s/source_prefix> ip6 daddr <destination_ip/des6tination_prefix> meta mark set 0x00<isp_id><tc_class_id>
+    nft add rule inet mangle forward ip6 daddr <source_ip6s/source_prefix> ip6 saddr <destination_ip/des6tination_prefix> <protocol> dport <destination_port> meta mark set 0x00<isp_id><tc_class_id>
+    ```
+
 1. Case 5 — Port-Constrained Egress
 
     **(Source IP + Source Port → Any Destination: Specific Port)**
@@ -183,6 +282,7 @@ Case Semantics
         *   pinned application ports
         *   legacy systems
 
+    # IPV4
     
     ```
     nft insert rule inet filter FILTER_FORWARD ip saddr <source_ips/source_subnet> <protocol> dport <destination_port> <protocol> sport <source_port> <action>
@@ -197,11 +297,26 @@ Case Semantics
     nft add rule inet mangle forward ip daddr <source_ips/source_subnet> <protocol> sport <source_port> <protocol> dport <destination_port> meta mark set 0x00<isp_id><tc_class_id>
     ```
 
+    # IPV6
+    
+    ```
+    nft insert rule inet filter FILTER_FORWARD ip6 saddr <source_ips/source_subnet> <protocol> dport <destination_port> <protocol> sport <source_port> <action>
+    nft insert rule inet filter FILTER_FORWARD ip6 daddr <source_ips/source_subnet> <protocol> sport <source_port> <protocol> dport <destination_port> <action>
+
+    nft insert rule inet nat NAT_PRE ip6 saddr <source_ips/source_subnet> <protocol> dport <destination_port> <protocol> sport <source_port> <action>
+    nft insert rule inet nat NAT_PRE ip6 daddr <source_ips/source_subnet> <protocol> sport <source_port> <protocol> dport <destination_port> <action>
+
+    nft insert rule inet nat NAT_POST oifname @wan_ifaces ip6 saddr <source_ips/source_subnet> <protocol> dport <destination_port> <protocol> sport <source_port> masquerade
+
+    nft add rule inet mangle prerouting ip6 saddr <source_ips/source_subnet> <protocol> dport <destination_port> <protocol> sport <source_port> meta mark set 0x00<isp_id><tc_class_id>
+    nft add rule inet mangle forward ip6 daddr <source_ips/source_subnet> <protocol> sport <source_port> <protocol> dport <destination_port> meta mark set 0x00<isp_id><tc_class_id>
+    ```
+
 1. Case 6 — Source-Port Anchored Policy
 
     **(Source IP + Source Port → Any Destination)**
 
-
+    # IPV4
     
     ```
     nft insert rule inet filter FILTER_FORWARD ip saddr <source_ips/source_subnet> <protocol> sport <source_port> <action>
@@ -216,11 +331,27 @@ Case Semantics
     nft add rule inet mangle forward ip daddr <source_ips/source_subnet> meta mark set 0x00<isp_id><tc_class_id>
     ```
 
+    # IPV6
+    
+    ```
+    nft insert rule inet filter FILTER_FORWARD ip6 saddr <source_ip6s/source_prefix> <protocol> sport <source_port> <action>
+    nft insert rule inet filter FILTER_FORWARD ip6 daddr <source_ip6s/source_prefix> <action>
+
+    nft insert rule inet nat NAT_PRE ip6 saddr <source_ip6s/source_prefix> <protocol> sport <source_port> <action>
+    nft insert rule inet nat NAT_PRE ip6 daddr <source_ip6s/source_prefix> <action>
+
+    nft insert rule inet nat NAT_POST oifname @wan_ifaces ip6 saddr <source_ip6s/source_prefix> <protocol> sport <source_port> masquerade
+
+    nft add rule inet mangle prerouting ip6 saddr <source_ip6s/source_prefix> <protocol> sport <source_port> meta mark set 0x00<isp_id><tc_class_id>
+    nft add rule inet mangle forward ip6 daddr <source_ip6s/source_prefix> meta mark set 0x00<isp_id><tc_class_id>
+    ```
+
 1. Case 7 — Destination Port Policy
 
     **(Source IP → Any Destination: Specific Port)**
 
-    
+    # IPV4
+
     ```
     nft insert rule inet filter FILTER_FORWARD ip daddr <source_ips/source_subnet> <protocol> dport <destination_port> <action>
     nft insert rule inet filter FILTER_FORWARD ip saddr <source_ips/source_subnet> <action>
@@ -234,11 +365,27 @@ Case Semantics
     nft add rule inet mangle forward ip daddr <source_ips/source_subnet> <protocol> dport <destination_port> meta mark set 0x00<isp_id><tc_class_id>
     ```
 
+    # IPV6
+
+    ```
+    nft insert rule inet filter FILTER_FORWARD ip6 daddr <source_ip6s/source_prefix> <protocol> dport <destination_port> <action>
+    nft insert rule inet filter FILTER_FORWARD ip6 saddr <source_ip6s/source_prefix> <action>
+
+    nft insert rule inet nat NAT_PRE ip6 daddr <source_ip6s/source_prefix> <protocol> dport <destination_port> <action>
+    nft insert rule inet nat NAT_PRE ip6 saddr <source_ip6s/source_prefix> <action>
+
+    nft insert rule inet nat NAT_POST oifname @wan_ifaces ip6 saddr <source_ip6s/source_prefix> <protocol> dport <destination_port> masquerade
+
+    nft add rule inet mangle prerouting ip6 saddr <source_ip6s/source_prefix> meta mark set 0x00<isp_id><tc_class_id>
+    nft add rule inet mangle forward ip6 daddr <source_ip6s/source_prefix> <protocol> dport <destination_port> meta mark set 0x00<isp_id><tc_class_id>
+    ```
+
 1. Case 8 — Destination IP with Source Port
 
     **(Source IP:Port → Destination IP)**
 
-    
+    # IPV4
+
     ```
     nft insert rule inet filter FILTER_FORWARD ip saddr <source_ips/source_subnet> ip daddr <destination_ip/destination_subnet> <protocol> sport <source_port> <action>
     nft insert rule inet filter FILTER_FORWARD ip daddr <source_ips/source_subnet> ip saddr <destination_ip/destination_subnet> <action>
@@ -250,6 +397,21 @@ Case Semantics
 
     nft add rule inet mangle prerouting ip saddr <source_ips/source_subnet> ip daddr <destination_ip/destination_subnet> <protocol> sport <source_port> meta mark set 0x00<isp_id><tc_class_id>
     nft add rule inet mangle forward ip daddr <source_ips/source_subnet> ip saddr <destination_ip/destination_subnet> meta mark set 0x00<isp_id><tc_class_id>
+    ```
+
+    # IPV6
+
+    ```
+    nft insert rule inet filter FILTER_FORWARD ip6 saddr <source_ip6s/source_prefix> ip6 daddr <destination_ip6/destination_prefix> <protocol> sport <source_port> <action>
+    nft insert rule inet filter FILTER_FORWARD ip6 daddr <source_ip6s/source_prefix> ip6 saddr <destination_ip6/destination_prefix> <action>
+
+    nft insert rule inet nat NAT_PRE ip6 saddr <source_ip6s/source_prefix> ip6 daddr <destination_ip6/destination_prefix> <protocol> sport <source_port> <action>
+    nft insert rule inet nat NAT_PRE ip6 daddr <source_ip6s/source_prefix> ip6 saddr <destination_ip6/destination_prefix> <action>
+
+    nft insert rule inet nat NAT_POST oifname @wan_ifaces ip6 saddr <source_ip6s/source_prefix> ip6 daddr <destination_ip6/destination_prefix> <protocol> sport <source_port> masquerade
+
+    nft add rule inet mangle prerouting ip6 saddr <source_ip6s/source_prefix> ip6 daddr <destination_ip6/destination_prefix> <protocol> sport <source_port> meta mark set 0x00<isp_id><tc_class_id>
+    nft add rule inet mangle forward ip6 daddr <source_ip6s/source_prefix> ip6 saddr <destination_ip6/destination_prefix> meta mark set 0x00<isp_id><tc_class_id>
     ```
 
 Enforcement Rules

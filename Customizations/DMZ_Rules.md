@@ -25,7 +25,7 @@ Matching Truth Table
 
     **Rules:**  
 
-
+    # IPV4
 
     ```bash
     nft add element inet filter allowed_ip4 { <client_ip> }
@@ -33,6 +33,16 @@ Matching Truth Table
     nft add rule inet mangle forward ip daddr <client_ip> <protocol> dport <client_port> meta mark set 0x00<isp_mark><tc_class_id>
     nft insert rule inet nat NAT_PRE ip daddr <public_facing_isp_ip> <protocol> dport <public_facing_isp_port> dnat to <client_ip>:<client_port>
     nft insert rule inet filter FILTER_FORWARD ip daddr <client_ip> <action>
+    ```
+
+    # IPV6
+
+    ```bash
+    nft add element inet filter allowed_ip6 { <client_ip6> }
+    nft add rule inet mangle prerouting ip6 saddr <client_ip6> <protocol> sport <client_port> meta mark set 0x00<isp_mark><tc_class_id>
+    nft add rule inet mangle forward ip6 daddr <client_ip6> <protocol> dport <client_port> meta mark set 0x00<isp_mark><tc_class_id>
+    nft insert rule inet nat NAT_PRE ip6 daddr <public_facing_isp_ip6> <protocol> dport <public_facing_isp_port> dnat to <client_ip6>:<client_port>
+    nft insert rule inet filter FILTER_FORWARD ip6 daddr <client_ip6> <action>
     ```
 
     **Explanation:**  
@@ -56,14 +66,25 @@ Matching Truth Table
 
     **Rules:**  
 
+    # IPV4
+
     ```bash
-    nft add element inet filter allowed_ip4 { <client_ip> }
+    nft add element inet filter allowed_ip { <client_ip> }
     nft add rule inet mangle prerouting ip saddr <client_ip> <protocol> sport <starting_client_port>-<ending_client_port>  meta mark set 0x00<isp_mark><tc_class_id>
     nft add rule inet mangle forward ip daddr <client_ip> <protocol> dport <starting_client_port>-<ending_client_port> meta mark set 0x00<isp_mark><tc_class_id>
     nft insert rule inet nat NAT_PRE ip daddr <public_facing_isp_ip> <protocol> dport <starting_public_facing_isp_port>-<ending_public_facing_isp_port> dnat to <client_ip>:<starting_client_port>-<ending_client_port>
     nft insert rule inet filter FILTER_FORWARD ip daddr <client_ip> <action>
     ```
 
+    # IPV6
+
+    ```bash
+    nft add element inet filter allowed_ip6 { <client_ip6> }
+    nft add rule inet mangle prerouting ip6 saddr <client_ip6> <protocol> sport <starting_client_port>-<ending_client_port>  meta mark set 0x00<isp_mark><tc_class_id>
+    nft add rule inet mangle forward ip6 daddr <client_ip6> <protocol> dport <starting_client_port>-<ending_client_port> meta mark set 0x00<isp_mark><tc_class_id>
+    nft insert rule inet nat NAT_PRE ip6 daddr <public_facing_isp_ip6> <protocol> dport <starting_public_facing_isp_port>-<ending_public_facing_isp_port> dnat to <client_ip6>:<starting_client_port>-<ending_client_port>
+    nft insert rule inet filter FILTER_FORWARD ip6 daddr <client_ip6> <action>
+    ```
 
     **Explanation:**  
 
@@ -92,6 +113,8 @@ Matching Truth Table
 
     **Rules:**  
 
+    # IPV4
+
     ```bash
     nft add element inet filter allowed_ip4 { <client_ip> }
     nft add element inet mangle user4_marks { <client_ip> : 0x00<isp_mark><tc_class_id> }
@@ -99,6 +122,14 @@ Matching Truth Table
     nft insert rule inet filter FILTER_FORWARD ip daddr <client_ip> <action>
     ```
 
+    # IPV6
+
+    ```bash
+    nft add element inet filter allowed_ip6 { <client_ip6> }
+    nft add element inet mangle user6_marks { <client_ip6> : 0x00<isp_mark><tc_class_id> }
+    nft insert rule inet nat NAT_PRE ip6 daddr <public_facing_isp_ip6> dnat to <client_ip6>
+    nft insert rule inet filter FILTER_FORWARD ip6 daddr <client_ip6> <action>
+    ```
 
     **Explanation:**  
     1. Allows the internal client to send traffic **out** to the internet. Without this, the host can receive packets but cannot reply.
@@ -114,6 +145,8 @@ Matching Truth Table
 
     **Rules:**  
 
+    # IPV4
+
     ```bash
     nft add element inet filter allowed_ip4 { <client_ip> }
     nft add element inet mangle user4_marks { <client_ip> : 0x00<isp_mark><tc_class_id> }
@@ -121,6 +154,14 @@ Matching Truth Table
     nft insert rule inet filter FILTER_FORWARD ip daddr <client_ip> <action>
     ```
 
+    # IPV6
+
+    ```bash
+    nft add element inet filter allowed_ip6 { <client_ip6> }
+    nft add element inet mangle user6_marks { <client_ip6> : 0x00<isp_mark><tc_class_id> }
+    nft insert rule inet nat NAT_PRE ip6 daddr <public_facing_isp_ip6> ip6 protocol <protocol> dnat to <client_ip6>
+    nft insert rule inet filter FILTER_FORWARD ip6 daddr <client_ip6> <action>
+    ```
 
     **Explanation:**  
     1. Allows the internal client to send traffic **out** to the internet. Without this, the host can receive packets but cannot reply.
@@ -143,6 +184,8 @@ Matching Truth Table
 
     **Rules:**  
 
+    # IPV4
+
     ```bash
     nft add element inet filter allowed_ip4 { <client_ip> }
     nft add rule inet mangle prerouting ip saddr <client_ip> <protocol> sport <client_port> meta mark set 0x00<isp_mark><tc_class_id>
@@ -151,6 +194,15 @@ Matching Truth Table
     nft insert rule inet filter FILTER_FORWARD ip saddr <public_remote_ip> ip daddr <client_ip> <action>
     ```
 
+    # IPV6
+
+    ```bash
+    nft add element inet filter allowed_ip6 { <client_ip6> }
+    nft add rule inet mangle prerouting ip6 saddr <client_ip6> <protocol> sport <client_port> meta mark set 0x00<isp_mark><tc_class_id>
+    nft add rule inet mangle forward ip6 daddr <client_ip6> <protocol> dport <client_port> meta mark set 0x00<isp_mark><tc_class_id>
+    nft insert rule inet nat NAT_PRE ip6 saddr <public_remote_ip6> ip6 daddr <public_facing_isp_ip6> <protocol> dport <public_facing_isp_port> dnat to <client_ip6>:<client_port>
+    nft insert rule inet filter FILTER_FORWARD ip6 saddr <public_remote_ip6> ip6 daddr <client_ip6> <action>
+    ```
 
     **Explanation:**  
 
@@ -174,6 +226,8 @@ Matching Truth Table
 
     **Rules:**  
 
+    # IPV4
+
     ```bash
     nft add element inet filter allowed_ip4 { <client_ip> }
     nft add rule inet mangle prerouting ip saddr <client_ip> <protocol> sport <starting_client_port>-<ending_client_port> meta mark set 0x00<isp_mark><tc_class_id>
@@ -182,6 +236,15 @@ Matching Truth Table
     nft insert rule inet filter FILTER_FORWARD ip saddr <public_remote_ip> ip daddr <client_ip> <action>
     ```
 
+    # IPV6
+
+    ```bash
+    nft add element inet filter allowed_ip6 { <client_ip6> }
+    nft add rule inet mangle prerouting ip6 saddr <client_ip6> <protocol> sport <starting_client_port>-<ending_client_port> meta mark set 0x00<isp_mark><tc_class_id>
+    nft add rule inet mangle forward ip6 daddr <client_ip6> <protocol> dport <starting_client_port>-<ending_client_port> meta mark set 0x00<isp_mark><tc_class_id>
+    nft insert rule inet nat NAT_PRE ip6 saddr <public_remote_ip6> ip6 daddr <public_facing_isp_ip6> <protocol> dport <starting_public_facing_isp_port>-<ending_public_facing_isp_port> dnat to <client_ip6>:<starting_client_port>-<ending_client_port>
+    nft insert rule inet filter FILTER_FORWARD ip6 saddr <public_remote_ip6> ip6 daddr <client_ip6> <action>
+    ```
 
     **Explanation:**  
 
@@ -207,12 +270,24 @@ Matching Truth Table
 
     **Rules:**  
 
+    # IPV4
+    
     ```bash
     nft add element inet filter allowed_ip4 { <client_ip> }
     nft add element inet mangle user4_marks { <client_ip> : 0x00<isp_mark><tc_class_id> }
     nft insert rule inet nat NAT_PRE ip saddr <public_remote_ip>  ip daddr <public_facing_isp_ip> dnat to <client_ip>
     nft insert rule inet filter FILTER_FORWARD ip saddr <public_remote_ip> ip daddr <client_ip> <action>
     ```
+
+    # IPV6
+    
+    ```bash
+    nft add element inet filter allowed_ip6 { <client_ip6> }
+    nft add element inet mangle user6_marks { <client_ip6> : 0x00<isp_mark><tc_class_id> }
+    nft insert rule inet nat NAT_PRE ip6 saddr <public_remote_ip6>  ip6 daddr <public_facing_isp_ip6> dnat to <client_ip6>
+    nft insert rule inet filter FILTER_FORWARD ip6 saddr <public_remote_ip6> ip6 daddr <client_ip6> <action>
+    ```
+
     ***
     OR (for a sepcific protocol)
     -
@@ -221,6 +296,8 @@ Matching Truth Table
 
     **Rules:**  
 
+    # IPV4
+
     ```bash
     nft add element inet filter allowed_ip4 { <client_ip> }
     nft add element inet mangle user4_marks { <client_ip> : 0x00<isp_mark><tc_class_id> }
@@ -228,6 +305,14 @@ Matching Truth Table
     nft insert rule inet filter FILTER_FORWARD ip saddr <public_remote_ip> ip daddr <client_ip> <action>
     ```
 
+    # IPV6
+
+    ```bash
+    nft add element inet filter allowed_ip6 { <client_ip6> }
+    nft add element inet mangle user6_marks { <client_ip6> : 0x00<isp_mark><tc_class_id> }
+    nft insert rule inet nat NAT_PRE ip6 saddr <public_remote_ip6> ip6 protocol <protocol> ip6 daddr <public_facing_isp_ip6> dnat to <client_ip6>
+    nft insert rule inet filter FILTER_FORWARD ip6 saddr <public_remote_ip6> ip6 daddr <client_ip6> <action>
+    ```
 
     **Explanation:**  
     1. Allows the internal client to send traffic **out** to the internet. Without this, the host can receive packets but cannot reply.
