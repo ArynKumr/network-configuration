@@ -1,172 +1,101 @@
-* * *
+# Route rules
 
-Policy Routing & ISP Steering (Linux `iproute2`)
-================================================
+## Adding a Default Gateway to Multiple Tables (DHCP)
 
-**Purpose:**  
-Implement **mark-based policy routing** so traffic tagged by `nftables (mangle)` is:
-
-*   steered to a specific ISP,
-*   routed through a dedicated routing table, and
-*   kept consistent for both local and forwarded traffic.
-
-This is **routing logic**, not firewalling.
-
-* * *
-
-Main Routing Table Reset (`table main`)
----------------------------------------
-
-**Purpose:**  
-Clear and rebuild the **default routing table** so the Firewall only retains  
-explicitly defined local connectivity.
-
-> ⚠️ **Danger:**  
-> Flushing `table main` will temporarily disconnect the Firewall  
-> until local routes are re-added.
-
-* * *
-
-### 1\. Flush the Main Routing Table
+A default gateway can be added to a non-main routing table while still using DHCP.
+In this example, the interface `enp8s0` receives its address via DHCP, but a default route is also installed into routing table `100`.
 
 ```
-ip route flush table main
+[Match]
+Name=enp8s0
+
+[Network]
+DHCP=yes
+
+[DHCP]
+UseRoutes=yes
+RouteMetric=200
+
+[Route]
+Destination=0.0.0.0/0
+Gateway=_dhcp4
+Table=100
+Metric=200
+
+[RoutingPolicyRule]
+FirewallMark=0x00a10000/0x00ff0000 
+Table=100
+Priority=1000
 ```
 
-* * *
+We must set the metric and priority manually (both can be same, not an issue). It must be unique for each interface's gateway.
 
-### 2\. Restore Local Connectivity (Per Interface)
+This results in:
 
-**Purpose:**  
-Tell the kernel how to reach directly connected networks and  
-which source IP to use when sending packets.
+- Main table: default route from DHCP
+- Table 100: a duplicate default route pointing to the same DHCP gateway
+- In fwmark, 0x00<2_BYTES_ISP_MARK>0000. Here the 2 bytes define the ISP mark.
 
-```
-ip route add <ip_subnet_of_iface> dev <iface_name> src <ip_on_iface>
-```
+> Note: in our case, we are defining that different interface gets different ISP. <br>
+> Therefore, each ISP's interface here must have its own fwmark and `[Route]` Section as explained above. <br>
 
+It is also to be noted that we must add all the other routes manually if required (see next section) Since they are not added automatically.
 Example:
- - We have networks 192.168.1.0/24 (ISP) and 10.9.0.0/24(LAN) which are supposed to be reachable by the firewall.
-    ```bash
-    bash-x.x$ ip -c -br a
-    enp1s0           UP             192.168.1.14/24 metric 100 
-    enp8s0           UP             10.9.0.1/24 
-    root@localhost:~# 
-    ```
-    > However we already flushed the main table, so the routes are gone. Therefore we are unable to reach the specified networks anymore.
-
-
- - To re add them, we need to add the routes back again, using these commands:
-    ```bash
-    ip route add 192.168.1.0/24 dev enp1s0 src 192.168.1.14
-    ip route add 10.9.0.0/24 dev enp8s0 src 10.9.0.1
-    ```
-> **Why this matters:**  
-> Without these routes, replies to LAN/WAN traffic may fail  
-> even though interfaces are up.
-
-* * *
-
-Policy Rules (`ip rule`)
-------------------------
-
-**Purpose:**  
-Bind **packet marks** (set in [inet mangle](../nftables.md#L681) ) to **routing tables**.
-
-Only the **ISP portion** of the mark is evaluated.
-
-* * *
-
-### 1\. Cleanup Old Rules (Idempotency)
-
-**Purpose:**  
-Prevent duplicate or conflicting rules when reapplying configuration.
-
-```
-ip rule del fwmark 0x00<isp_mark>0000/0x00ff0000 table <table_number>
-```
-
-* * *
-
-### 2\. Add the Steering Rule
-
-**Purpose:**  
-Force packets with a matching ISP mark to use a specific routing table.
-
-```
-ip rule add fwmark 0x00<isp_mark>0000/0x00ff0000 table <table_number>
-```
-> Note: the <isp_mark> section here is hexadecimal (0-F per bit) <br>For example, the values can be: 00,01,10,F1,AF etc
-
-> Note: Here the table_number can be anything you like, for testing purposes. It creates the table with that number. when we run this command, the table with that number gets created/updated.
-
-**Example:**
-
 ```bash
-ip rule add fwmark 0x00A10000/0xff0000 table 1
+root@localhost:/etc/systemd/network# ip r
+default via 10.9.0.1 dev enp8s0 proto dhcp src 10.9.0.4 metric 200 
+8.8.8.8 via 10.9.0.1 dev enp8s0 proto dhcp src 10.9.0.4 metric 200 
+10.9.0.1 dev enp8s0 proto dhcp scope link src 10.9.0.4 metric 200 
+10.10.0.0/24 via 10.9.0.1 dev enp8s0 proto static metric 200 onlink 
+
+root@localhost:/etc/systemd/network# ip r show table 69
+default via 10.9.0.1 dev enp8s0 proto dhcp metric 300 
+10.10.0.0/24 via 10.9.0.1 dev enp8s0 proto static metric 200 onlink 
+root@localhost:/etc/systemd/network# 
 ```
 
-**Logic:**
+---
 
-*   `fwmark` → value set by `nftables`
-*   `/0x00ff0000` → mask isolates the **ISP ID**
-*   `table <table_number>` → selected ISP routing table
+## Adding Specific Routes to Multiple Tables
 
-* * *
+Specific network routes can be installed into multiple routing tables by defining multiple `[Route]` blocks.
 
-ISP-Specific Routing Table Setup
---------------------------------
+Example: adding the network `10.10.0.0/24` to both table `100`, table `200` and the main table.
 
-**Purpose:**  
-Define how traffic exits the Firewall **when steered to this ISP**.
+```conf
+# The interface must always match the Gateway.
+[Match]
+Name=enp8s0
 
-Each ISP gets its **own routing table**.
+# This is equivalent to `ip route add 10.10.0.0/24 via 10.9.0.1 dev enp8s0 table 100 metric 200`
+[Route]
+Destination=10.10.0.0/24
+Gateway=10.9.0.1
+Table=100
+Metric=200
 
-* * *
+# This is equivalent to `ip route add 10.10.0.0/24 via 10.9.0.1 dev enp8s0 table 200 metric 200`
+[Route]
+Destination=10.10.0.0/24
+Gateway=10.9.0.2
+Table=200
+Metric=200
 
-### 1\. Flush the ISP Table
-
-**Purpose:**  
-Remove stale or incorrect routes before rebuilding.
-
-```
-ip route flush table <table_number>
-```
-
-* * *
-
-### 2\. Define the Default Gateway (ISP Exit)
-
-**Purpose:**  
-Send all internet-bound traffic in this table to the ISP gateway.
-
-```
-ip route add default via <gateway_ip> dev <iface_name> table <table_number>
+# This is equivalent to `ip route add 10.10.0.0/24 via 10.9.0.1 dev enp8s0 metric 200`
+[Route]
+Destination=10.10.0.0/24
+Gateway=10.9.0.2
+Table=main
+Metric=200
 ```
 
-**Example:**
+This creates identical routes in multiple tables, allowing:
 
-```bash
-ip route add default via 192.168.1.1 dev enp1s0 table 1
-```
+* Normal traffic to use the main table
+* Policy-routed traffic to use table 100
 
-* * *
+> Note: Here, we must define `[Route]` section for each table which requires it.<br>
+> For example, here we want it so 10.10.10.0/24 must be accessible via the tables 100 and 200. <br>
+> Make sure that metric is unique in each .network file.
 
-### 3\. Add Directly Connected Networks
-
-**Purpose:**  
-Ensure the ISP’s local network is reachable without looping through the gateway.
-
-```
-ip route add <ip_subnet_of_iface> dev <iface_name> src <ip_on_iface> table <table_number>
-```
-
-**Example:**
-
-```bash
-ip route add 192.168.1.0/24 dev enp1s0 src 192.168.1.14 table 1
-```
-
-[To test user routes](user_login.md)
-
-* * *
+> Note: All routes reachable via an interface must be added to every routing table. Otherwise, VPN traffic may fail to reach certain destinations. For example, if a VPN user is assigned to ISP 1, they will only be able to access the routes present in ISP 1’s routing table. Therefore, including the full set of routes in each ISP’s table ensures consistent accessibility regardless of which ISP a VPN user is mapped to.

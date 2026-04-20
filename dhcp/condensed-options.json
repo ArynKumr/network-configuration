@@ -1,0 +1,600 @@
+{
+  "Dhcp4": {
+    "option-data": [
+      {
+        "code": 2,
+        "data": "-25200",
+        "name": "time-offset"
+      },
+      {
+        "code": 3,
+        "data": "192.0.2.2, 192.0.2.3",
+        "name": "routers"
+      },
+      {
+        "code": 4,
+        "data": "192.0.2.4, 192.0.2.5",
+        "name": "time-servers"
+      },
+      {
+        "code": 5,
+        "data": "192.0.2.6, 192.0.2.7",
+        "name": "name-servers"
+      },
+      {
+        "code": 6,
+        "data": "192.0.2.8, 192.0.2.9",
+        "name": "domain-name-servers"
+      },
+      {
+        "code": 7,
+        "data": "192.0.2.10, 192.0.2.11",
+        "name": "log-servers"
+      },
+      {
+        "code": 8,
+        "data": "192.0.2.12, 192.0.2.13",
+        "name": "cookie-servers"
+      },
+      {
+        "code": 9,
+        "data": "192.0.2.14, 192.0.2.15",
+        "name": "lpr-servers"
+      },
+      {
+        "code": 10,
+        "data": "192.0.2.16, 192.0.2.17",
+        "name": "impress-servers"
+      },
+      {
+        "code": 11,
+        "data": "192.0.2.18, 192.0.2.19",
+        "name": "resource-location-servers"
+      },
+      {
+        "code": 13,
+        "data": "1024",
+        "name": "boot-size"
+      },
+      {
+        "code": 14,
+        "data": "/etc/crash-dump.img",
+        "name": "merit-dump"
+      },
+      {
+        "code": 15,
+        "data": "my.example.org",
+        "name": "domain-name"
+      },
+      {
+        "code": 16,
+        "data": "192.0.2.20",
+        "name": "swap-server"
+      },
+      {
+        "code": 17,
+        "data": "/path/to/root",
+        "name": "root-path"
+      },
+      {
+        "code": 18,
+        "data": "/path/to/extensions",
+        "name": "extensions-path"
+      },
+      {
+        "code": 19,
+        "data": "true",
+        "name": "ip-forwarding"
+      },
+      {
+        "code": 20,
+        "data": "true",
+        "name": "non-local-source-routing"
+      },
+      {
+        "code": 21,
+        "data": "10.229.0.128, 255.255.255.128, 10.27.129.0, 255.255.255.0",
+        "name": "policy-filter"
+      },
+      {
+        "code": 22,
+        "data": "2048",
+        "name": "max-dgram-reassembly"
+      },
+      {
+        "code": 23,
+        "data": "248",
+        "name": "default-ip-ttl"
+      },
+      {
+        "code": 24,
+        "data": "131072",
+        "name": "path-mtu-aging-timeout"
+      },
+      {
+        "code": 25,
+        "data": "3072, 4096",
+        "name": "path-mtu-plateau-table"
+      },
+      {
+        "code": 26,
+        "data": "5120",
+        "name": "interface-mtu"
+      },
+      {
+        "code": 27,
+        "data": "true",
+        "name": "all-subnets-local"
+      },
+      {
+        "code": 28,
+        "data": "192.0.2.255",
+        "name": "broadcast-address"
+      },
+      {
+        "code": 29,
+        "data": "true",
+        "name": "perform-mask-discovery"
+      },
+      {
+        "code": 30,
+        "data": "true",
+        "name": "mask-supplier"
+      },
+      {
+        "code": 31,
+        "data": "true",
+        "name": "router-discovery"
+      },
+      {
+        "code": 32,
+        "data": "192.0.2.23",
+        "name": "router-solicitation-address"
+      },
+      {
+        "code": 33,
+        "data": "192.0.2.24, 192.0.2.25",
+        "name": "static-routes"
+      },
+      {
+        "code": 34,
+        "data": "true",
+        "name": "trailer-encapsulation"
+      },
+      {
+        "code": 35,
+        "data": "196608",
+        "name": "arp-cache-timeout"
+      },
+      {
+        "code": 36,
+        "data": "true",
+        "name": "ieee802-3-encapsulation"
+      },
+      {
+        "code": 37,
+        "data": "124",
+        "name": "default-tcp-ttl"
+      },
+      {
+        "code": 38,
+        "data": "262144",
+        "name": "tcp-keepalive-interval"
+      },
+      {
+        "code": 39,
+        "data": "true",
+        "name": "tcp-keepalive-garbage"
+      },
+      {
+        "code": 40,
+        "data": "nis.example.org",
+        "name": "nis-domain"
+      },
+      {
+        "code": 41,
+        "data": "192.0.2.26, 192.0.2.27",
+        "name": "nis-servers"
+      },
+      {
+        "code": 42,
+        "data": "192.0.2.28, 192.0.2.29",
+        "name": "ntp-servers"
+      },
+      {
+        "code": 43,
+        "name": "vendor-encapsulated-options"
+      },
+      {
+        "code": 44,
+        "data": "192.0.2.30, 192.0.2.31",
+        "name": "netbios-name-servers"
+      },
+      {
+        "code": 45,
+        "data": "192.0.2.32, 192.0.2.33",
+        "name": "netbios-dd-server"
+      },
+      {
+        "code": 46,
+        "data": "0x1",
+        "name": "netbios-node-type"
+      },
+      {
+        "code": 47,
+        "data": "scope42",
+        "name": "netbios-scope"
+      },
+      {
+        "code": 48,
+        "data": "192.0.2.34, 192.0.2.35",
+        "name": "font-servers"
+      },
+      {
+        "code": 49,
+        "data": "192.0.2.36, 192.0.2.37",
+        "name": "x-display-manager"
+      },
+      {
+        "code": 52,
+        "data": "3",
+        "name": "dhcp-option-overload"
+      },
+      {
+        "code": 54,
+        "data": "192.0.2.39",
+        "name": "dhcp-server-identifier"
+      },
+      {
+        "code": 56,
+        "data": "Error: here is a DHCPNAK!",
+        "name": "dhcp-message"
+      },
+      {
+        "code": 57,
+        "data": "1536",
+        "name": "dhcp-max-message-size"
+      },
+      {
+        "code": 60,
+        "data": "ISC",
+        "name": "vendor-class-identifier"
+      },
+      {
+        "code": 62,
+        "data": "nwip.example.org",
+        "name": "nwip-domain-name"
+      },
+      {
+        "code": 63,
+        "data": "1A BB AD AB BA D0 00 00 00 00 00 00 00 00 CA FE",
+        "name": "nwip-suboptions"
+      },
+      {
+        "code": 64,
+        "data": "nisplus.example.org",
+        "name": "nisplus-domain-name"
+      },
+      {
+        "code": 65,
+        "data": "192.0.2.40",
+        "name": "nisplus-servers"
+      },
+      {
+        "code": 66,
+        "data": "tftp.example.org",
+        "name": "tftp-server-name"
+      },
+      {
+        "code": 67,
+        "data": "boot-file.img",
+        "name": "boot-file-name"
+      },
+      {
+        "code": 68,
+        "data": "192.0.2.41, 192.0.2.42",
+        "name": "mobile-ip-home-agent"
+      },
+      {
+        "code": 69,
+        "data": "192.0.2.43, 192.0.2.44",
+        "name": "smtp-server"
+      },
+      {
+        "code": 70,
+        "data": "192.0.2.45, 192.0.2.46",
+        "name": "pop-server"
+      },
+      {
+        "code": 71,
+        "data": "192.0.2.47, 192.0.2.48",
+        "name": "nntp-server"
+      },
+      {
+        "code": 72,
+        "data": "192.0.2.49, 192.0.2.50",
+        "name": "www-server"
+      },
+      {
+        "code": 73,
+        "data": "192.0.2.51, 192.0.2.52",
+        "name": "finger-server"
+      },
+      {
+        "code": 74,
+        "data": "192.0.2.53, 192.0.2.54",
+        "name": "irc-server"
+      },
+      {
+        "code": 75,
+        "data": "192.0.2.55, 192.0.2.56",
+        "name": "streettalk-server"
+      },
+      {
+        "code": 76,
+        "data": "192.0.2.57, 192.0.2.58",
+        "name": "streettalk-directory-assistance-server"
+      },
+      {
+        "code": 77,
+        "data": "1A BB AD AB BA D0 00 00 00 00 00 00 00 00 CA FE",
+        "name": "user-class"
+      },
+      {
+        "code": 78,
+        "data": "true, 192.0.2.59, 192.0.2.60",
+        "name": "slp-directory-agent"
+      },
+      {
+        "code": 79,
+        "data": "true, slp-scope",
+        "name": "slp-service-scope"
+      },
+      {
+        "code": 85,
+        "data": "192.0.2.61, 192.0.2.62",
+        "name": "nds-servers"
+      },
+      {
+        "code": 86,
+        "data": "my-tree",
+        "name": "nds-tree-name"
+      },
+      {
+        "code": 87,
+        "data": "context",
+        "name": "nds-context"
+      },
+      {
+        "code": 88,
+        "data": "bcms-controller.example.org",
+        "name": "bcms-controller-names"
+      },
+      {
+        "code": 89,
+        "data": "192.0.2.63",
+        "name": "bcms-controller-address"
+      },
+      {
+        "code": 93,
+        "data": "6144, 7168",
+        "name": "client-system"
+      },
+      {
+        "code": 94,
+        "data": "0, 1, 0",
+        "name": "client-ndi"
+      },
+      {
+        "code": 97,
+        "data": "0, 1A BB AD AB BA D0 00 00 00 00 00 00 00 00 CA FE",
+        "name": "uuid-guid"
+      },
+      {
+        "code": 98,
+        "data": "uap1.example.org uap2.example.org",
+        "name": "uap-servers"
+      },
+      {
+        "code": 99,
+        "data": "1A BB AD AB BA D0 00 00 00 00 00 00 00 00 CA FE",
+        "name": "geoconf-civic"
+      },
+      {
+        "code": 100,
+        "data": "EST5EDT4\\,M3.2.0/02:00\\,M11.1.0/02:00",
+        "name": "pcode"
+      },
+      {
+        "code": 101,
+        "data": "Europe/Zurich",
+        "name": "tcode"
+      },
+      {
+        "code": 108,
+        "data": "3600",
+        "name": "v6-only-preferred"
+      },
+      {
+        "code": 112,
+        "data": "192.0.2.63, 192.0.2.64",
+        "name": "netinfo-server-address"
+      },
+      {
+        "code": 113,
+        "data": "server1",
+        "name": "netinfo-server-tag"
+      },
+      {
+        "code": 114,
+        "data": "https://default.example.org",
+        "name": "v4-captive-portal"
+      },
+      {
+        "code": 116,
+        "data": "1",
+        "name": "auto-config"
+      },
+      {
+        "code": 117,
+        "data": "6, 41, 44, 65",
+        "name": "name-service-search"
+      },
+      {
+        "code": 118,
+        "data": "192.0.2.65",
+        "name": "subnet-selection"
+      },
+      {
+        "code": 119,
+        "data": "example.com, example.org",
+        "name": "domain-search"
+      },
+      {
+        "code": 121,
+        "data": "10.229.0.128/25 - 10.229.0.1, 10.198.122.47/32 - 10.198.122.1",
+        "name": "classless-static-route"
+      },
+      {
+        "code": 124,
+        "data": "4491, 0f BA AD AB BA D0 00 00 00 00 00 00 00 00 CA FE",
+        "name": "vivco-suboptions"
+      },
+      {
+        "code": 125,
+        "data": "4491",
+        "name": "vivso-suboptions"
+      },
+      {
+        "code": 136,
+        "data": "192.0.2.66, 192.0.2.67",
+        "name": "pana-agent"
+      },
+      {
+        "code": 137,
+        "data": "lost.example.org",
+        "name": "v4-lost"
+      },
+      {
+        "code": 138,
+        "data": "192.0.2.68, 192.0.2.69",
+        "name": "capwap-ac-v4"
+      },
+      {
+        "code": 141,
+        "data": "example.com, example.org",
+        "name": "sip-ua-cs-domains"
+      },
+      {
+        "code": 143,
+        "data": "https://sztp1.example.com:8443, https://sztp2.example.com:8444",
+        "name": "v4-sztp-redirect"
+      },
+      {
+        "code": 146,
+        "data": "1, 192.0.2.70, 192.0.2.71, example.com, example.org",
+        "name": "rdnss-selection"
+      },
+      {
+        "code": 159,
+        "data": "2, 3/4",
+        "name": "v4-portparams"
+      },
+      {
+        "code": 162,
+        "name": "v4-dnr",
+        "data": "1, resolver.example., 10.2.3.4 10.0.4.5, alpn=dot\\,doq\\,h2\\,h3 dohpath=/q{?dns} | 2, resolver.example., 10.0.5.6, alpn=dot port=8530 | 3, fooexp.resolver.example."
+      },
+      {
+        "code": 212,
+        "data": "24, 96, 2001:db8::f001, 192.0.2.72, 192.0.2.73",
+        "name": "option-6rd"
+      },
+      {
+        "code": 213,
+        "data": "example.org",
+        "name": "v4-access-domain"
+      },
+      {
+        "code": 1,
+        "name": "my-empty-option",
+        "space": "my-fancy-space"
+      },
+      {
+        "code": 224,
+        "data": "192.0.2.74, 3/4, 1, example.org, string",
+        "name": "my-lengthy-option",
+        "space": "my-fancy-space"
+      },
+      {
+        "code": 254,
+        "data": "127, 32767, 2147483647, 255, 65535, 4294967295, 192.0.2.75, 3/4, 1, example.org, string",
+        "name": "my-fancy-option",
+        "space": "my-fancy-space"
+      },
+      {
+        "code": 232,
+        "name": "my-encapsulating-option",
+        "space": "my-encapsulating-space"
+      }
+    ],
+    "option-def": [
+      {
+        "array": false,
+        "code": 1,
+        "encapsulate": "",
+        "name": "my-empty-option",
+        "record-types": "",
+        "space": "my-fancy-space",
+        "type": "empty"
+      },
+      {
+        "array": false,
+        "code": 224,
+        "encapsulate": "",
+        "name": "my-lengthy-option",
+        "record-types": "ipv4-address, psid, tuple, fqdn, string",
+        "space": "my-fancy-space",
+        "type": "record"
+      },
+      {
+        "array": true,
+        "code": 254,
+        "encapsulate": "",
+        "name": "my-fancy-option",
+        "record-types": "int8, int16, int32, uint8, uint16, uint32, ipv4-address, psid, tuple, fqdn",
+        "space": "my-fancy-space",
+        "type": "record"
+      },
+      {
+        "array": false,
+        "code": 232,
+        "encapsulate": "my-fancy-space",
+        "name": "my-encapsulating-option",
+        "record-types": "",
+        "space": "my-encapsulating-space",
+        "type": "empty"
+      }
+    ],
+    "subnet4": [
+      {
+        "option-data": [
+          {
+            "code": 1,
+            "data": "32, 42",
+            "name": "oro",
+            "space": "docsis3-v4"
+          },
+          {
+            "code": 2,
+            "data": "192.0.2.76, 192.0.2.77",
+            "name": "tftp-servers",
+            "space": "docsis3-v4"
+          }
+        ],
+        "id": 1,
+        "subnet": "192.0.2.0/24"
+      }
+    ]
+  }
+}

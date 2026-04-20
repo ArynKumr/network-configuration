@@ -6,361 +6,247 @@ Define **authoritative traffic-matching semantics** for NGFW user policies.
 
 Every policy case implemented in nftables **must correspond to one column in this table**.  
 
-* * *
+
 
 Policy Matching Truth Table
 ---------------------------
 
-| Field | Case 1 | Case 2 | Case 3 | Case 4 | Case 5 | Case 6 | Case 7 | Case 8 |
+| Field | Source IP | Source Port | Destination IP | Destination Port | Protocol | Action | ISP ID | TC Class ID |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Source IP | Specific | Specific | Specific | Specific | Specific | Specific | Specific | Specific |
-| Source Port | Any | Specific | Any | Any | Specific | Specific | Any | Specific |
-| Destination IP | Any | Specific | Specific | Specific | Any | Any | Any | Specific |
-| Destination Port | Any | Specific | Any | Specific | Specific | Any | Specific | Any |
-| Protocol | tcp/udp | tcp/udp | tcp/udp | tcp/udp | tcp/udp | tcp/udp | tcp/udp | tcp/udp |
-| Action | allow / drop | allow / drop | allow / drop | allow / drop | allow / drop | allow / drop | allow / drop | allow / drop |
+| Case 1 | Specific | ALL | ALL | ALL | tcp/udp | allow / drop | ISP ID | TC Class ID |
+| Case 2 | Specific | Specific | Specific | Specific | tcp/udp | allow / drop | ISP ID | TC Class ID |
+| Case 3 | Specific | ALL | Specific | ALL | tcp/udp | allow / drop | ISP ID | TC Class ID |
+| Case 4 | Specific | ALL | Specific | Specific | tcp/udp | allow / drop | ISP ID | TC Class ID |
+| Case 5 | Specific | Specific | ALL | Specific | tcp/udp | allow / drop | ISP ID | TC Class ID |
+| Case 6 | Specific | Specific | Specific | ALL | tcp/udp | allow / drop | ISP ID | TC Class ID |
 
-* * *
+# Policy Creation Common Rules
 
-How to Read This Table (Non-Negotiable)
----------------------------------------
+These are the common rules **To be applied before policy creation** before defining policies 
 
-*   **“Specific”** means _explicitly matched_ in nftables  
-    (`ip saddr`, `tcp dport`, maps, sets, etc.)
-*   **“Any”** means _no match condition applied_  
-    (field is intentionally ignored)
-*   **Action** is the **verdict** applied _after_ matching
-*   All cases assume **default drop outside the match**
+```
+nft add set inet filter <policy_users_set> '{ type ipv4_addr; flags interval; }'
+nft add set inet nat <policy_users_set> '{ type ipv4_addr; flags interval; }'
 
-* * *
+nft add chain inet filter <POLICY_NAME>
 
-Case Semantics (Authoritative Definitions)
+nft add chain inet nat PRE_NAT_<POLICY_NAME>
+nft add chain inet nat POST_NAT_<POLICY_NAME>
+
+nft insert rule inet filter FILTER_FORWARD ip saddr @<policy_users_set> jump <POLICY_NAME>
+nft insert rule inet filter FILTER_FORWARD ip daddr @<policy_users_set> jump <POLICY_NAME>
+
+nft insert rule inet nat NAT_PRE ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
+nft insert rule inet nat NAT_PRE ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
+
+nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
+
+```
+
+Case Semantics 
 ------------------------------------------
 
-### Case 1 — Identity-Only Policy
+1. Case 1 — Identity-Only Policy
 
-**(Source IP only)**
+    **(Source IP only)**
 
-*   Matches only on **who** the user is
-*   No port, protocol, or destination restriction
-*   Used for:
-    *   trusted users
-    *   admin bypass
+    *   Matches only on **who** the user is
+    *   No port, protocol, or destination restriction
+    *   Used for:
+        *   trusted users
+        *   admin bypass
 
-**This is the highest-risk case.**
-```
-nft add set inet filter <policy_users_set> '{ type ipv4_addr; flags interval; }'
-nft add set inet nat <policy_users_set> '{ type ipv4_addr; flags interval; }'
+    **This is the highest-risk case.**
+    ```
+    nft add rule inet filter <POLICY_NAME> <action>
 
-nft add chain inet filter <POLICY_NAME>
-nft add chain inet nat PRE_NAT_<POLICY_NAME>
-nft add chain inet nat POST_NAT_<POLICY_NAME>
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> <action>
 
-nft insert rule inet filter forward ip saddr @<policy_users_set> jump <POLICY_NAME>
-nft insert rule inet filter forward ip daddr @<policy_users_set> jump <POLICY_NAME>
+    nft add rule inet nat POST_NAT_<POLICY_NAME> masquerade
 
-nft insert rule inet nat prerouting ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
-nft insert rule inet nat prerouting ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
+    ```
+    ***
+    OR (for specific protocol)
+    --
+    **(Source IP and protocol only)**
 
-nft insert rule inet nat postrouting oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
+    *   Matches only on **who** the user is and what protocol is being used
+    *   No port, or destination restriction
+    *   Used for:
+        *   trusted users
+        *   admin bypass
 
-nft add rule inet filter <POLICY_NAME> <action>
 
-nft add rule inet nat PRE_NAT_<POLICY_NAME> <action>
+    ```
+    nft add rule inet filter <POLICY_NAME> ip protocol <protocol> <action>
 
-nft add rule inet nat POST_NAT_<POLICY_NAME> masquerade
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> <action>
 
-nft add element inet mangle user4_marks { <policy_users_ip> : 0x00<isp_id><tc_class_id>}
+    nft add rule inet nat POST_NAT_<POLICY_NAME> masquerade
 
-nft add element inet filter <policy_users_set> { <policy_users_ip> }
-nft add element inet nat <policy_users_set> { <policy_users_ip> }
-```
-* * *
+    ```
 
-### Case 2 — Full 5-Tuple Policy
 
-**(Source IP + Source Port + Destination IP + Destination Port)**
+1. Case 2 — Full 5-Tuple Policy
 
-*   Most restrictive possible match
-*   Ideal for:
-    *   database access
-    *   SSH jump hosts
-    *   API consumers
+    **(Source IP + Source Port + Destination IP + Destination Port)**
 
+    *   Most restrictive possible match
+    *   Ideal for:
+        *   database access
+        *   SSH jump hosts
+        *   API consumers
 
-* * *
-```
-nft add set inet filter <policy_users_set> '{ type ipv4_addr; flags interval; }'
-nft add set inet nat <policy_users_set> '{ type ipv4_addr; flags interval; }'
 
-nft add chain inet filter <POLICY_NAME>
-nft add chain inet nat PRE_NAT_<POLICY_NAME>
-nft add chain inet nat POST_NAT_<POLICY_NAME>
 
-nft insert rule inet filter forward ip saddr @<policy_users_set> jump <POLICY_NAME>
-nft insert rule inet filter forward ip daddr @<policy_users_set> jump <POLICY_NAME>
+    ```
+    nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> <protocol> sport <source_port> <action>
+    nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> <protocol> dport <destination_port> <action>
+    nft add rule inet filter <POLICY_NAME> return
 
-nft insert rule inet nat prerouting ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
-nft insert rule inet nat prerouting ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip saddr <destination_ip> <protocol> dport <destination_port> <action>
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip daddr <destination_ip> <protocol> sport <source_port> <action>
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> return
 
-nft insert rule inet nat postrouting oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
+    nft add rule inet nat POST_NAT_<POLICY_NAME> ip daddr <destination_ip> <protocol> dport <destination_port> masquerade
+    nft add rule inet nat POST_NAT_<POLICY_NAME> return
 
-nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> <protocol> sport <source_port> <action>
-nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> <protocol> dport <destination_port> <action>
-nft add rule inet filter <POLICY_NAME> return
+    ```
 
-nft add rule inet nat PRE_NAT_<POLICY_NAME> ip saddr <destination_ip> <protocol> dport <destination_port> <action>
-nft add rule inet nat PRE_NAT_<POLICY_NAME> ip daddr <destination_ip> <protocol> sport <source_port> <action>
-nft add rule inet nat PRE_NAT_<POLICY_NAME> return
+1. Case 3 — Destination IP Policy
 
-nft add rule inet nat POST_NAT_<POLICY_NAME> ip daddr <destination_ip> <protocol> dport <destination_port> masquerade
-nft add rule inet nat POST_NAT_<POLICY_NAME> return
+    **(Source IP → Destination IP)**
 
-nft add element inet mangle user4_marks { <policy_users_ip> : 0x00<isp_id><tc_class_id>}
+    *   Ignores ports entirely
+    *   Allows all services **to one destination only**
+    *   Common for:
+        *   site-to-site links
+        *   fixed backend services
 
-nft add element inet filter <policy_users_set> { <policy_users_ip> }
-nft add element inet nat <policy_users_set> { <policy_users_ip> }
-```
 
-### Case 3 — Destination IP Policy
+    ```
+    nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> <action>
+    nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> <action>
+    nft add rule inet filter <POLICY_NAME> return
 
-**(Source IP → Destination IP)**
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip saddr <destination_ip> <action>
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip daddr <destination_ip> <action>
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> return
 
-*   Ignores ports entirely
-*   Allows all services **to one destination only**
-*   Common for:
-    *   site-to-site links
-    *   fixed backend services
+    nft add rule inet nat POST_NAT_<POLICY_NAME> ip daddr <destination_ip> masquerade
+    nft add rule inet nat POST_NAT_<POLICY_NAME> return
+    ```
+    ***
+    OR (for specific protocol)
+    --
+    **(Source IP specific protocol → Destination IP specific protocol)**
 
-* * *
-```
-nft add set inet filter <policy_users_set> { type ipv4_addr; flags interval; }
-nft add set inet nat <policy_users_set> { type ipv4_addr; flags interval; }
+    *   Ignores ports entirely
+    *   Allows all services **to one destination specific protocol**
+    *   Common for:
+        *   site-to-site links
+        *   fixed backend services
 
-nft add chain inet filter <POLICY_NAME>
-nft add chain inet nat PRE_NAT_<POLICY_NAME>
-nft add chain inet nat POST_NAT_<POLICY_NAME>
 
-nft insert rule inet filter forward ip saddr @<policy_users_set> jump <POLICY_NAME>
-nft insert rule inet filter forward ip daddr @<policy_users_set> jump <POLICY_NAME>
+    ```
+    nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> ip protocol <protocol> <action>
+    nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> ip protocol <protocol> <action>
+    nft add rule inet filter <POLICY_NAME> return
 
-nft insert rule inet nat prerouting ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
-nft insert rule inet nat prerouting ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip saddr <destination_ip> <action>
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip daddr <destination_ip> <action>
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> return
 
-nft insert rule inet nat postrouting oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
+    nft add rule inet nat POST_NAT_<POLICY_NAME> ip daddr <destination_ip> masquerade
+    nft add rule inet nat POST_NAT_<POLICY_NAME> return
+    ```
 
-nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> <action>
-nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> <action>
-nft add rule inet filter <POLICY_NAME> return
+1. Case 4 — Destination IP + Port Policy
 
-nft add rule inet nat PRE_NAT_<POLICY_NAME> ip saddr <destination_ip> <action>
-nft add rule inet nat PRE_NAT_<POLICY_NAME> ip daddr <destination_ip> <action>
-nft add rule inet nat PRE_NAT_<POLICY_NAME> return
+    **(Source IP → Destination IP:Port)**
 
-nft add rule inet nat POST_NAT_<POLICY_NAME> ip daddr <destination_ip> masquerade
-nft add rule inet nat POST_NAT_<POLICY_NAME> return
-```
+    *   Service-specific access to a single host
+    *   Safer than Case 3
+    *   Typical for:
+        *   HTTPS-only access
+        *   single exposed service
 
-### Case 4 — Destination IP + Port Policy
 
-**(Source IP → Destination IP:Port)**
+    ```
+    nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> <action>
+    nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> <protocol> dport <destination_port>  <action>
+    nft add rule inet filter <POLICY_NAME> return
 
-*   Service-specific access to a single host
-*   Safer than Case 3
-*   Typical for:
-    *   HTTPS-only access
-    *   single exposed service
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip saddr <destination_ip> <protocol> dport <destination_port>  <action>
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip daddr <destination_ip> <action>
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> return
 
-* * *
-```
-nft add set inet filter <policy_users_set> '{ type ipv4_addr; flags interval; }'
-nft add set inet nat <policy_users_set> '{ type ipv4_addr; flags interval; }'
+    nft add rule inet nat POST_NAT_<POLICY_NAME> ip daddr <destination_ip> <protocol> dport <destination_port>  masquerade
+    nft add rule inet nat POST_NAT_<POLICY_NAME> return
 
-nft add chain inet filter <POLICY_NAME>
-nft add chain inet nat PRE_NAT_<POLICY_NAME>
-nft add chain inet nat POST_NAT_<POLICY_NAME>
+    ```
 
-nft insert rule inet filter forward ip saddr @<policy_users_set> jump <POLICY_NAME>
-nft insert rule inet filter forward ip daddr @<policy_users_set> jump <POLICY_NAME>
+1. Case 5 — Port-Constrained Egress
 
-nft insert rule inet nat prerouting ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
-nft insert rule inet nat prerouting ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
+    **(Source IP + Source Port → Any Destination: Specific Port)**
 
-nft insert rule inet nat postrouting oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
+    *   Rare, but valid
+    *   Used when **client-side port identity matters**
+    *   Example:
+        *   pinned application ports
+        *   legacy systems
 
-nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> <action>
-nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> <protocol> dport <destination_port>  <action>
-nft add rule inet filter <POLICY_NAME> return
 
-nft add rule inet nat PRE_NAT_<POLICY_NAME> ip saddr <destination_ip> <protocol> dport <destination_port>  <action>
-nft add rule inet nat PRE_NAT_<POLICY_NAME> ip daddr <destination_ip> <action>
-nft add rule inet nat PRE_NAT_<POLICY_NAME> return
+    ```
+    nft add rule inet filter <POLICY_NAME> <protocol> dport <destination_port> <protocol> sport <source_port> <action>
+    nft add rule inet filter <POLICY_NAME> <protocol> sport <destination_port> <protocol> dport <source_port> <action>
+    nft add rule inet filter <POLICY_NAME> return
 
-nft add rule inet nat POST_NAT_<POLICY_NAME> ip daddr <destination_ip> <protocol> dport <destination_port>  masquerade
-nft add rule inet nat POST_NAT_<POLICY_NAME> return
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> <protocol> dport <destination_port> <protocol> sport <source_port> <action>
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> <protocol> sport <destination_port> <protocol> dport <source_port> <action>
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> return
 
-nft add element inet mangle user4_marks { <policy_users_ip> : 0x00<isp_id><tc_class_id> }
+    nft add rule inet nat POST_NAT_<POLICY_NAME> <protocol> dport <destination_port> <protocol> sport <source_port> masquerade
+    nft add rule inet nat POST_NAT_<POLICY_NAME> return
 
-nft add element inet filter <policy_users_set> { <policy_users_ip> }
-nft add element inet nat <policy_users_set> { <policy_users_ip> }
-```
+    ```
+1. Case 6 — Destination IP with Source Port
 
-### Case 5 — Port-Constrained Egress
+    **(Source IP:Port → Destination IP)**
 
-**(Source IP + Source Port → Any Destination: Specific Port)**
+    ```
+    nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> <action>
+    nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> <protocol> sport <source_port> <action>
+    nft add rule inet filter <POLICY_NAME> return
 
-*   Rare, but valid
-*   Used when **client-side port identity matters**
-*   Example:
-    *   pinned application ports
-    *   legacy systems
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip daddr <destination_ip> <protocol> sport <source_port> <action>
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip saddr <destination_ip> <action>
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> return
 
-* * *
-```
-nft add set inet filter <policy_users_set> '{ type ipv4_addr; flags interval; }'
-nft add set inet nat <policy_users_set> '{ type ipv4_addr; flags interval; }'
+    nft add rule inet nat POST_NAT_<POLICY_NAME> ip daddr <destination_ip>  <protocol> sport <source_port> masquerade
+    nft add rule inet nat POST_NAT_<POLICY_NAME> return
 
-nft add chain inet filter <POLICY_NAME>
-nft add chain inet nat PRE_NAT_<POLICY_NAME>
-nft add chain inet nat POST_NAT_<POLICY_NAME>
+    ```
 
-nft insert rule inet filter forward ip saddr @<policy_users_set> jump <POLICY_NAME>
-nft insert rule inet filter forward ip daddr @<policy_users_set> jump <POLICY_NAME>
+    USER LOGIN
+    --
+    ```
+    nft add element inet mangle user4_marks { <policy_users_ip> : 0x00<isp_id><tc_class_id> }
+    nft add element inet filter <policy_users_set> { <policy_users_ip> }
+    nft add element inet nat <policy_users_set> { <policy_users_ip> }   
+    ```
+    
+    USER LOGOUT
+    --
+    For user logout we only need to remove ips of users from policy and mark sets
 
-nft insert rule inet nat prerouting ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
-nft insert rule inet nat prerouting ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
+    ```
+    nft delete element inet mangle user4_marks { <policy_users_ip> : 0x00<isp_id><tc_class_id>}
+    nft delete element inet filter <policy_users_set> { <policy_users_ip> }
+    nft delete element inet nat <policy_users_set> { <policy_users_ip> }
+    ```
 
-nft insert rule inet nat postrouting oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
-
-nft add rule inet filter <POLICY_NAME> <protocol> dport <destination_port> <protocol> sport <source_port> <action>
-nft add rule inet filter <POLICY_NAME> <protocol> sport <destination_port> <protocol> dport <source_port> <action>
-nft add rule inet filter <POLICY_NAME> return
-
-nft add rule inet nat PRE_NAT_<POLICY_NAME> <protocol> dport <destination_port> <protocol> sport <source_port> <action>
-nft add rule inet nat PRE_NAT_<POLICY_NAME> <protocol> sport <destination_port> <protocol> dport <source_port> <action>
-nft add rule inet nat PRE_NAT_<POLICY_NAME> return
-
-nft add rule inet nat POST_NAT_<POLICY_NAME> <protocol> dport <destination_port> <protocol> sport <source_port> masquerade
-nft add rule inet nat POST_NAT_<POLICY_NAME> return
-
-nft add element inet mangle user4_marks { <policy_users_ip> : 0x00<isp_id><tc_class_id> }
-
-nft add element inet filter <policy_users_set> { <policy_users_ip> }
-nft add element inet nat <policy_users_set> { <policy_users_ip> }
-```
-
-### Case 6 — Source-Port Anchored Policy
-
-**(Source IP + Source Port → Any Destination)**
-
-
-* * *
-```
-nft add set inet filter <policy_users_set> '{ type ipv4_addr; flags interval; }'
-nft add set inet nat <policy_users_set> '{ type ipv4_addr; flags interval; }'
-
-nft add chain inet filter <POLICY_NAME>
-nft add chain inet nat PRE_NAT_<POLICY_NAME>
-nft add chain inet nat POST_NAT_<POLICY_NAME>
-
-nft insert rule inet filter forward ip saddr @<policy_users_set> jump <POLICY_NAME>
-nft insert rule inet filter forward ip daddr @<policy_users_set> <action>
-
-nft insert rule inet nat prerouting ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
-nft insert rule inet nat prerouting ip daddr @<policy_users_set> <action>
-
-nft insert rule inet nat postrouting oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
-
-nft add rule inet filter <POLICY_NAME> <protocol> sport <source_port> <action>
-nft add rule inet filter <POLICY_NAME> return
-
-nft add rule inet nat PRE_NAT_<POLICY_NAME> <protocol> sport <source_port> <action>
-nft add rule inet nat PRE_NAT_<POLICY_NAME> return
-
-nft add rule inet nat POST_NAT_<POLICY_NAME> <protocol> sport <source_port> masquerade
-nft add rule inet nat POST_NAT_<POLICY_NAME> return
-
-nft add element inet mangle user4_marks { <policy_users_ip> : 0x00<isp_id><tc_class_id> }
-
-nft add element inet filter <policy_users_set> { <policy_users_ip> }
-nft add element inet nat <policy_users_set> { <policy_users_ip> }
-```
-
-### Case 7 — Destination Port Policy
-
-**(Source IP → Any Destination: Specific Port)**
-
-* * *
-```
-nft add set inet filter <policy_users_set> '{ type ipv4_addr; flags interval; }'
-nft add set inet nat <policy_users_set> '{ type ipv4_addr; flags interval; }'
-
-nft add chain inet filter <POLICY_NAME>
-nft add chain inet nat PRE_NAT_<POLICY_NAME>
-nft add chain inet nat POST_NAT_<POLICY_NAME>
-
-nft insert rule inet filter forward ip daddr @<policy_users_set> jump <POLICY_NAME>
-nft insert rule inet filter forward ip saddr @<policy_users_set> <action>
-
-nft insert rule inet nat prerouting ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
-nft insert rule inet nat prerouting ip saddr @<policy_users_set> <action>
-
-nft insert rule inet nat postrouting oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
-
-nft add rule inet filter <POLICY_NAME> <protocol> dport <destination_port> <action>
-nft add rule inet filter <POLICY_NAME> return
-
-nft add rule inet nat PRE_NAT_<POLICY_NAME> <protocol> dport <destination_port> <action>
-nft add rule inet nat PRE_NAT_<POLICY_NAME> return
-
-nft add rule inet nat POST_NAT_<POLICY_NAME> <protocol> dport <destination_port> masquerade
-nft add rule inet nat POST_NAT_<POLICY_NAME> return
-
-nft add element inet mangle user4_marks { <policy_users_ip> : 0x00<isp_id><tc_class_id> }
-
-nft add element inet filter <policy_users_set> { <policy_users_ip> }
-nft add element inet nat <policy_users_set> { <policy_users_ip> }
-```
-
-### Case 8 — Destination IP with Source Port
-
-**(Source IP:Port → Destination IP)**
-
-* * *
-```
-nft add set inet filter <policy_users_set> '{ type ipv4_addr; flags interval; }'
-nft add set inet nat <policy_users_set> '{ type ipv4_addr; flags interval; }'
-
-nft add chain inet filter <POLICY_NAME>
-nft add chain inet nat PRE_NAT_<POLICY_NAME>
-nft add chain inet nat POST_NAT_<POLICY_NAME>
-
-nft insert rule inet filter forward ip saddr @<policy_users_set> jump <POLICY_NAME>
-nft insert rule inet filter forward ip daddr @<policy_users_set> jump <POLICY_NAME>
-
-nft insert rule inet nat prerouting ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
-nft insert rule inet nat prerouting ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
-
-nft insert rule inet nat postrouting oifname @wan_ifaces ip saddr @<policy_users_set> jump POST_NAT_<POLICY_NAME>
-
-nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> <action>
-nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> <protocol> sport <source_port> <action>
-nft add rule inet filter <POLICY_NAME> return
-
-nft add rule inet nat PRE_NAT_<POLICY_NAME> ip daddr <destination_ip> <protocol> sport <source_port> <action>
-nft add rule inet nat PRE_NAT_<POLICY_NAME> ip saddr <destination_ip> <action>
-nft add rule inet nat PRE_NAT_<POLICY_NAME> return
-
-nft add rule inet nat POST_NAT_<POLICY_NAME> ip daddr <destination_ip>  <protocol> sport <source_port> masquerade
-nft add rule inet nat POST_NAT_<POLICY_NAME> return
-
-nft add element inet mangle user4_marks { <policy_users_ip> : 0x00<isp_id><tc_class_id> }
-
-nft add element inet filter <policy_users_set> { <policy_users_ip> }
-nft add element inet nat <policy_users_set> { <policy_users_ip> }
-```
-
-Enforcement Rules (Critical)
+Enforcement Rules
 ----------------------------
 
 These rules apply to **all cases**:
@@ -370,7 +256,7 @@ These rules apply to **all cases**:
 3.  **Unmatched traffic must hit default drop**  
 4.  **Bidirectional rules are mandatory**  
 
-* * *
+
 
 Mapping This Table to nftables
 ------------------------------

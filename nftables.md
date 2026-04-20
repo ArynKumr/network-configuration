@@ -127,28 +127,28 @@ set lan_ifaces {
 Section 2: IP ↔ MAC Binding (Anti-Spoofing)
 -------------------------------------------
 
-### IPv4 + MAC Binding Map
+### IPv4 + MAC Binding
 
 **Purpose:**  
 Bind a specific IPv4 address to a specific MAC address.  
 Prevents IP spoofing or users stealing vacant IPs.
 
 ```
-map allowed_ip4_mac {
-    type ipv4_addr . ether_addr : verdict
+set allowed_ip4_mac {
+    type ipv4_addr . ether_addr ;
 }
 ```
 
 * * *
 
-### IPv6 + MAC Binding Map
+### IPv6 + MAC Binding
 
 **Purpose:**  
-IPv6 equivalent of the IPv4 binding map.
+IPv6 equivalent of the IPv4 binding.
 
 ```
-map allowed_ip6_mac {
-    type ipv6_addr . ether_addr : verdict
+set allowed_ip6_mac {
+    type ipv6_addr . ether_addr ;
 }
 ```
 
@@ -198,6 +198,41 @@ set log_users_mac {
 
 * * *
 
+### Block User Set
+**Purpose:**
+Upon user logout the ip, ip-mac, mac is put into this set to mitigate conntrack percistance
+
+```
+set blocked_users_v4 {
+  type ipv4_addr;
+  flags interval;
+} 
+
+set blocked_users_macs {
+    type ether_addr;
+}
+
+set blocked_users_v4_mac {
+    type ipv4_addr . ether_addr;
+}
+```
+
+### 1\. Define the Blocklist Set
+
+```nft
+  set perma_blocked_mac_users {
+    type ether_addr;
+  }
+```
+
+### Meaning
+
+*   `type ether_addr` → matches raw MAC addresses
+*   No interval flag (MAC ranges are rarely valid use cases)
+*   Set-based for O(1) lookup
+
+* * *
+
 Section 4: Chains (Packet Processing Logic)
 -------------------------------------------
 
@@ -208,21 +243,32 @@ Input Chain (Traffic Directed at the Firewall)
 Handles traffic addressed **to the firewall itself**  
 (e.g. management UI, local services).
 
+
 ```
 chain input {
-    type filter hook input priority 0; policy accept;
+    type filter hook input priority 0; policy drop;
+    ct state vmap { established : accept, related : accept, invalid : drop }
+    iifname @lan_ifaces accept
+  }
+``` 
+
+### Enforce Block in INPUT Chain
+
+```nft
+    ether saddr @perma_blocked_mac_users drop
 ```
 
-### Anti-DoS Protection (HTTP)
+### Effect
 
-**Purpose:**  
-Limit excessive new TCP connections to port 80.
+Blocks traffic **destined to the firewall itself** from blocked MACs.
 
-```
-    tcp dport 80 ct state new \
-        tcp flags & (fin|syn|rst|ack) == syn \
-        ct count over 50 reject with tcp reset
-```
+This prevents:
+
+*   Web UI access
+*   SSH access
+*   VPN negotiation
+*   DNS access
+*   Captive portal interaction
 
 * * *
 
@@ -262,19 +308,39 @@ chain forward {
     type filter hook forward priority 0; policy drop;
 ```
 
+### Enforce Block in FORWARD Chain
+
+```nft
+    ether saddr @perma_blocked_mac_users drop
+```
+
+### Effect
+
+Blocks traffic being routed **through** the firewall.
+
+This prevents:
+
+*   Internet access
+*   LAN-to-LAN routing
+*   VPN traversal
+*   Proxy access
+*   Split-tunnel access
+
 * * *
 
-### Protocol Suppression
+### Block User Set
+**Purpose:**
 
-**Purpose:**  
-Prevent encrypted DNS and QUIC from bypassing inspection and QoS. Can be configured to be allowed from front.
->NOTE: These rules can be deleted from the firewall front on user request
-```
-    tcp dport 853 drop   # DNS over TLS
-    udp dport 853 drop
-    udp dport 443 drop   # QUIC / HTTP3
-```
+Upon user logout the ip is put in blocked_user_v4, blocked_users_macs, blocked_users_v4_mac set and dropped here
 
+```
+    ip saddr @blocked_users_v4 drop
+    ip daddr @blocked_users_v4 drop
+    ether saddr @blocked_users_macs drop
+    ether daddr @blocked_users_macs drop
+    ip saddr . ether saddr @blocked_users_v4_mac drop
+    ip daddr . ether daddr @blocked_users_v4_mac drop
+```
 * * *
 
 ### Conntrack State Handling
@@ -292,6 +358,14 @@ Allow legitimate traffic, drop malformed packets.
 
 * * *
 
+Jump to NGFW Chain
+------------------
+**Purpose:**  
+To keep rules sequenced in a formal and intended manner we dont add rules in current chain we jump all the traffic to a chain which includes all the rules for firewalling.
+```
+jump FILTER_FORWARD
+```
+
 Rule Group A: IPv4 + MAC Validation
 -----------------------------------
 
@@ -300,11 +374,12 @@ Log and validate IPv4 traffic based on IP+MAC binding.
 
 ```
     iifname @lan_ifaces oifname @wan_ifaces \
-        ip saddr @log_users_v4 \
-        log prefix "[FW-FILTER-FWD-IPMAC] " level info
+    ip saddr @log_users_v4 log prefix "[FW-FILTER-FWD-IPMAC] " \
+    level info
 
     iifname @lan_ifaces oifname @wan_ifaces \
-        ip saddr . ether saddr vmap @allowed_ip4_mac
+    ip saddr . ether saddr @allowed_ip4_mac \
+    accept
 ```
 
 * * *
@@ -314,11 +389,12 @@ Rule Group B: IPv6 + MAC Validation
 
 ```
     iifname @lan_ifaces oifname @wan_ifaces \
-        ip6 saddr @log_users_v6 \
-        log prefix "[FW-FILTER-FWD-IP6MAC] " level info
-
+    ip6 saddr @log_users_v6 log prefix \
+     "[FW-FILTER-FWD-IP6MAC] " level info
+    
     iifname @lan_ifaces oifname @wan_ifaces \
-        ip6 saddr . ether saddr vmap @allowed_ip6_mac
+    ip6 saddr . ether saddr @allowed_ip6_mac \
+    accept
 ```
 
 * * *
@@ -380,8 +456,27 @@ Log failures for watched users **before** the default drop policy triggers.
     ether saddr @log_users_mac log prefix "[FW-FILTER-FWD-DROP-MAC] " level info
 ```
 
-* * *
 
+NGFW Chain
+----------
+
+**Purpose:**  
+To keep rules sequenced in a formal and intended manner we dont add rules in current chain we jump all the traffic to a chain which includes all the rules for firewalling.
+```
+chain filter_forward{
+```
+### Protocol Suppression
+
+**Purpose:**  
+Prevent encrypted DNS and QUIC from bypassing inspection and QoS. Can be configured to be allowed from front.
+>NOTE: These rules can be added / deleted from the firewall front on user request
+```
+    tcp dport 853 drop   # DNS over TLS
+    udp dport 853 drop
+    udp dport 443 drop   # QUIC / HTTP3
+```
+
+* * *
 NAT, Captive Portal & DNS Redirection (nftables)
 ================================================
 
@@ -414,8 +509,8 @@ Section 1: Identity & Control Sets
 ----------------------------------
 
 > **Important:**  
-> Sets are duplicated here because **each nftables table is independent**.  
-> The NAT table must know who is authenticated so it can decide **who to redirect** and **who to skip**.
+    >- Sets are duplicated here because **each nftables table is independent** and there is no global scope declaration of sets.
+    >- The NAT table must know who is authenticated so it can decide **who to redirect** and **who to skip**.
 
 * * *
 
@@ -583,8 +678,15 @@ Force all DNS traffic to use the firewall’s DNS resolver — regardless of cli
 **Logic:**  
 Clients cannot bypass filtering by using external DNS (e.g. `8.8.8.8`).
 
-* * *
+Jump to NGFW Chain
+------------------
+**Purpose:**  
+To keep rules sequenced in a formal and intended manner we dont add rules in current chain we jump all the traffic to a chain which includes all the rules for firewalling.
+```
+jump NAT_POST_BASE
+```
 
+* * *
 ### Authentication Bypass (“Skip Rules”)
 
 **Purpose:**  
@@ -594,8 +696,8 @@ Stop NAT processing for authenticated users so they reach the real internet.
     iifname @lan_ifaces ip saddr @allowed_ip4 accept
     iifname @lan_ifaces ip6 saddr @allowed_ip6 accept
     iifname @lan_ifaces ether saddr @allowed_macs accept
-    iifname @lan_ifaces ip saddr . ether saddr vmap @allowed_ip4_mac
-    iifname @lan_ifaces ip6 saddr . ether saddr vmap @allowed_ip6_mac
+    iifname @lan_ifaces ip saddr . ether saddr @allowed_ip4_mac accept
+    iifname @lan_ifaces ip6 saddr . ether saddr @allowed_ip6_mac accept
 ```
 
 **Logic:**  
@@ -660,8 +762,8 @@ Enable multiple internal devices to share a single public IP.
     oifname @wan_ifaces ip saddr @allowed_ip4 masquerade
     oifname @wan_ifaces ip6 saddr @allowed_ip6 masquerade
     oifname @wan_ifaces ether saddr @allowed_macs masquerade
-    oifname @wan_ifaces ip saddr . ether saddr vmap @allowed_ip4_mac masquerade
-    oifname @wan_ifaces ip saddr . ether saddr vmap @allowed_ip6_mac masquerade
+    oifname @wan_ifaces ip saddr . ether saddr @allowed_ip4_mac masquerade
+    oifname @wan_ifaces ip6 saddr . ether saddr @allowed_ip6_mac masquerade
 ```
 
 * * *
@@ -762,6 +864,16 @@ map user4_marks {
 
 * * *
 
+### IPv4 . MAC → Mark Map
+
+```
+map user4_mac_marks {
+    type ipv4_addr . ether_addr : mark
+}
+```
+
+* * *
+
 ### IPv6 → Mark Map
 
 ```
@@ -777,6 +889,17 @@ map user6_marks {
 ```
 map user_mac_marks {
     type ether_addr : mark
+}
+```
+
+* * *
+
+### vpn → Mark Map
+
+```
+set vpn_subnet {
+    type ipv4_addr
+    flags interval
 }
 ```
 
@@ -808,6 +931,8 @@ Identify the **sender** and apply their assigned mark.
     meta mark set ip  saddr map @user4_marks
     meta mark set ip6 saddr map @user6_marks
     meta mark set ether saddr map @user_mac_marks
+    meta mark set ip saddr . ether saddr map @user4_mac_marks
+    ip daddr @vpn_subnet iifname @lan_ifaces meta mark set 0x00000069
 ```
 
 * * *
@@ -845,6 +970,8 @@ Identify the **receiver** and apply their mark.
     meta mark set ip  daddr map @user4_marks
     meta mark set ip6 daddr map @user6_marks
     meta mark set ether daddr map @user_mac_marks
+    meta mark set ip daddr . ether daddr map @user4_mac_marks
+    ip saddr @vpn_subnet oifname @lan_ifaces meta mark set 0x00000069
 ```
 
 * * *
@@ -1166,6 +1293,7 @@ chain forward {
 3.  Event is logged
 4.  Connection is terminated
 
+>For further info refer [geo_setup.md](Customizations/geo_setup.md)  
 * * *
 
 Refer [nftables](nftables.conf) for a more granular explanation of the rules.

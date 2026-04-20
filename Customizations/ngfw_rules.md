@@ -6,215 +6,253 @@ Define **authoritative traffic-matching semantics** for NGFW user policies.
 
 Every case implemented in nftables **must correspond to one column in this table**.  
 
-* * *
+
 
 Matching Truth Table
 ---------------------------
 
-| Field | Case 1 | Case 2 | Case 3 | Case 4 | Case 5 | Case 6 | Case 7 | Case 8 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Source IP | Specific | Specific | Specific | Specific | Specific | Specific | Specific | Specific |
-| Source Port | Any | Specific | Any | Any | Specific | Specific | Any | Specific |
-| Destination IP | Any | Specific | Specific | Specific | Any | Any | Any | Specific |
-| Destination Port | Any | Specific | Any | Specific | Specific | Any | Specific | Any |
-| Protocol | tcp/udp | tcp/udp | tcp/udp | tcp/udp | tcp/udp | tcp/udp | tcp/udp | tcp/udp |
-| Action | allow / drop | allow / drop | allow / drop | allow / drop | allow / drop | allow / drop | allow / drop | allow / drop |
+| Field | Source IP | Source Port | Destination IP | Destination Port | Protocol | Action | ISP id |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Case 1 | Specific | ALL | ALL | ALL | tcp/udp | allow / drop | ISP id |
+| Case 2 | Specific | Specific | Specific | Specific | tcp/udp | allow / drop | ISP id |
+| Case 3 | Specific | ALL | Specific | ALL | tcp/udp | allow / drop | ISP id |
+| Case 4 | Specific | ALL | Specific | Specific | tcp/udp | allow / drop | ISP id |
+| Case 5 | Specific | Specific | ALL | Specific | tcp/udp | allow / drop | ISP id |
+| Case 6 | Specific | Specific | ALL | ALL | tcp/udp | allow / drop | ISP id |
+| Case 7 | Specific | ALL | ALL | Specific | tcp/udp | allow / drop | ISP id |
+| Case 8 | Specific | Specific | Specific | ALL | tcp/udp | allow / drop | ISP id |
 
-* * *
+>NOTE: TC ClassID for all the traffic related to NGFW should be 0069
 
-How to Read This Table (Non-Negotiable)
----------------------------------------
 
-*   **“Specific”** means _explicitly matched_ in nftables  
-    (`ip saddr`, `tcp dport`, maps, sets, etc.)
-*   **“Any”** means _no match condition applied_  
-    (field is intentionally ignored)
-*   **Action** is the **verdict** applied _after_ matching
-*   All cases assume **default drop outside the match**
-
-* * *
-
-Case Semantics (Authoritative Definitions)
+Case Semantics 
 ------------------------------------------
 
-### Case 1 — Identity-Only Policy
+1. Case 1 — Identity-Only Policy
 
-**(Source IP only)**
+    **(Source IP only)**
 
-*   Matches only on **who** the user is
-*   No port, protocol, or destination restriction
-*   Used for:
-    *   trusted users
-    *   admin bypass
+    *   Matches only on **who** the user is
+    *   No port, protocol, or destination restriction
+    *   Used for:
+        *   trusted users
+        *   admin bypass
 
-**This is the highest-risk case.**
-```
-nft insert rule inet filter forward ip saddr <user_ips> <action>
-nft insert rule inet filter forward ip daddr <user_ips> <action>
+    **This is the highest-risk case.**
+    ```
+    nft insert rule inet filter FILTER_FORWARD ip saddr <source_ips/source_subnet> <action>
+    nft insert rule inet filter FILTER_FORWARD ip daddr <source_ips/source_subnet> <action>
 
-nft insert rule inet nat prerouting ip saddr <user_ips> <action>
-nft insert rule inet nat prerouting ip daddr <user_ips> <action>
+    nft insert rule inet nat NAT_PRE ip saddr <source_ips/source_subnet> <action>
+    nft insert rule inet nat NAT_PRE ip daddr <source_ips/source_subnet> <action>
 
-nft insert rule inet nat postrouting oifname @wan_ifaces ip saddr <user_ips> masquerade
+    nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr <source_ips/source_subnet> masquerade
 
-nft add rule inet mangle prerouting ip saddr <user_ips> meta mark set 0x00<isp_id><tc_class_id>
-nft add rule inet mangle forward ip daddr <user_ips> meta mark set 0x00<isp_id><tc_class_id>
-```
-* * *
+    nft add rule inet mangle prerouting ip saddr <source_ips/source_subnet> meta mark set 0x00<isp_id><tc_class_id>
+    nft add rule inet mangle forward ip daddr <source_ips/source_subnet> meta mark set 0x00<isp_id><tc_class_id>
+    ```
+    ***
+    OR (for specific protocol)
+    --
+    **(Source IP and protocol only)**
 
-### Case 2 — Full 5-Tuple Policy
+    *   Matches only on **who** the user is
+    *   No port, protocol, or destination restriction
+    *   Used for:
+        *   trusted users
+        *   admin bypass
 
-**(Source IP + Source Port + Destination IP + Destination Port)**
+    **This is the highest-risk case.**
+    ```
+    nft insert rule inet filter FILTER_FORWARD ip saddr <source_ips/source_subnet> <action>
+    nft insert rule inet filter FILTER_FORWARD ip daddr <source_ips/source_subnet> <action>
 
-*   Most restrictive possible match
-*   Ideal for:
-    *   database access
-    *   SSH jump hosts
-    *   API consumers
+    nft insert rule inet nat NAT_PRE ip saddr <source_ips/source_subnet> ip protocol <protocol> <action>
+    nft insert rule inet nat NAT_PRE ip daddr <source_ips/source_subnet> ip protocol <protocol> <action>
 
+    nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr <source_ips/source_subnet> masquerade
 
-* * *
-```
-nft insert rule inet filter forward ip saddr <user_ips> ip daddr <destination_ip> <protocol> sport <source_port> <action>
-nft insert rule inet filter forward ip daddr <user_ips> ip saddr <destination_ip> <protocol> dport <destination_port> <action>
+    nft add rule inet mangle prerouting ip saddr <source_ips/source_subnet> meta mark set 0x00<isp_id><tc_class_id>
+    nft add rule inet mangle forward ip daddr <source_ips/source_subnet> meta mark set 0x00<isp_id><tc_class_id>
+    ```
 
-nft insert rule inet nat prerouting ip saddr <user_ips> ip daddr <destination_ip> <protocol> sport <source_port> <action>
-nft insert rule inet nat prerouting ip daddr <user_ips> ip saddr <destination_ip> <protocol> dport <destination_port> <action>
+1. Case 2 — Full 5-Tuple Policy
 
-nft insert rule inet nat postrouting oifname @wan_ifaces ip saddr <user_ips> ip daddr <destination_ip> <protocol> dport <destination_port> masquerade
+    **(Source IP + Source Port + Destination IP + Destination Port)**
 
-nft add rule inet mangle prerouting ip saddr <user_ips> ip daddr <destination_ip> <protocol> sport <source_port> meta mark set 0x00<isp_id><tc_class_id>
-nft add rule inet mangle forward ip daddr <user_ips> ip saddr <destination_ip> <protocol> dport <destination_port> meta mark set 0x00<isp_id><tc_class_id>
-```
-
-### Case 3 — Destination IP Policy
-
-**(Source IP → Destination IP)**
-
-*   Ignores ports entirely
-*   Allows all services **to one destination only**
-*   Common for:
-    *   site-to-site links
-    *   fixed backend services
-
-* * *
-```
-nft insert rule inet filter forward ip saddr <user_ips> ip daddr <destination_ip> <action>
-nft insert rule inet filter forward ip daddr <user_ips> ip saddr <destination_ip> <action>
-
-nft insert rule inet nat prerouting ip saddr <user_ips> ip daddr <destination_ip> <action>
-nft insert rule inet nat prerouting ip daddr <user_ips> ip saddr <destination_ip> <action>
-
-nft insert rule inet nat postrouting oifname @wan_ifaces ip saddr <user_ips> ip daddr <destination_ip> masquerade
-
-nft add rule inet mangle prerouting ip saddr <user_ips> ip daddr <destination_ip> meta mark set 0x00<isp_id><tc_class_id>
-nft add rule inet mangle forward ip daddr <user_ips> ip saddr <destination_ip> meta mark set 0x00<isp_id><tc_class_id>
-```
-
-### Case 4 — Destination IP + Port Policy
-
-**(Source IP → Destination IP:Port)**
-
-*   Service-specific access to a single host
-*   Safer than Case 3
-*   Typical for:
-    *   HTTPS-only access
-    *   single exposed service
-
-* * *
-```
-nft insert rule inet filter forward ip saddr <user_ips> ip daddr <destination_ip> <action>
-nft insert rule inet filter forward ip daddr <user_ips> ip saddr <destination_ip> <protocol> dport <destination_port> <action>
-
-nft insert rule inet nat prerouting ip saddr <user_ips> ip daddr <destination_ip> <action>
-nft insert rule inet nat prerouting ip daddr <user_ips> ip saddr <destination_ip> <protocol> dport <destination_port>  <action>
-
-nft insert rule inet nat postrouting oifname @wan_ifaces ip saddr <user_ips> ip daddr <destination_ip> <protocol> dport <destination_port>  masquerade
-
-nft add rule inet mangle prerouting ip saddr <user_ips> ip daddr <destination_ip> meta mark set 0x00<isp_id><tc_class_id>
-nft add rule inet mangle forward ip daddr <user_ips> ip saddr <destination_ip> <protocol> dport <destination_port> meta mark set 0x00<isp_id><tc_class_id>
-```
-
-### Case 5 — Port-Constrained Egress
-
-**(Source IP + Source Port → Any Destination: Specific Port)**
-
-*   Rare, but valid
-*   Used when **client-side port identity matters**
-*   Example:
-    *   pinned application ports
-    *   legacy systems
-
-* * *
-```
-nft insert rule inet filter forward ip saddr <user_ips> <protocol> dport <destination_port> <protocol> sport <source_port> <action>
-nft insert rule inet filter forward ip daddr <user_ips> <protocol> sport <source_port> <protocol> dport <destination_port> <action>
-
-nft insert rule inet nat prerouting ip saddr <user_ips> <protocol> dport <destination_port> <protocol> sport <source_port> <action>
-nft insert rule inet nat prerouting ip daddr <user_ips> <protocol> sport <source_port> <protocol> dport <destination_port> <action>
-
-nft insert rule inet nat postrouting oifname @wan_ifaces ip saddr <user_ips> <protocol> dport <destination_port> <protocol> sport <source_port> masquerade
-
-nft add rule inet mangle prerouting ip saddr <user_ips> <protocol> dport <destination_port> <protocol> sport <source_port> meta mark set 0x00<isp_id><tc_class_id>
-nft add rule inet mangle forward ip daddr <user_ips> <protocol> sport <source_port> <protocol> dport <destination_port> meta mark set 0x00<isp_id><tc_class_id>
-```
-
-### Case 6 — Source-Port Anchored Policy
-
-**(Source IP + Source Port → Any Destination)**
+    *   Most restrictive possible match
+    *   Ideal for:
+        *   database access
+        *   SSH jump hosts
+        *   API consumers
 
 
-* * *
-```
-nft insert rule inet filter forward ip saddr <user_ips> <protocol> sport <source_port> <action>
-nft insert rule inet filter forward ip daddr <user_ips> <action>
+    
+    ```
+    nft insert rule inet filter FILTER_FORWARD ip saddr <source_ips/source_subnet> ip daddr <destination_ip/destination_subnet> <protocol> sport <source_port> <action>
+    nft insert rule inet filter FILTER_FORWARD ip daddr <source_ips/source_subnet> ip saddr <destination_ip/destination_subnet> <protocol> dport <destination_port> <action>
 
-nft insert rule inet nat prerouting ip saddr <user_ips> <protocol> sport <source_port> <action>
-nft insert rule inet nat prerouting ip daddr <user_ips> <action>
+    nft insert rule inet nat NAT_PRE ip saddr <source_ips/source_subnet> ip daddr <destination_ip/destination_subnet> <protocol> sport <source_port> <action>
+    nft insert rule inet nat NAT_PRE ip daddr <source_ips/source_subnet> ip saddr <destination_ip/destination_subnet> <protocol> dport <destination_port> <action>
 
-nft insert rule inet nat postrouting oifname @wan_ifaces ip saddr <user_ips> <protocol> sport <source_port> masquerade
+    nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr <source_ips/source_subnet> ip daddr <destination_ip/destination_subnet> <protocol> dport <destination_port> masquerade
 
-nft add rule inet mangle prerouting ip saddr <user_ips> <protocol> sport <source_port> meta mark set 0x00<isp_id><tc_class_id>
-nft add rule inet mangle forward ip daddr <user_ips> meta mark set 0x00<isp_id><tc_class_id>
-```
+    nft add rule inet mangle prerouting ip saddr <source_ips/source_subnet> ip daddr <destination_ip/destination_subnet> <protocol> sport <source_port> meta mark set 0x00<isp_id><tc_class_id>
+    nft add rule inet mangle forward ip daddr <source_ips/source_subnet> ip saddr <destination_ip/destination_subnet> <protocol> dport <destination_port> meta mark set 0x00<isp_id><tc_class_id>
+    ```
 
-### Case 7 — Destination Port Policy
+1. Case 3 — Destination IP Policy
 
-**(Source IP → Any Destination: Specific Port)**
+    **(Source IP → Destination IP)**
 
-* * *
-```
-nft insert rule inet filter forward ip daddr <user_ips> <protocol> dport <destination_port> <action>
-nft insert rule inet filter forward ip saddr <user_ips> <action>
+    *   Ignores ports entirely
+    *   Allows all services **to one destination only**
+    *   Common for:
+        *   site-to-site links
+        *   fixed backend services
 
-nft insert rule inet nat prerouting ip daddr <user_ips> <protocol> dport <destination_port> <action>
-nft insert rule inet nat prerouting ip saddr <user_ips> <action>
+    
+    ```
+    nft insert rule inet filter FILTER_FORWARD ip saddr <source_ips/source_subnet> ip daddr <destination_ip/destination_subnet> <action>
+    nft insert rule inet filter FILTER_FORWARD ip daddr <source_ips/source_subnet> ip saddr <destination_ip/destination_subnet> <action>
 
-nft insert rule inet nat postrouting oifname @wan_ifaces ip saddr <user_ips> <protocol> dport <destination_port> masquerade
+    nft insert rule inet nat NAT_PRE ip saddr <source_ips/source_subnet> ip daddr <destination_ip/destination_subnet> <action>
+    nft insert rule inet nat NAT_PRE ip daddr <source_ips/source_subnet> ip saddr <destination_ip/destination_subnet> <action>
 
-nft add rule inet mangle prerouting ip saddr <user_ips> meta mark set 0x00<isp_id><tc_class_id>
-nft add rule inet mangle forward ip daddr <user_ips> <protocol> dport <destination_port> meta mark set 0x00<isp_id><tc_class_id>
-```
+    nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr <source_ips/source_subnet> ip daddr <destination_ip/destination_subnet> masquerade
 
-### Case 8 — Destination IP with Source Port
+    nft add rule inet mangle prerouting ip saddr <source_ips/source_subnet> ip daddr <destination_ip/destination_subnet> meta mark set 0x00<isp_id><tc_class_id>
+    nft add rule inet mangle forward ip daddr <source_ips/source_subnet> ip saddr <destination_ip/destination_subnet> meta mark set 0x00<isp_id><tc_class_id>
+    ```
+    ***
+    OR (for specific protocol)
+    --
+    **(Source IP specific protocol → Destination IP specific protocol)**
 
-**(Source IP:Port → Destination IP)**
+    *   Ignores ports entirely
+    *   Allows all services **to one destination and specific protocol only**
+    *   Common for:
+        *   site-to-site links
+        *   fixed backend services
 
-* * *
-```
-nft insert rule inet filter forward ip saddr <user_ips> ip daddr <destination_ip> <protocol> sport <source_port> <action>
-nft insert rule inet filter forward ip daddr <user_ips> ip saddr <destination_ip> <action>
+    
+    ```
+    nft insert rule inet filter FILTER_FORWARD ip saddr <source_ips/source_subnet> ip daddr <destination_ip/destination_subnet> ip protocol <protocol> <action>
+    nft insert rule inet filter FILTER_FORWARD ip daddr <source_ips/source_subnet> ip saddr <destination_ip/destination_subnet> ip protocol <protocol> <action>
 
-nft insert rule inet nat prerouting ip saddr <user_ips> ip daddr <destination_ip> <protocol> sport <source_port> <action>
-nft insert rule inet nat prerouting ip daddr <user_ips> ip saddr <destination_ip> <action>
+    nft insert rule inet nat NAT_PRE ip saddr <source_ips/source_subnet> ip daddr <destination_ip/destination_subnet> <action>
+    nft insert rule inet nat NAT_PRE ip daddr <source_ips/source_subnet> ip saddr <destination_ip/destination_subnet> <action>
 
-nft insert rule inet nat postrouting oifname @wan_ifaces ip saddr <user_ips> ip daddr <destination_ip> <protocol> sport <source_port> masquerade
+    nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr <source_ips/source_subnet> ip daddr <destination_ip/destination_subnet> masquerade
 
-nft add rule inet mangle prerouting ip saddr <user_ips> ip daddr <destination_ip> <protocol> sport <source_port> meta mark set 0x00<isp_id><tc_class_id>
-nft add rule inet mangle forward ip daddr <user_ips> ip saddr <destination_ip> meta mark set 0x00<isp_id><tc_class_id>
-```
+    nft add rule inet mangle prerouting ip saddr <source_ips/source_subnet> ip daddr <destination_ip/destination_subnet> meta mark set 0x00<isp_id><tc_class_id>
+    nft add rule inet mangle forward ip daddr <source_ips/source_subnet> ip saddr <destination_ip/destination_subnet> meta mark set 0x00<isp_id><tc_class_id>
+    ```
 
-Enforcement Rules (Critical)
+1. Case 4 — Destination IP + Port Policy
+
+    **(Source IP → Destination IP:Port)**
+
+    *   Service-specific access to a single host
+    *   Safer than Case 3
+    *   Typical for:
+        *   HTTPS-only access
+        *   single exposed service
+
+    
+    ```
+    nft insert rule inet filter FILTER_FORWARD ip saddr <source_ips/source_subnet> ip daddr <destination_ip/destination_subnet> <action>
+    nft insert rule inet filter FILTER_FORWARD ip daddr <source_ips/source_subnet> ip saddr <destination_ip/destination_subnet> <protocol> dport <destination_port> <action>
+
+    nft insert rule inet nat NAT_PRE ip saddr <source_ips/source_subnet> ip daddr <destination_ip/destination_subnet> <action>
+    nft insert rule inet nat NAT_PRE ip daddr <source_ips/source_subnet> ip saddr <destination_ip/destination_subnet> <protocol> dport <destination_port>  <action>
+
+    nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr <source_ips/source_subnet> ip daddr <destination_ip/destination_subnet> <protocol> dport <destination_port>  masquerade
+
+    nft add rule inet mangle prerouting ip saddr <source_ips/source_subnet> ip daddr <destination_ip/destination_subnet> meta mark set 0x00<isp_id><tc_class_id>
+    nft add rule inet mangle forward ip daddr <source_ips/source_subnet> ip saddr <destination_ip/destination_subnet> <protocol> dport <destination_port> meta mark set 0x00<isp_id><tc_class_id>
+    ```
+
+1. Case 5 — Port-Constrained Egress
+
+    **(Source IP + Source Port → Any Destination: Specific Port)**
+
+    *   Rare, but valid
+    *   Used when **client-side port identity matters**
+    *   Example:
+        *   pinned application ports
+        *   legacy systems
+
+    
+    ```
+    nft insert rule inet filter FILTER_FORWARD ip saddr <source_ips/source_subnet> <protocol> dport <destination_port> <protocol> sport <source_port> <action>
+    nft insert rule inet filter FILTER_FORWARD ip daddr <source_ips/source_subnet> <protocol> sport <source_port> <protocol> dport <destination_port> <action>
+
+    nft insert rule inet nat NAT_PRE ip saddr <source_ips/source_subnet> <protocol> dport <destination_port> <protocol> sport <source_port> <action>
+    nft insert rule inet nat NAT_PRE ip daddr <source_ips/source_subnet> <protocol> sport <source_port> <protocol> dport <destination_port> <action>
+
+    nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr <source_ips/source_subnet> <protocol> dport <destination_port> <protocol> sport <source_port> masquerade
+
+    nft add rule inet mangle prerouting ip saddr <source_ips/source_subnet> <protocol> dport <destination_port> <protocol> sport <source_port> meta mark set 0x00<isp_id><tc_class_id>
+    nft add rule inet mangle forward ip daddr <source_ips/source_subnet> <protocol> sport <source_port> <protocol> dport <destination_port> meta mark set 0x00<isp_id><tc_class_id>
+    ```
+
+1. Case 6 — Source-Port Anchored Policy
+
+    **(Source IP + Source Port → Any Destination)**
+
+
+    
+    ```
+    nft insert rule inet filter FILTER_FORWARD ip saddr <source_ips/source_subnet> <protocol> sport <source_port> <action>
+    nft insert rule inet filter FILTER_FORWARD ip daddr <source_ips/source_subnet> <action>
+
+    nft insert rule inet nat NAT_PRE ip saddr <source_ips/source_subnet> <protocol> sport <source_port> <action>
+    nft insert rule inet nat NAT_PRE ip daddr <source_ips/source_subnet> <action>
+
+    nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr <source_ips/source_subnet> <protocol> sport <source_port> masquerade
+
+    nft add rule inet mangle prerouting ip saddr <source_ips/source_subnet> <protocol> sport <source_port> meta mark set 0x00<isp_id><tc_class_id>
+    nft add rule inet mangle forward ip daddr <source_ips/source_subnet> meta mark set 0x00<isp_id><tc_class_id>
+    ```
+
+1. Case 7 — Destination Port Policy
+
+    **(Source IP → Any Destination: Specific Port)**
+
+    
+    ```
+    nft insert rule inet filter FILTER_FORWARD ip daddr <source_ips/source_subnet> <protocol> dport <destination_port> <action>
+    nft insert rule inet filter FILTER_FORWARD ip saddr <source_ips/source_subnet> <action>
+
+    nft insert rule inet nat NAT_PRE ip daddr <source_ips/source_subnet> <protocol> dport <destination_port> <action>
+    nft insert rule inet nat NAT_PRE ip saddr <source_ips/source_subnet> <action>
+
+    nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr <source_ips/source_subnet> <protocol> dport <destination_port> masquerade
+
+    nft add rule inet mangle prerouting ip saddr <source_ips/source_subnet> meta mark set 0x00<isp_id><tc_class_id>
+    nft add rule inet mangle forward ip daddr <source_ips/source_subnet> <protocol> dport <destination_port> meta mark set 0x00<isp_id><tc_class_id>
+    ```
+
+1. Case 8 — Destination IP with Source Port
+
+    **(Source IP:Port → Destination IP)**
+
+    
+    ```
+    nft insert rule inet filter FILTER_FORWARD ip saddr <source_ips/source_subnet> ip daddr <destination_ip/destination_subnet> <protocol> sport <source_port> <action>
+    nft insert rule inet filter FILTER_FORWARD ip daddr <source_ips/source_subnet> ip saddr <destination_ip/destination_subnet> <action>
+
+    nft insert rule inet nat NAT_PRE ip saddr <source_ips/source_subnet> ip daddr <destination_ip/destination_subnet> <protocol> sport <source_port> <action>
+    nft insert rule inet nat NAT_PRE ip daddr <source_ips/source_subnet> ip saddr <destination_ip/destination_subnet> <action>
+
+    nft insert rule inet nat NAT_POST oifname @wan_ifaces ip saddr <source_ips/source_subnet> ip daddr <destination_ip/destination_subnet> <protocol> sport <source_port> masquerade
+
+    nft add rule inet mangle prerouting ip saddr <source_ips/source_subnet> ip daddr <destination_ip/destination_subnet> <protocol> sport <source_port> meta mark set 0x00<isp_id><tc_class_id>
+    nft add rule inet mangle forward ip daddr <source_ips/source_subnet> ip saddr <destination_ip/destination_subnet> meta mark set 0x00<isp_id><tc_class_id>
+    ```
+
+Enforcement Rules
 ----------------------------
 
 These rules apply to **all cases**:
@@ -224,7 +262,7 @@ These rules apply to **all cases**:
 3.  **Unmatched traffic must hit default drop**  
 4.  **Bidirectional rules are mandatory**  
 
-* * *
+
 
 Mapping This Table to nftables
 ------------------------------

@@ -1,704 +1,474 @@
-* * *
+# Draco Firewall Setup
 
-Linux Networking & nftables — From Bare Metal to Working NGFW
-=============================================================
+The following document describes how to set up the networking, DHCP, DNS and nftables in Draco Firewall. The steps are as follows:
 
-**Audience:**  
-Someone with a Linux machine and root access who wants to turn it into a **router / firewall / NGFW**.
+---
+## Core Infrastucture
+- Establishes the base network environment required before any advanced configuration: interfaces, routing, DNS/DHCP, and firewall.
 
-**Assumptions (non-negotiable):**
+    1. Setup interfaces
+        We must set up all the interfaces first before doing anything else. you can find the information on how to setup all types of interfaces [here](interfaces_setup.md)
+    1. Routing & policy routing
+        * [How to configure ip route and ip rules](./Customizations/route_rule_setup.md)
 
-*   You understand basic Linux CLI
-*   You are root or have `sudo`
-*   This is **not** a desktop machine
-*   You are okay breaking networking temporarily
+    1. DNS & DHCP
 
-* * *
+        You must set up DHCP. you can find the information regarding it [here](dhcp/dhcp-server-config.md)
 
-1\. Machine & OS Prerequisites
-------------------------------
+        If we wish to use DHCP hosted somewhere else, we can find the info regarding it [here](./dhcp/dhcp-relay-config.md)
 
-### Hardware requirements
+        For DNS, follow these steps:
 
-*   At least **2 network interfaces**
-    *   1 × WAN (Internet)
-    *   1 × LAN (Internal network)
-*   NICs must be **real interfaces**, not just Wi-Fi if you care about stability
+        ```bash
+        sudo apt install dnsdist
+        ```
 
-Check:
+        then make this file:
+        ```lua
+        -- in /etc/dnsdist/dnsdist.conf
+        setSecurityPollSuffix("")
+        setMaxUDPOutstanding(10240)
+        newServer("8.8.8.8") -- this is the upstream server
 
-```
-ip link
-```
+        addLocal("192.168.1.1") -- this is what we listen to.
+        ```
 
-You should see something like:
+        `systemctl restart dnsdist`
 
-```
-eth0   ← WAN
-eth1   ← LAN
-```
 
-If you only see `lo`, stop. You don’t have networking.
+    1. Basic nftables
 
-* * *
+        1. Install nftables
+            ```
+            apt install nftables
+            ```
+        1. Enable at boot:
+            ```
+            systemctl enable nftables
+            nft list ruleset
+            ```
 
-2\. Kernel Requirements (Critical)
-----------------------------------
+        1. Applying nftables Rules
 
-### Enable IP forwarding (router mode)
+            Ensure `/etc/nftables.conf` contains everything by running the command below. You can find the file nftables.conf [here](./nftables.conf)
+            ```
+            less /etc/nftables.conf
+            ```
+            After confirming the rules are stored in the location `/etc/nftables.conf`, run the command below
+            ```
+            nft -f /etc/nftables.conf
+            ```
 
-Temporary (until reboot):
+            To enable loading at boot:
+            ```
+            systemctl enable nftables
+            ```
 
-```
-sysctl -w net.ipv4.ip_forward = 1
-sysctl -w net.ipv4.conf.all.rp_filter = 0
-sysctl -w net.ipv4.conf.default.rp_filter = 0
-sysctl -w net.ipv4.conf.<WAN_INTERFACE>.rp_filter = 0
-sysctl -w net.ipv4.conf.<LAN_INTERFACE>.rp_filter = 1
-```
+    1. Setting up ifaces in nftables
+        [How to configure interfaces](./Customizations/iface_setup.md)
+        ```
+        nft add element inet filter wan_ifaces { "<wan_iface1>", "<wan_iface2>" }
+        nft add element inet nat wan_ifaces { "<wan_iface1>", "<wan_iface2>" }
+        nft add element inet geo wan_ifaces { "<wan_iface1>", "<wan_iface2>" }
+        nft add element inet filter lan_ifaces { "<lan_iface1>", "<lan_iface2>" }
+        nft add element inet nat lan_ifaces { "<lan_iface1>", "<lan_iface2>" }
+        nft add element inet webfilter lan_ifaces { "<lan_iface1>", "<lan_iface2>" }
+        ```
+        ✔ LAN WAN interfaces present in NFT  
+        ✘ No interfaces = traffic will blackhole
 
-Persistent:
 
-```
-cat <<EOF >/etc/sysctl.d/99-forwarding.conf
-net.ipv4.ip_forward = 1
-net.ipv4.conf.all.rp_filter = 0
-net.ipv4.conf.default.rp_filter = 0
-net.ipv4.conf.<WAN_INTERFACE>.rp_filter = 0
-net.ipv4.conf.<LAN_INTERFACE>.rp_filter = 1
-EOF
-sysctl --system
-```
+---
+## Routing & ISP Management
+- Covers all traffic control mechanisms across one or more ISPs, including policy-based routing, manual ISP selection via marks, load-balanced aggregation using ECMP, automatic failover when an ISP goes down, and forced next-hop routing for specific subnets or downstream networks.
 
-If this is **not enabled**, your firewall will pass traffic nowhere.
+    1. Multi-ISP / Policy Routing
 
-* * *
+        Refer [route_rule_setup.md](Customizations/route_rule_setup.md)
 
-3\. Basic Network Interface Setup
----------------------------------
+        1. Force ISP selection (via mark)
 
-### Bring interfaces up (If they aren't already up)
+            Ensure user has ISP mark applied.
 
-```
-ip link set eth0 up
-ip link set eth1 up
-```
+            ```
+            ip route get 8.8.8.8 mark 0x00<isp_mark>0000
+            ```
 
-* * *
+            ✔ Correct ISP interface shown  
+            ✘ Wrong interface → ip rule / mask wrong
 
-### WAN interface (example: DHCP)
 
-```
-dhclient eth0
-```
+        1. Live verification
 
-Verify:
+            ```
+            tcpdump -i <isp_iface>
+            ```
 
-```
-ip addr show eth0
-ip route
-```
+            ✔ User traffic exits expected ISP  
+            ✘ Traffic leaks → routing broken
 
-You **must** have:
 
-*   a public IP or upstream IP ,as that implies it connects your server to the external network a.k.a the internet.
-*   a default route via eth0
+    1. ISP Aggrigation
 
-* * *
+        Refer [isp_aggrigation.md](Customizations/isp_aggrigation.md) for more details.
 
-### LAN interface (static IP)
+        **Purpose:**
+        This creates **a single default route** in a **non-main routing table** that contains **multiple next hops**.
 
-Example LAN: `192.168.1.0/24`
->Note: Refer [RFC 1918](https://www.rfc-editor.org/rfc/rfc1918) to see what ips are set aside for private networks (LAN)
-```
-ip addr add 192.168.1.1/24 dev eth1
-```
+        Linux treats this as:
 
-Verify:
+        *   **ECMP (Equal/Weighted Cost Multi-Path) routing**
+        *   **Per-flow load balancing**, _not_ per-packet
+        *   **Stateless distribution**, decided at connection start
 
-```
-ip addr show eth1
-```
 
-* * *
+    1. ISP Failover
 
-### Test local connectivity
+        Refer [isp_failover.md](Customizations/ISP_Failover.md) for more details
 
-From a LAN client:
+        **Purpose:**
 
-```
-ping 192.168.1.1
-```
+        Ensure that traffic **marked for ISP-1** (`fwmark 0x00<isp1_mark>0000/0x00ff0000`) is **automatically rerouted via ISP-2** when ISP-1 becomes unavailable — **without changing nftables rules or user marks**.
 
-If this fails, stop. Fix basic networking first.
 
-* * *
 
-4\. DNS & DHCP (Minimal but Required)
--------------------------------------
+    1. Policy Based Routing
 
-### DHCP server (example: Kea / dnsmasq)
+        Refer [policy_based_route.md](Customizations/policy_based_route.md) for more details
 
-You **must** provide IPs to LAN clients.
+        **Purpose:**
+        This module implements **forced next-hop routing** for:
 
-* * *
+        *   relayed subnets,
+        *   downstream switches,
+        *   L3 hops behind intermediate gateways,
 
-5\. Install nftables
---------------------
+        It is used when traffic **must pass through a specific L3 device** before reaching its final destination.
 
-### Install
 
-```
-apt install nftables
-```
+---
+## Traffic Management
+- Manages how bandwidth is distributed and controlled across users and services using traffic control (tc), quotas, and QoS policies. Includes verifying queue disciplines, enforcing speed limits via packet marking and class filters, and validating behavior through counters and throughput testing.
 
-Enable at boot:
+    1. Traffic control
 
-```
-systemctl enable nftables
+        * [How to configure tc](./Customizations/tc_setup.md)
 
-nft list ruleset
-```
+            ```
+            tc qdisc show
+            tc class show dev <iface>
+            ```
 
-* * *
+            ✔ HTB root exists  
+            ✔ Default class exists  
+            ✘ No qdisc = QoS is fiction
 
-6\. nftables: Absolute Basics
------------------------------
 
-### Flush everything (safe only on fresh system)
+    1. Bandwidth quota
 
-```
-nft flush ruleset
-```
+        Refer [Bandwidth_Quota.md](Customizations/Bandwidth_Quota.md) for more details
 
-* * *
+        **Purpose:**  
+        Perposal for how can we handle bandwidth quota:
 
-### Create a minimal firewall skeleton
 
-```
-nft add table inet filter
-nft add chain inet filter input  { type filter hook input priority 0 \; policy drop \; }
-nft add chain inet filter forward{ type filter hook forward priority 0 \; policy drop \; }
-nft add chain inet filter output { type filter hook output priority 0 \; policy accept \; }
-```
 
-This **will break connectivity** until you add rules.
+    1. QoS / Speed Limit
+        Refer [tc_setup.md](Customizations/tc_setup.md)
 
-* * *
+        1. Check packet marking
 
-7\. Allow Essential Traffic
----------------------------
+            ```
+            conntrack -L
+            ```
 
-### Allow loopback
+            or
 
-```
-nft add rule inet filter input iif lo accept
-```
+            ```
+            tcpdump -i <iface> -e
+            ```
 
-* * *
+            ✔ Packets carry expected `mark`  
+            ✘ No mark → mangle logic broken
 
-### Allow established and related connections
+        1. Check class counters
 
-```
-nft add rule inet filter input ct state established,related accept
-nft add rule inet filter forward ct state established,related accept
-```
->Refer man page of [conntrack](https://man.archlinux.org/man/conntrack.8.en) 
-* * *
+            ```
+            tc -s class show dev <iface>
+            ```
 
-### Allow LAN → Internet
+            ✔ User class counters increase  
+            ✔ Default class stays low  
+            ✘ All traffic in default class → tc filter broken
 
-```
-nft add rule inet filter forward iif eth1 oif eth0 accept
-```
 
-* * *
+        1. Throughput test
 
-### Allow LAN → router (DNS, DHCP)
+            On Server (outside our network) :
 
-```
-nft add rule inet filter input iif eth1 udp dport {67,68,53} accept
-nft add rule inet filter input iif eth1 tcp dport 53 accept
-```
+                iperf3 -s -p <port>
 
-* * *
+            On Client (inside of our network, with TC rules applied to) :
 
-8\. NAT (Internet Sharing)
---------------------------
+                iperf3 -c <server> -p port
 
-### Create NAT table
+            ✔ Speed capped at plan limit  
+            ✘ Full line speed → QoS not enforced
 
-```
-nft add table inet nat
-nft add chain inet nat prerouting  { type nat hook prerouting priority 0 \; }
-nft add chain inet nat postrouting { type nat hook postrouting priority 100 \; }
-```
 
-* * *
+---
+## User Access & Authentication
+- Controls how devices gain and lose internet access using a captive portal. New devices are redirected to login, successful authentication adds them to required nftables sets for access and policy enforcement, and logout/expiry removes all related entries to immediately revoke connectivity.
+    1. Captive Portal
 
-### Masquerade LAN traffic
+        1. Connect a new device
+            *   No IP/MAC present in any `allowed_*` set
 
-```
-nft add rule inet nat postrouting oif eth0 masquerade
-```
+        2. Try browsing
 
-* * *
+            ```
+            curl http://example.com
+            ```
 
-### Test from LAN client
+            ✔ Redirected to login page  
+            ✘ Loads real website → NAT logic broken
 
-```
-ping 8.8.8.8
-curl http://example.com
-```
 
-If this fails:
+    1. Login / Logout
 
-*   routing is wrong
-*   NAT is missing
-*   forwarding is broken
+        Refer [user_login.md](Customizations/user_login.md) for login and logout.
+        After login:
 
-Fix **before continuing**.
+        1. Verify set membership
 
-* * *
+            ```
+            nft list set inet filter allowed_ip4
+            nft list set inet nat allowed_ip4
+            nft list map inet mangle user4_marks
+            nft list set inet webfilter ALLOW_ACCESS
+            ```
 
-9\. Applying NGFW Rules
------------------------------
+            ✔ User appears in all expected sets  
+            ✘ Missing entry = partial access / weird bugs
 
->NOTE: Import the nftables.conf file to you testing machine from the repo.
 
-### Apply rules
-Ensure `/etc/nftables.conf` contains everything by running the command below.
-```
-less /etc/nftables.conf
-```
-After confirming the rules are stored in the location `/etc/nftables.conf`, run the command below
-```
-nft -f /etc/nftables.conf
-```
+        1. Verify internet access
 
-To enable loading at boot:
-```
-systemctl enable nftables
-```
+            ```
+            curl https://example.com
+            ```
 
-* * *
+            ✔ Real website loads  
+            ✘ Still redirected → NAT skip broken
 
-10\. From Here → NGFW Stack
----------------------------
 
-At this point you have:
+---
+## Security & Network Policies
+- Defines advanced security controls and traffic-handling rules applied after user identity is known, including NGFW overrides, per-user policy routing/NAT changes, controlled access to the firewall, DMZ and port forwarding, SNAT mapping, L4 reverse proxying, and NFQUEUE-based web filtering with safe bypass behavior if the filtering service stops.
 
-*   working router
-*   working NAT
-*   working firewall
-*   persistent rules
+    1. NGFW_rules
+        Refer [ngfw_rules.md](Customizations/ngfw_rules.md) for more details
 
-Everything you will build, layers **on top of this**:
+        **Purpose:**  
+        Apply **explicit firewall overrides** for selected users **after identity is known**.  
+        These rules intentionally bypass or partially bypass the default NGFW pipeline.
 
-| Layer | Depends On |
-| --- | --- |
-| Geo blocking | prerouting hooks |
-| Captive portal | NAT prerouting |
-| QoS | mangle + tc |
-| Policy routing | fwmark + ip rule |
-| NGFW policies | filter input/forward |
-| VPN | filter input + forward |
+        This layer is used for:
 
-If **this base is wrong**, nothing above it will ever be stable.
+        *   trusted devices,
+        *   administrators,
+        *   exceptions,
+        *   controlled partner access.
 
-* * *
+    1. NGFW Policy Override
 
+        Refer [ngfw_policy.md](Customizations/ngfw_policy.md) for more details
 
+        1. Add user to policy set
 
-0\. Pre-Flight Sanity Checks (DO NOT SKIP)
-------------------------------------------
+            ```
+            nft add element inet nat <policy_user_set> { <client_ip> }
+            ```
 
-If these fail, stop immediately.
+        1. Verify jump
 
-### nftables state
+            ```
+            nft monitor trace
+            ```
 
-```
-nft list ruleset
-```
+            ✔ Packet jumps to policy chain  
+            ✘ No jump → trigger rule broken
 
-✔ All tables present: `filter`, `nat`, `mangle`, `webfilter`, `geo`  
-✘ Missing table = boot logic failed
 
-* * *
+        1. Verify policy effect
 
-### Routing & policy routing
+            *   NAT behavior changes
+            *   Router access changes
+            *   Destination-specific behavior enforced
 
-* [How to configure ip route and ip rules](./Customizations/route_rule_setup.md)
+        If nothing changes → policy chain logic wrong
 
-```
-ip rule show
-ip route show table main
-ip route show table <isp_table>
-```
 
-✔ ISP rules present  
-✔ Default routes exist in ISP tables  
-✘ No routes = traffic will blackhole
+    1. Allow Traffic To Firewall
 
+        Refer [allow_traffic_to_firewall.md](Customizations/allow_traffic_to_firewall.md) for more details
 
-* * *
+        **Purpose:**  
+        Define which traffic is allowed to the firewall itself.
 
-* * *
 
-### Setting up ifaces
+    1. DMZ
+        Refer [dmz.md](Customizations/DMZ_Rules.md) for more details
 
-* [How to configure interfaces](./Customizations/iface_setup.md)
-```
-nft add element inet filter wan_ifaces { "<wan_iface1>", "<wan_iface2>" }
-nft add element inet nat wan_ifaces { "<wan_iface1>", "<wan_iface2>" }
-nft add element inet geo wan_ifaces { "<wan_iface1>", "<wan_iface2>" }
-nft add element inet filter lan_ifaces { "<lan_iface1>", "<lan_iface2>" }
-nft add element inet nat lan_ifaces { "<lan_iface1>", "<lan_iface2>" }
-nft add element inet webfilter lan_ifaces { "<lan_iface1>", "<lan_iface2>" }
-```
-✔ LAN WAN interfaces present in NFT  
-✘ No interfaces = traffic will blackhole
+        **Purpose:**  
+        Provide runnable nftables templates for:
 
+        * selective port forwarding (TCP, UDP, or both), and
+        * full DMZ (all incoming traffic redirected to a single internal host), with optional QoS marking.
 
-* * *
 
-### Traffic control
+    1. SNAT
 
-* [How to configure tc](./Customizations/tc_setup.md)
+        Refer [SNAT_setup.md](Customizations/SNAT_setup.md) for more details
 
-```
-tc qdisc show
-tc class show dev <iface>
-```
+        **Purpose:**
+        This document describes **Source NAT (SNAT) using nftables maps**.
 
-✔ HTB root exists  
-✔ Default class exists  
-✘ No qdisc = QoS is fiction
+        It also explains the **routing and ISP-ID constraints** that **must** be respected for correctness.
 
-* * *
 
-1\. Unauthenticated User Test (Captive Portal)
-----------------------------------------------
+    1. TCP/UDP Reverse Proxy
 
-### Step 1: Connect a new device
 
-*   No IP/MAC present in any `allowed_*` set
+        Refer [TCP_UDP_reverse_proxy.md](Customizations/TCP_UDP_reverse_proxy.md) for more details
 
-### Step 2: Try browsing
+        **Purpose:**
+        This module enables **Layer-4 reverse proxying** (TCP/UDP) using NGINX **stream** mode.
 
-```
-curl http://example.com
-```
+        Typical use cases:
 
-✔ Redirected to login page  
-✘ Loads real website → NAT logic broken
+        *   exposing internal services behind a firewall
+        *   proxying non-HTTP protocols (VPNs, game servers, custom daemons)
+        *   decoupling public ISP IP from backend service IP
+        *   controlling access via nftables instead of application logic
 
-### Step 3: DNS enforcement
 
-```
-dig @8.8.8.8 google.com
-```
+    1. Web Filtering (NFQUEUE)
 
-✔ DNS still resolves via router  
-✘ External DNS works → DNS hijack broken
+        Refer [user_login.md](Customizations/user_login.md) and [nftables.md](nftables.md)
 
-* * *
+        ```
+        curl http://example.com
+        ```
 
-2\. Authentication Flow Test (Login Hook)
------------------------------------------
-Refer [user_login.md](Customizations/user_login.md)
-After user logs in and login-time rules are applied:
+        ✔ NFQUEUE daemon logs packet  
+        ✔ Page allowed or blocked by policy
 
-### Verify set membership
+        If daemon is stopped:
 
-```
-nft list set inet filter allowed_ip4
-nft list set inet nat allowed_ip4
-nft list map inet mangle user4_marks
-nft list set inet webfilter ALLOW_ACCESS
-```
+        ```
+        systemctl stop <webfilter_service>
+        ```
+        >Currently the service planned for it is `netifyd`.
+        ✔ Traffic still flows (bypass works)  
+        ✘ Internet dies → `bypass` missing (critical bug)
 
-✔ User appears in all expected sets  
-✘ Missing entry = partial access / weird bugs
 
-* * *
+---
+## VPN & Remote Access
+- Handles secure remote connectivity using VPN tunnels, including verifying tunnel establishment, ensuring proper LAN/internet traffic forwarding, and applying policy controls such as split/full tunneling, captive portal integration, and IP/port-based access restrictions.
 
-### Verify internet access
+    1. VPN Connectivity
 
-```
-curl https://example.com
-```
+        Refer [vpn_setup.md](Customizations/vpn_setup.md)
 
-✔ Real website loads  
-✘ Still redirected → NAT skip broken
+        1. Tunnel establishment
 
-* * *
+            ```
+            wg show
+            or
+            openvpn --status
+            ```
 
-3\. Web Filtering (NFQUEUE)
----------------------------
-Refer [user_login.md](Customizations/user_login.md) and [nftables.md](nftables.md)
-### Trigger inspection
+            ✔ Handshake successful  
+            ✘ No handshake → input rule missing
 
-```
-curl http://example.com
-```
+        1. VPN traffic forwarding
 
-✔ NFQUEUE daemon logs packet  
-✔ Page allowed or blocked by policy
+            From VPN client:
 
-If daemon is stopped:
+            ```
+            ping 192.168.1.1
+            ping 8.8.8.8
+            ```
 
-```
-systemctl stop <webfilter_service>
-```
->Currently the service planned for it is `netifyd`.
-✔ Traffic still flows (bypass works)  
-✘ Internet dies → `bypass` missing (critical bug)
+            ✔ LAN reachable  
+            ✔ Internet reachable (if allowed)  
+            ✘ Connects but no traffic → forward rules broken
 
-* * *
 
-4\. QoS / Speed Limit Testing
------------------------------
-Refer [tc_setup.md](Customizations/tc_setup.md)
+    1. VPN Policy
 
-### Check packet marking
+        Refer [vpn_policy.md](Customizations/vpn_policy.md) for more details
 
-```
-conntrack -L
-```
+        **Purpose:**  
+        Define **VPN user traffic behavior** across all supported modes:
 
-or
+        *   Split Tunnel vs Full Tunnel
+        *   With Captive Portal vs Without
+        *   IP-only vs IP+Port restrictions
 
-```
-tcpdump -i <iface> -e
-```
+        This document maps **12 operational cases** to their intent and rule groups.
 
-✔ Packets carry expected `mark`  
-✘ No mark → mangle logic broken
 
-* * *
 
-### Check class counters
+---
+## Monitoring & Logging
+- Provides visibility into network behavior through optional diagnostic logging of traffic patterns, firewall actions, NAT events, geofencing activity, and packet marking, ensuring logs help with troubleshooting without affecting enforcement. Also includes geo-blocking validation for inbound and outbound traffic based on region restrictions.
 
-```
-tc -s class show dev <iface>
-```
+    1. logging
+        Refer [logging_setup.md](Customizations/logging_setup.md) for more details
+        **Purpose:**  
+        Provide **controlled, opt-in visibility** into:
 
-✔ User class counters increase  
-✔ Default class stays low  
-✘ All traffic in default class → tc filter broken
+        *   user traffic behavior
+        *   firewall decisions (accept / drop / redirect)
+        *   NAT activity
+        *   geofencing enforcement
+        *   packet marking (QoS / ISP routing)
 
-* * *
+        Logging is **diagnostic**, not enforcement.  
+        Removing logging **must not change traffic behavior**.
 
-### Throughput test
 
-```
-iperf3 -c <server>
-```
+    # Geo-Blocking
 
-✔ Speed capped at plan limit  
-✘ Full line speed → QoS not enforced
+    Refer [geo_setup.md](Customizations/geo_setup.md)
 
-* * *
+    1. Inbound test (from blocked region)
 
-5\. Multi-ISP / Policy Routing Test
------------------------------------
-Refer [route_rule_setup.md](Customizations/route_rule_setup.md)
-### Force ISP selection (via mark)
+        From a blocked country IP:
 
-Ensure user has ISP mark applied.
+        ```
+        nc -vz <public_ip> 80
+        ```
 
-```
-ip route get 8.8.8.8 mark 0x00<isp_mark>0000
-```
+        ✔ Connection dropped  
+        ✔ Log entry:
 
-✔ Correct ISP interface shown  
-✘ Wrong interface → ip rule / mask wrong
+        ```
+        [GEOFENCE-BLOCK-V4]
+        ```
 
-* * *
+        ✘ Connection succeeds → geo table not active
 
-### Live verification
 
-```
-tcpdump -i <isp_iface>
-```
+    1. Outbound test
 
-✔ User traffic exits expected ISP  
-✘ Traffic leaks → routing broken
+        ```
+        curl http://<blocked_country_ip>
+        ```
 
-* * *
-
-6\. Geo-Blocking Test
----------------------
-Refer [geo_setup.md](Customizations/geo_setup.md)
-### Inbound test (from blocked region)
-
-From a blocked country IP:
-
-```
-nc -vz <public_ip> 80
-```
-
-✔ Connection dropped  
-✔ Log entry:
-
-```
-[GEOFENCE-BLOCK-V4]
-```
-
-✘ Connection succeeds → geo table not active
-
-* * *
-
-### Outbound test
-
-```
-curl http://<blocked_country_ip>
-```
-
-✔ Connection blocked  
-✔ Log entry exists  
-✘ Connection succeeds → forward geo logic broken
-
-* * *
-
-7\. VPN Connectivity Test
--------------------------
-
-Refer [vpn_setup.md](Customizations/vpn_setup.md)
-
-### Tunnel establishment
-
-```
-wg show
-# or
-openvpn --status
-```
-
-✔ Handshake successful  
-✘ No handshake → input rule missing
-
-* * *
-
-### VPN traffic forwarding
-
-From VPN client:
-
-```
-ping 192.168.1.1
-ping 8.8.8.8
-```
-
-✔ LAN reachable  
-✔ Internet reachable (if allowed)  
-✘ Connects but no traffic → forward rules broken
-
-* * *
-
-8\. NGFW Policy Override Test
------------------------------
-Refer [ngfw_policy.md](Customizations/ngfw_policy.md) for more details
-### Add user to policy set
-
-```
-nft add element inet nat <policy_user_set> { <client_ip> }
-```
-
-### Verify jump
-
-```
-nft monitor trace
-```
-
-✔ Packet jumps to policy chain  
-✘ No jump → trigger rule broken
-
-* * *
-
-### Verify policy effect
-
-*   NAT behavior changes
-*   Router access changes
-*   Destination-specific behavior enforced
-
-If nothing changes → policy chain logic wrong
-
-* * *
-
-9\. Logout / Expiry Test (CRITICAL)
------------------------------------
-
-Remove user entries:
-
-```
-nft delete element inet filter allowed_ip4 { <client_ip> }
-nft delete element inet nat allowed_ip4 { <client_ip> }
-nft delete element inet mangle user4_marks { <client_ip> }
-nft delete element inet webfilter ALLOW_ACCESS { <client_ip> }
-```
-
-✔ User immediately loses access  
-✘ Still online → teardown incomplete
-
-* * *
-
-
-9\. DMZ
------------------------------------
-Refer [dmz.md](Customizations/DMZ_Rules.md) for more details
-**Purpose:**  
-Provide runnable nftables templates for:
-
-*   selective port forwarding (TCP, UDP, or both), and
-*   full DMZ (all incoming traffic redirected to a single internal host),  
-    with optional QoS marking.
-
-* * *
-
-10\. logging
------------------------------------
-Refer [logging_setup.md](Customizations/logging_setup.md) for more details
-**Purpose:**  
-Provide **controlled, opt-in visibility** into:
-
-*   user traffic behavior
-*   firewall decisions (accept / drop / redirect)
-*   NAT activity
-*   geofencing enforcement
-*   packet marking (QoS / ISP routing)
-
-Logging is **diagnostic**, not enforcement.  
-Removing logging **must not change traffic behavior**.
-
-* * *
-
-10\. NGFW_rules
------------------------------------
-Refer [ngfw_rules.md](Customizations/ngfw_rules.md) for more details
-
-**Purpose:**  
-Apply **explicit firewall overrides** for selected users **after identity is known**.  
-These rules intentionally bypass or partially bypass the default NGFW pipeline.
-
-This layer is used for:
-
-*   trusted devices,
-*   administrators,
-*   exceptions,
-*   controlled partner access.
-* * *
-
-11\. VPN Policy
------------------------------------
-Refer [vpn_policy.md](Customizations/vpn_policy.md) for more details
-
-_(With and Without Captive Portal)_
-
-**Purpose:**  
-Define **VPN user traffic behavior** across all supported modes:
-
-*   Split Tunnel vs Full Tunnel
-*   With Captive Portal vs Without
-*   IP-only vs IP+Port restrictions
-
-This document maps **12 operational cases** to their intent and rule groups.
+        ✔ Connection blocked  
+        ✔ Log entry exists  
+        ✘ Connection succeeds → forward geo logic broken

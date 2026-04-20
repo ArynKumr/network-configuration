@@ -1,0 +1,178 @@
+#!/bin/bash
+
+set -euo pipefail
+
+IFACE="${IFACE:-}"
+
+LOG_FILE="/var/log/wan_ip_monitor.log"
+
+DB_HOST="localhost"
+DB_NAME="firewall"
+DB_USER="dilraj"
+DB_PASS="dilraj"
+
+MYSQL="/usr/bin/mysql"
+PHP="/usr/bin/php"
+ARTISAN="/var/www/firewall/admin/backend/artisan"
+
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [$IFACE] $1" >> "$LOG_FILE"
+}
+
+log "Dispatcher script started"
+
+[ -z "$IFACE" ] && {
+    log "No IFACE variable provided by dispatcher. Exiting."
+    exit 0
+}
+
+log "Triggered by interface: $IFACE"
+
+
+should_run_for_interface() {
+
+    log "Checking if interface $IFACE is WAN with DHCP assignment"
+
+    result=$("$MYSQL" -u"$DB_USER" "$DB_NAME" -p"$DB_PASS" -N -B -e "
+        SELECT EXISTS (
+            SELECT 1
+            FROM network_interfaces ni
+            WHERE ni.name = '$IFACE'
+              AND ni.role = 'wan'
+              AND EXISTS (
+                  SELECT 1
+                  FROM wan_ips w
+                  WHERE w.network_interface_id = ni.id
+                    AND w.ip_assignment_method = 'dhcp'
+              )
+        );
+    ")
+
+    if [ "$result" != "1" ]; then
+        log "Interface $IFACE is not WAN with DHCP assignment. Exiting."
+        exit 0
+    fi
+
+    log "Interface $IFACE is WAN with DHCP assignment. Continuing."
+}
+
+should_run_for_interface
+
+
+mysql_exec() {
+
+    local query="$1"
+
+    log "Executing MySQL query"
+
+    "$MYSQL" -u"$DB_USER" "$DB_NAME" -p"$DB_PASS" -e "$query"
+
+    log "MySQL query completed"
+}
+
+# =========================
+# Get system network data
+# =========================
+
+log "Fetching IP information for interface"
+
+ip_info=$(ip -4 -o addr show dev "$IFACE" 2>/dev/null | awk '{print $4}' || true)
+
+if [ -z "$ip_info" ]; then
+    log "No IPv4 address found on $IFACE. Exiting."
+    exit 0
+fi
+
+log "Raw IP info: $ip_info"
+
+ip_addr=${ip_info%/*}
+prefix=${ip_info#*/}
+
+log "Parsed IP address: $ip_addr"
+log "Parsed CIDR prefix: $prefix"
+
+mask=$((0xffffffff << (32 - prefix) & 0xffffffff))
+
+netmask=$(printf "%d.%d.%d.%d\n" \
+$((mask >> 24 & 255)) \
+$((mask >> 16 & 255)) \
+$((mask >> 8 & 255)) \
+$((mask & 255)))
+
+log "Calculated netmask: $netmask"
+
+# Convert IP to integer
+IFS=. read -r o1 o2 o3 o4 <<< "$ip_addr"
+ip_int=$(( (o1<<24) + (o2<<16) + (o3<<8) + o4 ))
+
+# Calculate network address
+network_int=$(( ip_int & mask ))
+
+# Convert back to dotted decimal
+network=$(printf "%d.%d.%d.%d\n" \
+$((network_int >> 24 & 255)) \
+$((network_int >> 16 & 255)) \
+$((network_int >> 8 & 255)) \
+$((network_int & 255)))
+
+cidr="$network/$prefix"
+
+log "Calculated network CIDR: $cidr"
+
+gateway=$(ip -4 route show default dev "$IFACE" 2>/dev/null | awk '{print $3; exit}' || true)
+
+if [ -z "$gateway" ]; then
+    log "No gateway detected on interface $IFACE"
+else
+    log "Detected gateway: $gateway"
+fi
+
+log "Detected values -> IP=$ip_addr CIDR=$prefix NETMASK=$netmask GW=$gateway"
+
+# =========================
+# Update DB
+# =========================
+
+log "Updating wan_ips table"
+
+mysql_exec "
+UPDATE wan_ips wip
+JOIN network_interfaces ni
+ON ni.id = wip.network_interface_id
+SET
+    wip.ip='$ip_addr',
+    wip.subnet_mask='$netmask',
+    wip.cidr='$cidr',
+    wip.updated_at=NOW()
+WHERE ni.name='$IFACE';
+"
+
+log "wan_ips table updated"
+
+log "Updating network_interfaces table"
+
+mysql_exec "
+UPDATE network_interfaces
+SET
+    ipv4_gateway='$gateway',
+    updated_at=NOW()
+WHERE name='$IFACE';
+"
+
+log "network_interfaces table updated"
+
+# =========================
+# Dispatch Laravel job
+# =========================
+
+log "Dispatching Laravel interface reconfigure job"
+
+"$PHP" "$ARTISAN" interface:reconfigure "$IFACE"
+
+log "Laravel artisan command executed"
+
+log "Dispatcher script completed successfully"
+
+chown -R www-data: /var/www/
+
+exit 0

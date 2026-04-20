@@ -1,168 +1,229 @@
-* * *
+# Traffic Control (QoS) Setup & User Class Enforcement (Linux `tc`)
 
-Traffic Control (QoS) Setup & User Class Enforcement (Linux `tc`)
-=================================================================
+Purpose:  
+Configure hierarchical traffic shaping so:
 
-**Purpose:**  
-Configure **hierarchical traffic shaping** so:
+- interface capacity is defined once,
+- unclassified traffic is safely contained,
+- each user gets a dedicated speed lane, and
+- nftables packet marks are physically enforced by the kernel scheduler.
 
-*   interface capacity is defined once,
-*   unclassified traffic is safely contained,
-*   each user gets a dedicated speed lane, and
-*   nftables packet marks are **physically enforced** by the kernel scheduler.
+This is where bandwidth limits actually happen.
 
-This is where bandwidth limits **actually happen**.
 
-* * *
+# Interface-Level QoS Setup
 
-Interface-Level QoS Setup
--------------------------
+> Note please reffer [Tc's actual documentation](https://www.man7.org/linux/man-pages/man8/tc.8.html) for a detailed explaination
 
-_(Run at interface configuration time and again at boot for all relevant interfaces)_
+- _(Run at interface configuration time and again at boot for all relevant interfaces)_ These commands prepare each interface (LAN and WAN) to accept user classes.
 
-These commands prepare each interface (LAN and WAN) to accept user classes.
 
-* * *
+    1. Clean Slate (Remove Existing QDiscs)
 
-### 1\. Clean Slate (Remove Existing QDiscs)
+        ```
+        tc qdisc del dev <iface_name> root 2>/dev/null || true
+        ```
 
-**Purpose:**  
-Ensure a predictable state before applying new QoS rules.
+    1. Attach the Scheduler (HTB)
 
-```
-tc qdisc del dev <iface_name> root 2>/dev/null || true
-```
+        ```
+        tc qdisc add dev <iface_name> root handle 1: htb default <default_class_ID> r2q 400
+        ```
+        - `default <default_class_ID>` → where unmarked traffic goes
+        - `r2q 400` → balances precision vs CPU load on high-speed links
 
-**Why:**  
-Prevents duplicate schedulers and avoids script failure when no qdisc exists.
+    1. Define the Master Pipe (Interface Speed)
 
-* * *
+        Purpose:  
+        Declare the physical speed of the interface.  
+        All user speeds are carved from this class.
 
-### 2\. Attach the Scheduler (HTB)
+        ```
+        tc class add dev <iface_name> parent 1: classid 1:1 \
+            htb rate <iface_speed>Gbit/Mbit/Kbit \
+            ceil <iface_speed>Gbit/Mbit/Kbit
+        ```
 
-**Purpose:**  
-Install the **Hierarchical Token Bucket (HTB)** scheduler.
 
-```
-tc qdisc add dev <iface_name> root handle 1: htb default <default_class_ID> r2q 400
-```
+    1. Default / Guest Lane (Failsafe)
 
-**Notes:**
+        Purpose:  
+        Ensure untagged or unknown traffic does not starve the system.
 
-*   `default <default_class_ID>` → where unmarked traffic goes
-*   `r2q 400` → balances precision vs CPU load on high-speed links
+        ```
+        tc class add dev <iface_name> parent 1:1 classid 1:<default_class_ID> \
+            htb rate <speed>Gbit/Mbit/Kbit \
+            ceil <speed>Gbit/Mbit/Kbit
+        ```
 
-* * *
 
-### 3\. Define the Master Pipe (Interface Capacity)
+    1. Fairness Within the Default Lane
 
-**Purpose:**  
-Declare the **physical speed** of the interface.  
-All user speeds are carved from this class.
+        Purpose:
+        Prevent one flow from monopolizing the default class.
 
-```
-tc class add dev <iface_name> parent 1: classid 1:1 \
-    htb rate <iface_speed>Gbit/Mbit/Kbit \
-    ceil <iface_speed>Gbit/Mbit/Kbit
-```
+        ```
+        tc qdisc add dev <iface_name> parent 1:<default_class_ID> \
+            handle <default_class_ID>: sfq perturb 10
+        ```
 
-* * *
+        Effect:  
+        Traffic is reshuffled every 10 seconds to maintain fairness.
 
-### 4\. Default / Guest Lane (Failsafe)
 
-**Purpose:**  
-Ensure untagged or unknown traffic does not starve the system.
+    1. DMZ / NGFW / LAN-LAN Communication Lane
 
-```
-tc class add dev <iface_name> parent 1:1 classid 1:<default_class_ID> \
-    htb rate <speed>Gbit/Mbit/Kbit \
-    ceil <speed>Gbit/Mbit/Kbit
-```
+        Purpose:  
+        Ensure traffic tagged with 0x69 go to 1:69 class.
 
-* * *
+        ```
+        tc class add dev <iface_name> parent 1:1 classid 1:69 \
+            htb rate <speed>Gbit/Mbit/Kbit \
+            ceil <speed>Gbit/Mbit/Kbit
+        ```
 
-### 5\. Fairness Within the Default Lane
 
-**Purpose:**  
-Prevent one flow from monopolizing the default class.
+    1. Fairness Within the DMZ / NGFW / LAN-LAN Communication Lane Lane
 
-```
-tc qdisc add dev <iface_name> parent 1:<default_class_ID> \
-    handle <default_class_ID>: sfq perturb 10
-```
+        Purpose:
+        Prevent one flow from monopolizing the DMZ / NGFW / LAN-LAN Communication Lane class.
 
-**Effect:**  
-Traffic is reshuffled every 10 seconds to maintain fairness.
+        ```
+        tc qdisc add dev <iface_name> parent 1:69 \
+            handle 69: sfq perturb 10
+        ```
 
-* * *
+        Effect:  
+        Traffic is reshuffled every 10 seconds to maintain fairness.
+
+    1. Associating tc class 69 with fw mark 0x69
+
+        ```
+        tc filter add dev <iface_name> protocol ip parent 1:0 prio 1 handle 0x00000069/0x0000FFFF fw flowid 1:69
+        ```
+
+        Effect:  
+        Any taffic marked with 0x69 will be sent to class 1:69.
+
 
 User-Level QoS Setup
 --------------------
 
 _(Run when a user comes online and is assigned a class)_
 
-> **Directionality matters:**
+> Directionality matters:
 > 
-> *   **WAN interface** → controls **upload speed**
-> *   **LAN interface** → controls **download speed**
+> - WAN interface → controls upload speed
+> - LAN interface → controls download speed
 >     
 
-Apply these steps on **both** sides as required.
+- Apply these steps on both sides as required.
 
-* * *
 
-### 1\. Create the User Lane
+    1. Create the User Lane
 
-**Purpose:**  
-Assign a dedicated speed limit to the user.
+        Purpose:
+        Assign a dedicated speed limit to the user.
 
-```
-tc class add dev <iface_name> parent 1:1 classid 1:<user_class_id> \
-    htb rate <user_plan_speed>Gbit/Mbit/Kbit \
-    ceil <user_plan_speed>Gbit/Mbit/Kbit
-```
+        ```
+        tc class add dev <iface_name> parent 1:1 classid 1:<user_class_id> \
+            htb rate <user_plan_speed>Gbit/Mbit/Kbit \
+            ceil <user_plan_speed>Gbit/Mbit/Kbit
+        ```
+        - `rate` → guaranteed bandwidth
+        - `ceil` → absolute maximum allowed
 
-**Definitions:**
 
-*   `rate` → guaranteed bandwidth
-*   `ceil` → absolute maximum allowed
+    1. Fairness Within the User Lane
 
-* * *
+        Purpose:  
+        Ensure multiple connections from the same user share bandwidth fairly.
 
-### 2\. Fairness Within the User Lane
+        ```
+        tc qdisc add dev <iface_name> parent 1:<user_class_id> \
+            handle <user_class_id>: sfq perturb 10
+        ```
 
-**Purpose:**  
-Ensure multiple connections from the same user share bandwidth fairly.
 
-```
-tc qdisc add dev <iface_name> parent 1:<user_class_id> \
-    handle <user_class_id>: sfq perturb 10
-```
+    1. Bind nftables Marks to the User Lane
 
-* * *
+        Purpose:  
+        This is the bridge between nftables and traffic control.
 
-### 3\. Bind nftables Marks to the User Lane
+        ```
+        tc filter add dev <iface_name> protocol ip parent 1:0 prio 1 \
+            handle 0x0000<tc_class_marks>/0x0000FFFF fw \
+            flowid 1:<user_class_id>
+        ```
+        - `fw` → match firewall mark
+        - `0x0000<tc_class_marks>` → class identifier portion of the mark
+        - `/0x0000FFFF` → mask isolates TC bits
+        - `flowid 1:<user_class_id>` → push packet into the user’s lane<br><br>
 
-**Purpose:**  
-This is the **bridge** between nftables and traffic control.
+        > Note: Set the marks on the user during user creation, such that the tc mark is like: 0x0000\<mark here\>. Only then will the tc rules be applied. Refer [this](user_login.md)
 
-```
-tc filter add dev <iface_name> protocol ip parent 1:0 prio 1 \
-    handle 0x0000<tc_class_marks>/0x0000FFFF fw \
-    flowid 1:<user_class_id>
-```
+        Example:
+        ```
+        nft add element inet mangle user4_marks { <client_ip> : 0x00<isp_mark><tc_class_marks> }
+        ```
 
-**Logic:**
+Bandwidth-Pool-Level QoS Setup
+--------------------
 
-*   `fw` → match firewall mark
-*   `0x0000<tc_class_marks>` → class identifier portion of the mark
-*   `/0x0000FFFF` → mask isolates TC bits
-*   `flowid 1:<user_class_id>` → push packet into the user’s lane
+_(Run when a set of user comes online and is assigned the same class)_
 
-> Note: Set the marks on the user during user creation, such that the tc mark is like: 0x0000\<mark here\>. Only then will the tc rules be applied. Refer [this](user_login.md)
+> Directionality matters:
+> 
+> - WAN interface → controls upload speed
+> - LAN interface → controls download speed
+>     
 
-Example:
-```
-nft add element inet mangle user4_marks { <client_ip> : 0x00<isp_mark><tc_class_marks> }
-```
-* * *
+- Apply these steps on both sides as required.
+
+
+    1. Create the Bandwidth-Pool Lane
+
+        Purpose:  
+        Assign a dedicated speed limit to the Bandwidth-Pool.
+
+        ```
+        tc class add dev <iface_name> parent 1:1 classid 1:<Bandwidth-Pool_class_id> \
+            htb rate <Bandwidth-Pool_plan_speed>Gbit/Mbit/Kbit \
+            ceil <Bandwidth-Pool_plan_speed>Gbit/Mbit/Kbit
+        ```
+        - `rate` → guaranteed bandwidth
+        - `ceil` → absolute maximum allowed
+
+
+    1. Fairness Within the Bandwidth-Pool Lane
+
+        Purpose:  
+        Ensure multiple connections from the same Bandwidth-Pool share bandwidth fairly.
+
+        ```
+        tc qdisc add dev <iface_name> parent 1:<Bandwidth-Pool_class_id> \
+            handle <Bandwidth-Pool_class_id>: sfq perturb 10
+        ```
+
+
+    1. Bind nftables Marks to the Bandwidth-Pool Lane
+
+        Purpose:  
+        This is the bridge between nftables and traffic control.
+
+        ```
+        tc filter add dev <iface_name> protocol ip parent 1:0 prio 1 \
+            handle 0x0000<tc_class_marks>/0x0000FFFF fw \
+            flowid 1:<Bandwidth-Pool_class_id>
+        ```
+        - `fw` → match firewall mark
+        - `0x0000<tc_class_marks>` → class identifier portion of the mark
+        - `/0x0000FFFF` → mask isolates TC bits
+        - `flowid 1:<Bandwidth-Pool_class_id>` → push packet into the Bandwidth-Pool’s lane <br><br>
+
+        > Note: Set the marks on the Bandwidth-Pool during Bandwidth-Pool creation, such that the tc mark is like: 0x0000\<mark here\>. Only then will the tc rules be applied. Refer [this](user_login.md)
+
+        Example:
+        ```
+        nft add element inet mangle Bandwidth-Pool4_marks { <client_ip> : 0x00<isp_mark><tc_class_marks> }
+        ```
