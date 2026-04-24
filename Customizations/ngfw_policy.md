@@ -57,13 +57,18 @@ Case Semantics
         *   admin bypass
 
     **This is the highest-risk case.**
+    # For Accepting
     ```
-    nft add rule inet filter <POLICY_NAME> <action>
+    nft add rule inet filter <POLICY_NAME> accept
 
-    nft add rule inet nat PRE_NAT_<POLICY_NAME> <action>
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> accept
 
     nft add rule inet nat POST_NAT_<POLICY_NAME> masquerade
 
+    ```
+    # For Dropping
+    ```
+    nft add rule inet filter <POLICY_NAME> drop
     ```
     ***
     OR (for specific protocol)
@@ -76,14 +81,18 @@ Case Semantics
         *   trusted users
         *   admin bypass
 
+    # For Accepting
+    ```
+    nft add rule inet filter <POLICY_NAME> ip protocol <protocol> accept
+
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip protocol <protocol> accept
+
+    nft add rule inet nat POST_NAT_<POLICY_NAME> ip protocol <protocol> masquerade
 
     ```
-    nft add rule inet filter <POLICY_NAME> ip protocol <protocol> <action>
-
-    nft add rule inet nat PRE_NAT_<POLICY_NAME> <action>
-
-    nft add rule inet nat POST_NAT_<POLICY_NAME> masquerade
-
+    # For Dropping
+    ```
+    nft add rule inet filter <POLICY_NAME> ip protocol <protocol> drop
     ```
 
 
@@ -97,20 +106,25 @@ Case Semantics
         *   SSH jump hosts
         *   API consumers
 
-
-
+    # For Accepting    
     ```
-    nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> <protocol> sport <source_port> <action>
-    nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> <protocol> dport <destination_port> <action>
+    nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> <protocol> dport <destination_port> <protocol> sport <source_port> accept
+    nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> <protocol> sport <destination_port> <protocol> dport <source_port> accept
     nft add rule inet filter <POLICY_NAME> return
 
-    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip saddr <destination_ip> <protocol> dport <destination_port> <action>
-    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip daddr <destination_ip> <protocol> sport <source_port> <action>
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip daddr <destination_ip> <protocol> dport <destination_port> <protocol> sport <source_port> accept
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip saddr <destination_ip> <protocol> sport <destination_port> <protocol> dport <source_port> accept
     nft add rule inet nat PRE_NAT_<POLICY_NAME> return
 
-    nft add rule inet nat POST_NAT_<POLICY_NAME> ip daddr <destination_ip> <protocol> dport <destination_port> masquerade
+    nft add rule inet nat POST_NAT_<POLICY_NAME> ip daddr <destination_ip> <protocol> dport <destination_port> <protocol> sport <source_port> masquerade
     nft add rule inet nat POST_NAT_<POLICY_NAME> return
 
+    ```
+    # For Dropping
+    ```
+    nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> <protocol> dport <destination_port> <protocol> sport <source_port> drop
+    nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> <protocol> sport <destination_port> <protocol> dport <source_port> drop
+    nft add rule inet filter <POLICY_NAME> return
     ```
 
 1. Case 3 — Destination IP Policy
@@ -123,18 +137,24 @@ Case Semantics
         *   site-to-site links
         *   fixed backend services
 
-
+    # For Accepting    
     ```
-    nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> <action>
-    nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> <action>
+    nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> accept
+    nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> accept
     nft add rule inet filter <POLICY_NAME> return
 
-    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip saddr <destination_ip> <action>
-    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip daddr <destination_ip> <action>
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip saddr <destination_ip> accept
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip daddr <destination_ip> accept
     nft add rule inet nat PRE_NAT_<POLICY_NAME> return
 
     nft add rule inet nat POST_NAT_<POLICY_NAME> ip daddr <destination_ip> masquerade
     nft add rule inet nat POST_NAT_<POLICY_NAME> return
+    ```
+    # For Dropping
+    ```
+    nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> drop
+    nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> drop
+    nft add rule inet filter <POLICY_NAME> return
     ```
     ***
     OR (for specific protocol)
@@ -148,17 +168,24 @@ Case Semantics
         *   fixed backend services
 
 
+    # For Accepting    
     ```
-    nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> ip protocol <protocol> <action>
-    nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> ip protocol <protocol> <action>
+    nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> ip protocol <protocol> accept
+    nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> ip protocol <protocol> accept
     nft add rule inet filter <POLICY_NAME> return
 
-    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip saddr <destination_ip> <action>
-    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip daddr <destination_ip> <action>
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip saddr <destination_ip> ip protocol <protocol> accept
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip daddr <destination_ip> ip protocol <protocol> accept
     nft add rule inet nat PRE_NAT_<POLICY_NAME> return
 
-    nft add rule inet nat POST_NAT_<POLICY_NAME> ip daddr <destination_ip> masquerade
+    nft add rule inet nat POST_NAT_<POLICY_NAME> ip daddr <destination_ip> ip protocol <protocol> masquerade
     nft add rule inet nat POST_NAT_<POLICY_NAME> return
+    ```
+    # For Dropping
+    ```
+    nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> ip protocol <protocol> drop
+    nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> ip protocol <protocol> drop
+    nft add rule inet filter <POLICY_NAME> return
     ```
 
 1. Case 4 — Destination IP + Port Policy
@@ -171,19 +198,24 @@ Case Semantics
         *   HTTPS-only access
         *   single exposed service
 
-
+    # For Accepting    
     ```
-    nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> <action>
-    nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> <protocol> dport <destination_port>  <action>
+    nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> <protocol> dport <destination_port> accept
+    nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> <protocol> sport <destination_port> accept
     nft add rule inet filter <POLICY_NAME> return
 
-    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip saddr <destination_ip> <protocol> dport <destination_port>  <action>
-    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip daddr <destination_ip> <action>
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip daddr <destination_ip> <protocol> dport <destination_port> accept
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip saddr <destination_ip> <protocol> sport <destination_port> accept
     nft add rule inet nat PRE_NAT_<POLICY_NAME> return
 
-    nft add rule inet nat POST_NAT_<POLICY_NAME> ip daddr <destination_ip> <protocol> dport <destination_port>  masquerade
+    nft add rule inet nat POST_NAT_<POLICY_NAME> ip daddr <destination_ip> <protocol> dport <destination_port> masquerade
     nft add rule inet nat POST_NAT_<POLICY_NAME> return
-
+    ```
+    # For Dropping
+    ```
+    nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> <protocol> dport <destination_port> drop
+    nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> <protocol> sport <destination_port> drop
+    nft add rule inet filter <POLICY_NAME> return
     ```
 
 1. Case 5 — Port-Constrained Egress
@@ -196,36 +228,48 @@ Case Semantics
         *   pinned application ports
         *   legacy systems
 
-
+    # For Accepting    
     ```
-    nft add rule inet filter <POLICY_NAME> <protocol> dport <destination_port> <protocol> sport <source_port> <action>
-    nft add rule inet filter <POLICY_NAME> <protocol> sport <destination_port> <protocol> dport <source_port> <action>
+    nft add rule inet filter <POLICY_NAME> <protocol> dport <destination_port> <protocol> sport <source_port> accept
+    nft add rule inet filter <POLICY_NAME> <protocol> sport <destination_port> <protocol> dport <source_port> accept
     nft add rule inet filter <POLICY_NAME> return
 
-    nft add rule inet nat PRE_NAT_<POLICY_NAME> <protocol> dport <destination_port> <protocol> sport <source_port> <action>
-    nft add rule inet nat PRE_NAT_<POLICY_NAME> <protocol> sport <destination_port> <protocol> dport <source_port> <action>
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> <protocol> dport <destination_port> <protocol> sport <source_port> accept
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> <protocol> sport <destination_port> <protocol> dport <source_port> accept
     nft add rule inet nat PRE_NAT_<POLICY_NAME> return
 
     nft add rule inet nat POST_NAT_<POLICY_NAME> <protocol> dport <destination_port> <protocol> sport <source_port> masquerade
     nft add rule inet nat POST_NAT_<POLICY_NAME> return
-
     ```
+    # For Dropping    
+    ```
+    nft add rule inet filter <POLICY_NAME> <protocol> dport <destination_port> <protocol> sport <source_port> drop
+    nft add rule inet filter <POLICY_NAME> <protocol> sport <destination_port> <protocol> dport <source_port> drop
+    nft add rule inet filter <POLICY_NAME> return
+    ```
+
 1. Case 6 — Destination IP with Source Port
 
     **(Source IP:Port → Destination IP)**
 
+    # For Accepting    
     ```
-    nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> <action>
+    nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> <protocol> dport <source_port> <action>
     nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> <protocol> sport <source_port> <action>
     nft add rule inet filter <POLICY_NAME> return
 
+    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip saddr <destination_ip> <protocol> dport <source_port> <action>
     nft add rule inet nat PRE_NAT_<POLICY_NAME> ip daddr <destination_ip> <protocol> sport <source_port> <action>
-    nft add rule inet nat PRE_NAT_<POLICY_NAME> ip saddr <destination_ip> <action>
     nft add rule inet nat PRE_NAT_<POLICY_NAME> return
 
-    nft add rule inet nat POST_NAT_<POLICY_NAME> ip daddr <destination_ip>  <protocol> sport <source_port> masquerade
+    nft add rule inet nat POST_NAT_<POLICY_NAME> ip daddr <destination_ip> <protocol> sport <source_port> masquerade
     nft add rule inet nat POST_NAT_<POLICY_NAME> return
-
+    ```
+    # For Dropping    
+    ```
+    nft add rule inet filter <POLICY_NAME> ip saddr <destination_ip> <protocol> dport <source_port> <action>
+    nft add rule inet filter <POLICY_NAME> ip daddr <destination_ip> <protocol> sport <source_port> <action>
+    nft add rule inet filter <POLICY_NAME> return
     ```
 
     USER LOGIN
