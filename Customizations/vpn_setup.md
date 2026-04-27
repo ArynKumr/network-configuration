@@ -95,6 +95,24 @@ It also explains how VPN traffic interacts with webfilter / NFQUEUE.
             nft add element inet webfilter ALLOW_ACCESS { <vpn_user_ip> }
             ```
 
+        1. Allow Traffic FROM VPN Subnet to be redirected
+
+            Packets originate from the VPN subnet and from a user not logged in need to be redirected.
+
+            ```bash
+                nft add element inet nat vpn_subnet {<vpn_subnet>} 
+            ```
+
+        1. Redirect VPN User
+
+            If the Traffic of the non logged in user is required to be redirected 
+
+            ```bash
+            nft insert rule inet nat prerouting \
+            ip saddr @vpn_subnet \
+            ip saddr != @allowed_ip4 <protocol> dport <source_port> \
+            redirect to :<redirected_port>
+            ```
 
 1. Part B — Site-to-Site VPN
     - Site-to-site VPNs require strict peer validation.
