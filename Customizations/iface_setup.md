@@ -19,8 +19,6 @@ nft add element inet filter wan_ifaces { "<wan_iface1>", "<wan_iface2>" }
 # Add WAN interfaces to the nat table (used by masquerade / SNAT)
 nft add element inet nat wan_ifaces { "<wan_iface1>", "<wan_iface2>" }
 
-# Add WAN interfaces to the geo table (used by geofencing checks)
-nft add element inet geo wan_ifaces { "<wan_iface1>", "<wan_iface2>" }
 ```
 
 * * *

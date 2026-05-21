@@ -1,6 +1,6 @@
 # Traffic Control (QoS) Setup & User Class Enforcement (Linux `tc`)
 
-Purpose:  
+Purpose:
 Configure hierarchical traffic shaping so:
 
 - interface capacity is defined once,
@@ -13,7 +13,7 @@ This is where bandwidth limits actually happen.
 
 # Interface-Level QoS Setup
 
-> Note please reffer [Tc's actual documentation](https://www.man7.org/linux/man-pages/man8/tc.8.html) for a detailed explaination
+> Note please reffer [Tc's actual documentation](https://www.man7.org/linux/man-pages/man8/tc.8.html) for a detailed explaination or [For Fundamental Grasp](https://tldp.org/HOWTO/Traffic-Control-HOWTO/index.html)
 
 - _(Run at interface configuration time and again at boot for all relevant interfaces)_ These commands prepare each interface (LAN and WAN) to accept user classes.
 
@@ -34,8 +34,8 @@ This is where bandwidth limits actually happen.
 
     1. Define the Master Pipe (Interface Speed)
 
-        Purpose:  
-        Declare the physical speed of the interface.  
+        Purpose:
+        Declare the physical speed of the interface.
         All user speeds are carved from this class.
 
         ```
@@ -47,7 +47,7 @@ This is where bandwidth limits actually happen.
 
     1. Default / Guest Lane (Failsafe)
 
-        Purpose:  
+        Purpose:
         Ensure untagged or unknown traffic does not starve the system.
 
         ```
@@ -67,13 +67,13 @@ This is where bandwidth limits actually happen.
             handle <default_class_ID>: sfq perturb 10
         ```
 
-        Effect:  
+        Effect:
         Traffic is reshuffled every 10 seconds to maintain fairness.
 
 
     1. DMZ / NGFW / LAN-LAN Communication Lane
 
-        Purpose:  
+        Purpose:
         Ensure traffic tagged with 0x69 go to 1:69 class.
 
         ```
@@ -83,7 +83,7 @@ This is where bandwidth limits actually happen.
         ```
 
 
-    1. Fairness Within the DMZ / NGFW / LAN-LAN Communication Lane Lane
+    2. Fairness Within the DMZ / NGFW / LAN-LAN Communication Lane Lane
 
         Purpose:
         Prevent one flow from monopolizing the DMZ / NGFW / LAN-LAN Communication Lane class.
@@ -93,16 +93,16 @@ This is where bandwidth limits actually happen.
             handle 69: sfq perturb 10
         ```
 
-        Effect:  
+        Effect:
         Traffic is reshuffled every 10 seconds to maintain fairness.
 
-    1. Associating tc class 69 with fw mark 0x69
+    3. Associating tc class 69 with fw mark 0x69
 
         ```
         tc filter add dev <iface_name> protocol all parent 1:0 prio 1 handle 0x00000069/0x0000FFFF fw flowid 1:69
         ```
 
-        Effect:  
+        Effect:
         Any taffic marked with 0x69 will be sent to class 1:69.
 
 
@@ -112,10 +112,8 @@ User-Level QoS Setup
 _(Run when a user comes online and is assigned a class)_
 
 > Directionality matters:
-> 
 > - WAN interface → controls upload speed
 > - LAN interface → controls download speed
->     
 
 - Apply these steps on both sides as required.
 
@@ -136,7 +134,7 @@ _(Run when a user comes online and is assigned a class)_
 
     1. Fairness Within the User Lane
 
-        Purpose:  
+        Purpose:
         Ensure multiple connections from the same user share bandwidth fairly.
 
         ```
@@ -147,7 +145,7 @@ _(Run when a user comes online and is assigned a class)_
 
     1. Bind nftables Marks to the User Lane
 
-        Purpose:  
+        Purpose:
         This is the bridge between nftables and traffic control.
 
         ```
@@ -173,17 +171,15 @@ Bandwidth-Pool-Level QoS Setup
 _(Run when a set of user comes online and is assigned the same class)_
 
 > Directionality matters:
-> 
 > - WAN interface → controls upload speed
 > - LAN interface → controls download speed
->     
 
 - Apply these steps on both sides as required.
 
 
     1. Create the Bandwidth-Pool Lane
 
-        Purpose:  
+        Purpose:
         Assign a dedicated speed limit to the Bandwidth-Pool.
 
         ```
@@ -197,7 +193,7 @@ _(Run when a set of user comes online and is assigned the same class)_
 
     1. Fairness Within the Bandwidth-Pool Lane
 
-        Purpose:  
+        Purpose:
         Ensure multiple connections from the same Bandwidth-Pool share bandwidth fairly.
 
         ```
@@ -208,7 +204,7 @@ _(Run when a set of user comes online and is assigned the same class)_
 
     1. Bind nftables Marks to the Bandwidth-Pool Lane
 
-        Purpose:  
+        Purpose:
         This is the bridge between nftables and traffic control.
 
         ```
