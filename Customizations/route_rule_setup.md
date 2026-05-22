@@ -67,30 +67,51 @@ This results in:
 
 - **Main table:** default route from DHCP (IPv4) / RA (IPv6)
 - **Table 100:** a duplicate default route pointing to the same DHCP/RA gateway
-- In fwmark, `0x00<2_BYTES_ISP_MARK>0000`. Here the 2 bytes define the ISP mark.
+- In fwmark, `0x00<1_BYTE_ISP_MARK>0000/0x00ff0000`. The 1 byte (bits 16–23) defines the ISP mark.
 
-> **Note:** In our case, we are defining that different interface gets different ISP.
-> Therefore, each ISP's interface here must have its own fwmark and `[Route]` section as explained above.
+> **Note:** In our case, we are defining that different interfaces get different ISPs.
+> Therefore, each ISP's interface must have its own fwmark and `[Route]` section as explained above.
 
 > **Note (IPv6):** `Gateway=_ipv6ra` instructs systemd-networkd to use the default gateway learned from Router Advertisements. This requires `IPv6AcceptRA=yes` in the `[Network]` section. The `[RoutingPolicyRule]` block must also include `Family=ipv6` to correctly match IPv6 packets.
 
-> **Note:** It is also to be noted that we must add all the other routes manually if required (see next section), since they are not added automatically.
+> **Note:** All other routes must be added manually if required (see next section), since they are not added automatically.
 
 **Example output:**
 
 ```bash
+# --- IPv4 ---
+
 [root@localhost]:/etc/systemd/network# ip r
 default via 10.9.0.1 dev enp8s0 proto dhcp src 10.9.0.4 metric 200
 8.8.8.8 via 10.9.0.1 dev enp8s0 proto dhcp src 10.9.0.4 metric 200
 10.9.0.1 dev enp8s0 proto dhcp scope link src 10.9.0.4 metric 200
 10.10.0.0/24 via 10.9.0.1 dev enp8s0 proto static metric 200 onlink
 
-[root@localhost]:/etc/systemd/network# ip r show table 69
-default via 10.9.0.1 dev enp8s0 proto dhcp metric 300
+[root@localhost]:/etc/systemd/network# ip r show table 100
+default via 10.9.0.1 dev enp8s0 proto dhcp metric 200
 10.10.0.0/24 via 10.9.0.1 dev enp8s0 proto static metric 200 onlink
+
+# Verify the RPDB (policy rule) is installed:
+[root@localhost]:/etc/systemd/network# ip rule show
+0:      from all lookup local
+1000:   from all fwmark 0xa10000/0xff0000 lookup 100
+32766:  from all lookup main
+32767:  from all lookup default
+
+# --- IPv6 ---
+
+[root@localhost]:/etc/systemd/network# ip -6 r
+default via fe80::1 dev enp8s0 proto ra metric 200 pref medium
+fe80::/64 dev enp8s0 proto kernel metric 200 pref medium
 
 [root@localhost]:/etc/systemd/network# ip -6 r show table 100
 default via fe80::1 dev enp8s0 proto ra metric 200
+
+# Verify the IPv6 RPDB rule:
+[root@localhost]:/etc/systemd/network# ip -6 rule show
+0:      from all lookup local
+1000:   from all fwmark 0xa10000/0xff0000 lookup 100
+32766:  from all lookup main
 ```
 
 ---
@@ -168,10 +189,10 @@ This creates identical routes in multiple tables, allowing:
 - Normal traffic to use the main table
 - Policy-routed traffic to use table 100
 
-> **Note:** Here, we must define a `[Route]` section for each table which requires it.
-> For example, here we want it so `10.10.0.0/24` (IPv4) and `2001:db8:1::/48` (IPv6) must be accessible via tables 100 and 200.
+> **Note:** A `[Route]` section must be defined for each table that requires it.
+> For example, `10.10.0.0/24` (IPv4) and `2001:db8:1::/48` (IPv6) must be accessible via tables 100 and 200.
 > Make sure that the metric is unique in each `.network` file.
 
-> **Note:** All routes reachable via an interface must be added to every routing table. Otherwise, VPN traffic may fail to reach certain destinations. For example, if a VPN user is assigned to ISP 1, they will only be able to access the routes present in ISP 1's routing table. Therefore, including the full set of routes in each ISP's table ensures consistent accessibility regardless of which ISP a VPN user is mapped to.
->
-> **⚠️ IPv6 VPN Testing Pending:** The above multi-table routing behaviour for IPv6 has not yet been fully validated in a VPN scenario. Testing of IPv6 policy routing with VPN-assigned clients (analogous to the IPv4 ISP-mapping behaviour described above) is still to be done. Proceed with caution and verify routing table population with `ip -6 route show table <N>` after configuration.
+> **Note:** All routes reachable via an interface must be added to every routing table. Otherwise, VPN traffic may fail to reach certain destinations. For example, if a VPN user is assigned to ISP 1, they will only be able to access the routes present in ISP 1's routing table. Including the full set of routes in each ISP's table ensures consistent accessibility regardless of which ISP a VPN user is mapped to.
+
+> **⚠️ IPv6 VPN Testing Pending:** Multi-table routing behaviour for IPv6 has not yet been fully validated in a VPN scenario. Testing of IPv6 policy routing with VPN-assigned clients (analogous to the IPv4 ISP-mapping behaviour described above) is still pending. Proceed with caution and verify routing table population with `ip -6 route show table <N>` after configuration.
