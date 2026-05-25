@@ -179,7 +179,8 @@ jool global display
 |---|---|
 | `2001:db8::/32` | Documentation / examples only (RFC 3849) |
 | `64:ff9b::/96` | Well-known NAT64 prefix (RFC 6052) |
-
+>NOTE: Don't allow serve of `64:ff9b::/96` — use a private prefix instead.
+>NOTE: Use a private prefix instead of `64:ff9b::/96` to avoid conflicts with public NAT64 services ,also the reason why it is hardcoded in [nftables](../nftables.conf)
 ---
 
 ## Production Checklist
@@ -191,7 +192,8 @@ Before going live, consider the following:
 - [ ] Tune MTU handling to avoid fragmentation issues
 - [ ] Set up session count monitoring and alerting
 - [ ] Validate fragmented packet behavior in your environment
-- [ ] Avoid deploying on underpowered hardware — NAT64 translation is stateful and CPU-bound
+
+>NOTE: NAT64 translation is stateful and CPU-bound
 
 ---
 

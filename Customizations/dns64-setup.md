@@ -11,7 +11,7 @@ Before you begin, make sure you have:
 - [ ] Unbound installed with DNS64 support compiled in
 - [ ] A working NAT64 translator (e.g. Jool) using the same prefix
 - [ ] Your LAN's IPv6 subnet and upstream DNS resolver addresses on hand
-- [ ] Root / `sudo` access
+
 
 ---
 
