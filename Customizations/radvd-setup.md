@@ -1,112 +1,85 @@
 # Configuring Interfaces in radvd
 
-## Example Configuration
+> **radvd** (Router Advertisement Daemon) sends IPv6 Router Advertisements (RA) to clients on your network, enabling stateless address autoconfiguration (SLAAC).
 
-```conf
-interface <iface_name> {
-    AdvSendAdvert on;
+---
 
-    prefix <prefix_to_be_distributed> {
-    };
+## Prerequisites
 
-    RDNSS <ip_of_advertised_dns> {
-    };
-};
-```
+Before you begin, make sure you have:
 
-# OR
+- [ ] `radvd` installed on your device
+- [ ] Unique `/64` IPv6 prefixes allocated per interface
+
+---
+
+## How It Works
+
+Each `interface` block in `radvd.conf` operates independently. For every configured interface, radvd will:
+
+- Send periodic IPv6 Router Advertisements
+- Advertise a unique IPv6 prefix (enabling SLAAC for clients)
+- Optionally advertise DNS resolvers via `RDNSS`
+
+You can define as many interface blocks as needed — one per routed segment.
+
+---
+
+## Write the Configuration
+
+Edit `/etc/radvd.conf` and add one block per interface. Add or remove blocks to match the number of segments in your network:
 
 ```conf
 interface <iface1_name> {
     AdvSendAdvert on;
-
     prefix <prefix_to_be_distributed> {
     };
-
     RDNSS <ip_of_advertised_dns> {
     };
 };
 
-interface <iface2_name> {
-    AdvSendAdvert on;
+# interface <iface2_name> {
+#     AdvSendAdvert on;
+#     prefix <prefix_to_be_distributed> {
+#     };
+#     RDNSS <ip_of_advertised_dns> {
+#     };
+# };
 
-    prefix <prefix_to_be_distributed> {
-    };
-
-    RDNSS <ip_of_advertised_dns> {
-    };
-};
-
-interface <iface3_name> {
-    AdvSendAdvert on;
-
-    prefix <prefix_to_be_distributed> {
-    };
-
-    RDNSS <ip_of_advertised_dns> {
-    };
-};
+# interface <iface3_name> {
+#     ...
+# };
 ```
 
----
-
-# How It Works
-
-Each `interface` block:
-
-* Sends IPv6 Router Advertisements (RA)
-* Advertises a unique IPv6 prefix
-* Optionally advertises DNS servers using `RDNSS`
-* Operates independently from the others
-
-You can define as many interfaces as needed.
+> Uncomment and duplicate blocks as needed — one per routed segment.
 
 ---
 
-# Important Rule
+## Assign Router Addresses to Each Interface
 
-Do NOT advertise the same `/64` prefix on multiple routed interfaces.
-
-Correct:
-
-| Interface | Prefix          |
-| --------- | --------------- |
-| enp1s0    | 2001:db8:1::/64 |
-| enp2s0    | 2001:db8:2::/64 |
-| br0       | 2001:db8:3::/64 |
-
-Wrong:
-
-| Interface | Prefix          |
-| --------- | --------------- |
-| enp1s0    | 2001:db8:1::/64 |
-| enp2s0    | 2001:db8:1::/64 |
-
-Using the same prefix on multiple L3 interfaces breaks routing unless the interfaces are bridged into the same Layer-2 domain.
-
----
-
-# Assign IPv6 Addresses to Interfaces
-
-The router itself must own an address inside each advertised subnet.
-
-Example:
+The router itself must hold an address inside every subnet it advertises. Clients use the router's address as their default gateway.
 
 ```bash
-ip -6 addr add 2001:db8:1::1/64 dev enp1s0
-ip -6 addr add 2001:db8:2::1/64 dev enp2s0
-ip -6 addr add 2001:db8:3::1/64 dev br0
+sudo ip -6 addr add 2001:db8:1::1/64 dev enp1s0
+sudo ip -6 addr add 2001:db8:2::1/64 dev enp2s0
+sudo ip -6 addr add 2001:db8:3::1/64 dev br0
 ```
+
+> These assignments are ephemeral by default. To make them persistent, add them to your network manager config (Netplan, NetworkManager, systemd-networkd, etc.).
 
 ---
 
-# Restart radvd
+## Start & Enable radvd
 
 ```bash
-systemctl restart radvd
+# Apply the configuration
+sudo systemctl restart radvd
+
+# Enable radvd to start on boot
+sudo systemctl enable radvd
 ```
 
-Check status:
+**Verify it's running:**
 
 ```bash
 systemctl status radvd
@@ -114,22 +87,59 @@ systemctl status radvd
 
 ---
 
-# Example Real-World Topology
+## Real-World Topology Example
 
-```text
-                Router
-        +-------------------+
-        |                   |
-        | enp1s0 -> LAN A   | 2001:db8:1::/64
-        | enp2s0 -> LAN B   | 2001:db8:2::/64
-        | br0     -> WiFi   | 2001:db8:3::/64
-        +-------------------+
+```
+              Router
+      +----------------------+
+      |                      |
+      |  enp1s0  →  LAN A   |  2001:db8:1::/64
+      |  enp2s0  →  LAN B   |  2001:db8:2::/64
+      |  wlan0     →  WiFi    |  2001:db8:3::/64
+      +----------------------+
 ```
 
-Each network gets:
-
-* Its own `/64`
-* Its own SLAAC advertisements
-* Independent IPv6 routing
+Each segment gets its own `/64`, its own SLAAC advertisements, and independent IPv6 routing.
 
 ---
+
+## ⚠️ Critical: Never Reuse a Prefix Across Routed Interfaces
+
+Advertising the same `/64` on multiple Layer-3 interfaces breaks routing. Each routed interface **must** have a unique prefix.
+
+**✅ Correct:**
+
+| Interface | Prefix |
+|---|---|
+| `enp1s0` | `2001:db8:1::/64` |
+| `enp2s0` | `2001:db8:2::/64` |
+| `wlan0` | `2001:db8:3::/64` |
+
+**❌ Wrong:**
+
+| Interface | Prefix |
+|---|---|
+| `enp1s0` | `2001:db8:1::/64` |
+| `enp2s0` | `2001:db8:1::/64` |
+
+> **Exception:** Interfaces that are bridged into the same Layer-2 domain (e.g., two ports on the same bridge) may share a prefix, since they are logically one segment.
+
+---
+
+## Troubleshooting
+
+**radvd fails to start?**
+→ Check the config for syntax errors: `radvd -c /etc/radvd.conf`
+
+**Clients not getting addresses?**
+→ Confirm the router has an address in the advertised prefix: `ip -6 addr show dev <iface>`
+**Routing broken after adding a second interface?**
+→ Check for duplicate prefixes across your interface blocks.
+
+---
+
+## Further Reading
+
+- [radvd man page](https://linux.die.net/man/8/radvd)
+- [RFC 4861 — Neighbor Discovery for IP version 6](https://www.rfc-editor.org/rfc/rfc4861)
+- [RFC 4862 — IPv6 Stateless Address Autoconfiguration](https://www.rfc-editor.org/rfc/rfc4862)

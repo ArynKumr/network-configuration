@@ -434,41 +434,7 @@ The following document describes how to set up the networking, DHCP, DNS and nft
         *   user traffic behavior
         *   firewall decisions (accept / drop / redirect)
         *   NAT activity
-        *   geofencing enforcement
         *   packet marking (QoS / ISP routing)
 
         Logging is **diagnostic**, not enforcement.  
         Removing logging **must not change traffic behavior**.
-
-
-    # Geo-Blocking
-
-    Refer [geo_setup.md](Customizations/geo_setup.md)
-
-    1. Inbound test (from blocked region)
-
-        From a blocked country IP:
-
-        ```
-        nc -vz <public_ip> 80
-        ```
-
-        ✔ Connection dropped  
-        ✔ Log entry:
-
-        ```
-        [GEOFENCE-BLOCK-V4]
-        ```
-
-        ✘ Connection succeeds → geo table not active
-
-
-    1. Outbound test
-
-        ```
-        curl http://<blocked_country_ip>
-        ```
-
-        ✔ Connection blocked  
-        ✔ Log entry exists  
-        ✘ Connection succeeds → forward geo logic broken

@@ -79,52 +79,42 @@ They **modify live sets/maps** — nothing here is persistent unless saved.
     For allowed IP6+Mac based
         
         nft add element inet nat allowed_ip6_mac { <client_ip6> . <mac_address> }
-    
-    
-    
 
     > Note: Must keep these entries for users we don't want to show captive portal.
 
 
-1. QoS & ISP Routing Mark
+2. QoS & ISP Routing Mark
 
-    **Purpose:**  
-    Tag all traffic from this IP with a composite mark:  
-    `0x00[ISP][CLASS]`
+    **Purpose:**<br>
+    Tag all traffic from this IP with a composite mark:
+    `0x00[ISP-Table-ID][TC-ClassID]`
 
-    For IP based users
-        
-        nft add element inet mangle user4_marks { <client_ip> : 0x00<isp_mark><tc_class_marks> }
+    For IPv4 based users
 
-    For Mac based users
-        
-        nft add element inet mangle user_mac_marks { <client_mac> : 0x00<isp_mark><tc_class_marks> }
+        nft add element inet mangle user4_marks { <client_ip> : 0x00<isp_mark><tc_class_mark> }
+    For IPv6 based users
 
-    For IP MAC based users, and IP MAC based users
-        
-        nft add element inet mangle user4_mac_marks { <client_ip> . <client_mac> : 0x00<isp_mark><tc_class_marks> }
+        nft add element inet mangle user6_marks { <client_ip> : 0x00<isp_mark><tc_class_mark> }
 
+3. Enable Web Inspection (HTTP / HTTPS and DNS)
 
-
-1. Enable Web Inspection (HTTP / HTTPS and DNS)
-
-    **Purpose:**  
+    **Purpose:**<br>
     Send this user’s web traffic to the NFQUEUE inspection engine.
 
     ```
     For IP based users
-        
+
         nft add element inet webfilter allowed_ip4 { <client_ip> }
 
     For Mac based users
-        
+
         nft add element inet webfilter allowed_macs { <client_mac> }
 
     For IP MAC based users, and IP MAC based users
-        
+
         nft add element inet webfilter allowed_ip4_mac { <client_ip> . <mac_address> }
     ```
-
+>TODO: Add sets for ipv6 webfiltering
 
 1. Deleting Users
     **Purpose:**  
