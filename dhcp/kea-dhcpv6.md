@@ -76,46 +76,8 @@ Before writing any config, review these **mandatory changes** introduced between
 
 ## RA Flags & Mode Selection
 
-Configure your router/radvd to set the correct flags **before** deploying Kea in any mode.
+Configure your router/radvd to set the correct flags **before** deploying Kea in any mode, refer to the [radvd configuration guide](../Customizations/radvd-setup.md).
 
-### radvd example — Stateful
-
-```
-interface eth0 {
-    AdvSendAdvert on;
-    AdvManagedFlag on;       # M=1  → use DHCPv6 for addresses
-    AdvOtherConfigFlag on;   # O=1  → use DHCPv6 for options
-    prefix 2001:db8:1::/64 {
-        AdvAutonomous off;   # disable SLAAC
-    };
-};
-```
-
-### radvd example — Stateless (SLAAC + DHCPv6 options)
-
-```
-interface eth0 {
-    AdvSendAdvert on;
-    AdvManagedFlag off;      # M=0  → addresses via SLAAC
-    AdvOtherConfigFlag on;   # O=1  → options via DHCPv6
-    prefix 2001:db8:1::/64 {
-        AdvAutonomous on;    # enable SLAAC
-    };
-};
-```
-
-### radvd example — Hybrid (SLAAC + IA_NA available)
-
-```
-interface eth0 {
-    AdvSendAdvert on;
-    AdvManagedFlag on;       # M=1  → DHCPv6 addresses for clients that request them
-    AdvOtherConfigFlag on;   # O=1  → options via DHCPv6
-    prefix 2001:db8:1::/64 {
-        AdvAutonomous on;    # SLAAC still available for non-DHCPv6 clients
-    };
-};
-```
 
 ---
 
