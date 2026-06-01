@@ -1,5 +1,4 @@
-Matching Truth Table
----------------------------
+# Matching Truth Table
 
 | Field | Remote Source IP | Public ISP IP | Public Port | Protocol | DNAT Target IP | DNAT Target Port | Action |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -10,313 +9,372 @@ Matching Truth Table
 | Case 5 | Specific | Specific | Range | tcp/udp | Specific | Range | allow |
 | Case 6 | Specific | Specific | ALL | tcp/udp | Specific | ALL | allow |
 
->NOTE: TC ClassID for all the traffic related to DMZ should be 0069
+> NOTE: TC ClassID for all the traffic related to DMZ should be 0069
+
+---
 
-1. Case 1
+## Case 1
 
-    **Meaning:**  
+**Meaning:**
 
-    Anyone from public connecting to a specific port of our firewall's specific ISP ip, connects to a specific local port on a local machine.
+Anyone from public connecting to a specific port of our firewall's specific ISP IP, connects to a specific local port on a local machine.
 
-    Example:
-    - Firewall has 2 ISPs, Airtel and BSNL.
-    - Someone connecting from Airtel's public IP, port 8000
-    - Their connection goes to local IP 10.1.1.81:8000
+Example:
+- Firewall has 2 ISPs, Airtel and BSNL.
+- Someone connecting from Airtel's public IP, port 8000
+- Their connection goes to local IP 10.1.1.81:8000
 
-    **Rules:**  
+**Rules:**
 
-    # IPV4
+### IPv4
 
-    ```bash
-    nft add element inet filter allowed_ip4 { <client_ip> }
-    nft add rule inet mangle prerouting ip saddr <client_ip> <protocol> sport <client_port> meta mark set 0x00<isp_mark><tc_class_id>
-    nft add rule inet mangle forward ip daddr <client_ip> <protocol> dport <client_port> meta mark set 0x00<isp_mark><tc_class_id>
-    nft insert rule inet nat NAT_PRE ip daddr <public_facing_isp_ip> <protocol> dport <public_facing_isp_port> dnat to <client_ip>:<client_port>
-    nft insert rule inet filter FILTER_FORWARD ip daddr <client_ip> <action>
-    ```
+```bash
+nft add element inet filter allowed_ip4 { <client_ip> }
+nft add rule inet mangle prerouting ip saddr <client_ip> <protocol> sport <client_port> meta mark set 0x00<isp_mark><tc_class_id>
+nft add rule inet mangle forward ip daddr <client_ip> <protocol> dport <client_port> meta mark set 0x00<isp_mark><tc_class_id>
+nft insert rule inet nat NAT_PRE ip daddr <public_facing_isp_ip> <protocol> dport <public_facing_isp_port> dnat to <client_ip>:<client_port>
+nft insert rule inet nat NAT_PRE ip daddr <actual_public_ip> iifname @lan_ifaces <protocol> dport <public_facing_isp_port> dnat to <client_ip>:<client_port> # required for hairpin NAT
+nft insert rule inet nat NAT_POST ip saddr <client_subnet> ip daddr <client_ip> snat to <client_gateway>
+nft insert rule inet filter FILTER_FORWARD ip daddr <client_ip> <action>
+```
 
-    # IPV6
+### IPv6
 
-    ```bash
-    nft add element inet filter allowed_ip6 { <client_ip6> }
-    nft add rule inet mangle prerouting ip6 saddr <client_ip6> <protocol> sport <client_port> meta mark set 0x00<isp_mark><tc_class_id>
-    nft add rule inet mangle forward ip6 daddr <client_ip6> <protocol> dport <client_port> meta mark set 0x00<isp_mark><tc_class_id>
-    nft insert rule inet nat NAT_PRE ip6 daddr <public_facing_isp_ip6> <protocol> dport <public_facing_isp_port> dnat to <client_ip6>:<client_port>
-    nft insert rule inet filter FILTER_FORWARD ip6 daddr <client_ip6> <action>
-    ```
+```bash
+nft add element inet filter allowed_ip6 { <client_ip6> }
+nft add rule inet mangle prerouting ip6 saddr <client_ip6> <protocol> sport <client_port> meta mark set 0x00<isp_mark><tc_class_id>
+nft add rule inet mangle forward ip6 daddr <client_ip6> <protocol> dport <client_port> meta mark set 0x00<isp_mark><tc_class_id>
+nft insert rule inet nat NAT_PRE ip6 daddr <public_facing_isp_ip6> <protocol> dport <public_facing_isp_port> dnat to <client_ip6>:<client_port>
+nft insert rule inet nat NAT_PRE ip6 daddr <actual_public_ip6> iifname @lan_ifaces <protocol> dport <public_facing_isp_port> dnat to <client_ip6>:<client_port> # required for hairpin NAT
+nft insert rule inet nat NAT_POST ip6 saddr <client_prefix> ip6 daddr <client_ip6> snat to <client_gateway>
+nft insert rule inet filter FILTER_FORWARD ip6 daddr <client_ip6> <action>
+```
 
-    **Explanation:**  
+**Explanation:**
 
-    1. Adds the client to the global whitelist so the firewall allows general outgoing traffic.
-    1. Tags traffic originating from the internal client and source port. Used for ISP/QoS classification of **outgoing** traffic.
-    1. Tags traffic destined **to** the internal client. Allows control of incoming bandwidth so downloads don’t saturate the network.
-    1. Ensures traffic hitting the public WAN IP on a specific port is redirected to the internal host.
-    1. Since the `forward` chain policy is `drop`, forwarded packets must be explicitly allowed **after DNAT**.
+1. Adds the client to the global whitelist so the firewall allows general outgoing traffic.
+1. Tags traffic originating from the internal client and source port. Used for ISP/QoS classification of **outgoing** traffic.
+1. Tags traffic destined **to** the internal client. Allows control of incoming bandwidth so downloads don't saturate the network.
+1. Ensures traffic hitting the public WAN IP on a specific port is redirected to the internal host.
+1. Hairpin NAT — allows LAN clients to reach the internal server using the public IP from inside the network.
+1. SNATs reply traffic so return packets are correctly routed back through the gateway when source and destination are on the same subnet.
+1. Since the `forward` chain policy is `drop`, forwarded packets must be explicitly allowed **after DNAT**.
 
-1. Case 2
+---
 
-    **Meaning:**  
+## Case 2
 
-    Anyone from public connecting to a range of ports on our firewall's specific ISP ip, connects to a corresponding port range on a local machine.
+**Meaning:**
 
-    Example:
-    - Firewall has 2 ISPs, Airtel and BSNL.
-    - Someone connecting from Airtel's public IP, ports 8000-8100
-    - Their connection goes to local IP 10.1.1.81:8000-8100
+Anyone from public connecting to a range of ports on our firewall's specific ISP IP, connects to a corresponding port range on a local machine.
 
-    **Rules:**  
+Example:
+- Firewall has 2 ISPs, Airtel and BSNL.
+- Someone connecting from Airtel's public IP, ports 8000-8100
+- Their connection goes to local IP 10.1.1.81:8000-8100
 
-    # IPV4
+**Rules:**
 
-    ```bash
-    nft add element inet filter allowed_ip { <client_ip> }
-    nft add rule inet mangle prerouting ip saddr <client_ip> <protocol> sport <starting_client_port>-<ending_client_port>  meta mark set 0x00<isp_mark><tc_class_id>
-    nft add rule inet mangle forward ip daddr <client_ip> <protocol> dport <starting_client_port>-<ending_client_port> meta mark set 0x00<isp_mark><tc_class_id>
-    nft insert rule inet nat NAT_PRE ip daddr <public_facing_isp_ip> <protocol> dport <starting_public_facing_isp_port>-<ending_public_facing_isp_port> dnat to <client_ip>:<starting_client_port>-<ending_client_port>
-    nft insert rule inet filter FILTER_FORWARD ip daddr <client_ip> <action>
-    ```
+### IPv4
 
-    # IPV6
+```bash
+nft add element inet filter allowed_ip4 { <client_ip> }
+nft add rule inet mangle prerouting ip saddr <client_ip> <protocol> sport <starting_client_port>-<ending_client_port> meta mark set 0x00<isp_mark><tc_class_id>
+nft add rule inet mangle forward ip daddr <client_ip> <protocol> dport <starting_client_port>-<ending_client_port> meta mark set 0x00<isp_mark><tc_class_id>
+nft insert rule inet nat NAT_PRE ip daddr <public_facing_isp_ip> <protocol> dport <starting_public_facing_isp_port>-<ending_public_facing_isp_port> dnat to <client_ip>:<starting_client_port>-<ending_client_port>
+nft insert rule inet nat NAT_PRE ip daddr <actual_public_ip> iifname @lan_ifaces <protocol> dport <starting_public_facing_isp_port>-<ending_public_facing_isp_port> dnat to <client_ip>:<starting_client_port>-<ending_client_port> # required for hairpin NAT
+nft insert rule inet nat NAT_POST ip saddr <client_subnet> ip daddr <client_ip> snat to <client_gateway>
+nft insert rule inet filter FILTER_FORWARD ip daddr <client_ip> <action>
+```
 
-    ```bash
-    nft add element inet filter allowed_ip6 { <client_ip6> }
-    nft add rule inet mangle prerouting ip6 saddr <client_ip6> <protocol> sport <starting_client_port>-<ending_client_port>  meta mark set 0x00<isp_mark><tc_class_id>
-    nft add rule inet mangle forward ip6 daddr <client_ip6> <protocol> dport <starting_client_port>-<ending_client_port> meta mark set 0x00<isp_mark><tc_class_id>
-    nft insert rule inet nat NAT_PRE ip6 daddr <public_facing_isp_ip6> <protocol> dport <starting_public_facing_isp_port>-<ending_public_facing_isp_port> dnat to <client_ip6>:<starting_client_port>-<ending_client_port>
-    nft insert rule inet filter FILTER_FORWARD ip6 daddr <client_ip6> <action>
-    ```
+### IPv6
 
-    **Explanation:**  
+```bash
+nft add element inet filter allowed_ip6 { <client_ip6> }
+nft add rule inet mangle prerouting ip6 saddr <client_ip6> <protocol> sport <starting_client_port>-<ending_client_port> meta mark set 0x00<isp_mark><tc_class_id>
+nft add rule inet mangle forward ip6 daddr <client_ip6> <protocol> dport <starting_client_port>-<ending_client_port> meta mark set 0x00<isp_mark><tc_class_id>
+nft insert rule inet nat NAT_PRE ip6 daddr <public_facing_isp_ip6> <protocol> dport <starting_public_facing_isp_port>-<ending_public_facing_isp_port> dnat to <client_ip6>:<starting_client_port>-<ending_client_port>
+nft insert rule inet nat NAT_PRE ip6 daddr <actual_public_ip6> iifname @lan_ifaces <protocol> dport <starting_public_facing_isp_port>-<ending_public_facing_isp_port> dnat to <client_ip6>:<starting_client_port>-<ending_client_port> # required for hairpin NAT
+nft insert rule inet nat NAT_POST ip6 saddr <client_prefix> ip6 daddr <client_ip6> snat to <client_gateway>
+nft insert rule inet filter FILTER_FORWARD ip6 daddr <client_ip6> <action>
+```
 
-    1. Adds the client to the global whitelist so the firewall allows general outgoing traffic.
-    1. Tags traffic originating from the internal client and source ports.
-    Used for ISP/QoS classification of **outgoing** traffic.
-    1. Tags traffic destined **to** the internal client.
-    Allows control of incoming bandwidth so downloads don’t saturate the network.
-    1. Ensures traffic hitting the public WAN IP on a specific pool of port is redirected to the internal host.
-    1. Since the `forward` chain policy is `drop`, forwarded packets must be explicitly allowed **after DNAT**.
+**Explanation:**
 
-    > Note: Ensure traffic hitting the public WAN IP on a specific port range (eg 1000-2000) is redirected to the same  internal ports (1000-2000) and mapped one to one.
+1. Adds the client to the global whitelist so the firewall allows general outgoing traffic.
+1. Tags traffic originating from the internal client and source ports. Used for ISP/QoS classification of **outgoing** traffic.
+1. Tags traffic destined **to** the internal client. Allows control of incoming bandwidth so downloads don't saturate the network.
+1. Ensures traffic hitting the public WAN IP on a specific pool of ports is redirected to the internal host.
+1. Hairpin NAT — allows LAN clients to reach the internal server via the public IP from inside the network, using the same port range.
+1. SNATs reply traffic so return packets are correctly routed back through the gateway when source and destination are on the same subnet.
+1. Since the `forward` chain policy is `drop`, forwarded packets must be explicitly allowed **after DNAT**.
 
-    > Different ranges are NOT ALLOWED. eg: internal 1000-2000 CANNOT BE MAPPED TO external 2000-3000 
+> Note: Ensure traffic hitting the public WAN IP on a specific port range (e.g. 1000-2000) is redirected to the same internal ports (1000-2000) and mapped one to one.
 
-1. Case 3
+> Different ranges are NOT ALLOWED. e.g. internal 1000-2000 CANNOT BE MAPPED TO external 2000-3000
 
-    **Meaning:**  
+---
 
-    Anyone from public connecting to any port on our firewall's specific ISP ip, connects to the same internal machine for all ports.
+## Case 3
 
-    Example:
-    - Firewall has 2 ISPs, Airtel and BSNL.
-    - Someone connecting from any public IP to any port on Airtel's ISP IP
-    - Their connection goes to local IP 10.1.1.81 on the same port
+**Meaning:**
 
-    **Rules:**  
+Anyone from public connecting to any port on our firewall's specific ISP IP, connects to the same internal machine for all ports.
 
-    # IPV4
+Example:
+- Firewall has 2 ISPs, Airtel and BSNL.
+- Someone connecting from any public IP to any port on Airtel's ISP IP
+- Their connection goes to local IP 10.1.1.81 on the same port
 
-    ```bash
-    nft add element inet filter allowed_ip4 { <client_ip> }
-    nft add element inet mangle user4_marks { <client_ip> : 0x00<isp_mark><tc_class_id> }
-    nft insert rule inet nat NAT_PRE ip daddr <public_facing_isp_ip> dnat to <client_ip>
-    nft insert rule inet filter FILTER_FORWARD ip daddr <client_ip> <action>
-    ```
+**Rules:**
 
-    # IPV6
+### IPv4
 
-    ```bash
-    nft add element inet filter allowed_ip6 { <client_ip6> }
-    nft add element inet mangle user6_marks { <client_ip6> : 0x00<isp_mark><tc_class_id> }
-    nft insert rule inet nat NAT_PRE ip6 daddr <public_facing_isp_ip6> dnat to <client_ip6>
-    nft insert rule inet filter FILTER_FORWARD ip6 daddr <client_ip6> <action>
-    ```
+```bash
+nft add element inet filter allowed_ip4 { <client_ip> }
+nft add element inet mangle user4_marks { <client_ip> : 0x00<isp_mark><tc_class_id> }
+nft insert rule inet nat NAT_PRE ip daddr <public_facing_isp_ip> dnat to <client_ip>
+nft insert rule inet nat NAT_PRE ip daddr <actual_public_ip> iifname @lan_ifaces dnat to <client_ip> # required for hairpin NAT
+nft insert rule inet nat NAT_POST ip saddr <client_subnet> ip daddr <client_ip> snat to <client_gateway>
+nft insert rule inet filter FILTER_FORWARD ip daddr <client_ip> <action>
+```
 
-    **Explanation:**  
-    1. Allows the internal client to send traffic **out** to the internet. Without this, the host can receive packets but cannot reply.
-    1. Labels all traffic from the client for bandwidth management. Ensures forwarded DMZ traffic still respects TC class limits.
-    1. All packets hitting the public ISP IP are destination-NATed to the internal client before routing decisions occur.
-    1. Explicitly allows traffic through the `forward` chain. Required when the default policy is `drop`.
+### IPv6
 
-    ***
-    OR(For specific protocol)
-    -
+```bash
+nft add element inet filter allowed_ip6 { <client_ip6> }
+nft add element inet mangle user6_marks { <client_ip6> : 0x00<isp_mark><tc_class_id> }
+nft insert rule inet nat NAT_PRE ip6 daddr <public_facing_isp_ip6> dnat to <client_ip6>
+nft insert rule inet nat NAT_PRE ip6 daddr <actual_public_ip6> iifname @lan_ifaces dnat to <client_ip6> # required for hairpin NAT
+nft insert rule inet nat NAT_POST ip6 saddr <client_prefix> ip6 daddr <client_ip6> snat to <client_gateway>
+nft insert rule inet filter FILTER_FORWARD ip6 daddr <client_ip6> <action>
+```
 
-    Full DNAT to a specific internal client for all incoming traffic using a specific protocol on a public IP, allowing any remote source IP to access all ports on the internal service.
+**Explanation:**
 
-    **Rules:**  
+1. Allows the internal client to send traffic **out** to the internet. Without this, the host can receive packets but cannot reply.
+1. Labels all traffic from the client for bandwidth management. Ensures forwarded DMZ traffic still respects TC class limits.
+1. All packets hitting the public ISP IP are destination-NATed to the internal client before routing decisions occur.
+1. Hairpin NAT — allows LAN clients to reach the internal server via the public IP from inside the network. No `dport` needed since all ports are forwarded.
+1. SNATs reply traffic so return packets are correctly routed back through the gateway when source and destination are on the same subnet.
+1. Explicitly allows traffic through the `forward` chain. Required when the default policy is `drop`.
 
-    # IPV4
+---
 
-    ```bash
-    nft add element inet filter allowed_ip4 { <client_ip> }
-    nft add element inet mangle user4_marks { <client_ip> : 0x00<isp_mark><tc_class_id> }
-    nft insert rule inet nat NAT_PRE ip daddr <public_facing_isp_ip> ip protocol <protocol> dnat to <client_ip>
-    nft insert rule inet filter FILTER_FORWARD ip daddr <client_ip> <action>
-    ```
+### OR (for a specific protocol)
 
-    # IPV6
+Full DNAT to a specific internal client for all incoming traffic using a specific protocol on a public IP, allowing any remote source IP to access all ports on the internal service.
 
-    ```bash
-    nft add element inet filter allowed_ip6 { <client_ip6> }
-    nft add element inet mangle user6_marks { <client_ip6> : 0x00<isp_mark><tc_class_id> }
-    nft insert rule inet nat NAT_PRE ip6 daddr <public_facing_isp_ip6> ip6 protocol <protocol> dnat to <client_ip6>
-    nft insert rule inet filter FILTER_FORWARD ip6 daddr <client_ip6> <action>
-    ```
+**Rules:**
 
-    **Explanation:**  
-    1. Allows the internal client to send traffic **out** to the internet. Without this, the host can receive packets but cannot reply.
-    1. Labels all traffic from the client for bandwidth management. Ensures forwarded DMZ traffic still respects TC class limits.
-    1. All packets hitting the public ISP IP are destination-NATed to the internal client before routing decisions occur.
-    1. Explicitly allows traffic through the `forward` chain. Required when the default policy is `drop`.
+#### IPv4
 
+```bash
+nft add element inet filter allowed_ip4 { <client_ip> }
+nft add element inet mangle user4_marks { <client_ip> : 0x00<isp_mark><tc_class_id> }
+nft insert rule inet nat NAT_PRE ip daddr <public_facing_isp_ip> ip protocol <protocol> dnat to <client_ip>
+nft insert rule inet nat NAT_PRE ip daddr <actual_public_ip> iifname @lan_ifaces ip protocol <protocol> dnat to <client_ip> # required for hairpin NAT
+nft insert rule inet nat NAT_POST ip saddr <client_subnet> ip daddr <client_ip> snat to <client_gateway>
+nft insert rule inet filter FILTER_FORWARD ip daddr <client_ip> <action>
+```
 
-1. Case 4
+#### IPv6
 
-    **Meaning:**  
+```bash
+nft add element inet filter allowed_ip6 { <client_ip6> }
+nft add element inet mangle user6_marks { <client_ip6> : 0x00<isp_mark><tc_class_id> }
+nft insert rule inet nat NAT_PRE ip6 daddr <public_facing_isp_ip6> ip6 nexthdr <protocol> dnat to <client_ip6>
+nft insert rule inet nat NAT_PRE ip6 daddr <actual_public_ip6> iifname @lan_ifaces ip6 nexthdr <protocol> dnat to <client_ip6> # required for hairpin NAT
+nft insert rule inet nat NAT_POST ip6 saddr <client_prefix> ip6 daddr <client_ip6> snat to <client_gateway>
+nft insert rule inet filter FILTER_FORWARD ip6 daddr <client_ip6> <action>
+```
 
-    Traffic from a specific remote source IP connecting to a specific port on our firewall's specific ISP IP connects to a specific local port on a local machine.
+**Explanation:**
 
-    Example:
-    - Firewall has 2 ISPs, Airtel and BSNL.
-    - Someone from a specific public IP connecting to Airtel's public IP, port 8000
-    - Their connection goes to local IP 10.1.1.81:8000
-    - Only this specific source IP can access this service.
+1. Allows the internal client to send traffic **out** to the internet. Without this, the host can receive packets but cannot reply.
+1. Labels all traffic from the client for bandwidth management. Ensures forwarded DMZ traffic still respects TC class limits.
+1. All packets hitting the public ISP IP matching the specified protocol are destination-NATed to the internal client before routing decisions occur.
+1. Hairpin NAT — allows LAN clients to reach the internal server via the public IP from inside the network, scoped to the specified protocol. No `dport` needed since all ports are forwarded.
+1. SNATs reply traffic so return packets are correctly routed back through the gateway when source and destination are on the same subnet.
+1. Explicitly allows traffic through the `forward` chain. Required when the default policy is `drop`.
 
-    **Rules:**  
+---
 
-    # IPV4
+## Case 4
 
-    ```bash
-    nft add element inet filter allowed_ip4 { <client_ip> }
-    nft add rule inet mangle prerouting ip saddr <client_ip> <protocol> sport <client_port> meta mark set 0x00<isp_mark><tc_class_id>
-    nft add rule inet mangle forward ip daddr <client_ip> <protocol> dport <client_port> meta mark set 0x00<isp_mark><tc_class_id>
-    nft insert rule inet nat NAT_PRE ip saddr <public_remote_ip> ip daddr <public_facing_isp_ip> <protocol> dport <public_facing_isp_port> dnat to <client_ip>:<client_port>
-    nft insert rule inet filter FILTER_FORWARD ip saddr <public_remote_ip> ip daddr <client_ip> <action>
-    ```
+**Meaning:**
 
-    # IPV6
+Traffic from a specific remote source IP connecting to a specific port on our firewall's specific ISP IP connects to a specific local port on a local machine.
 
-    ```bash
-    nft add element inet filter allowed_ip6 { <client_ip6> }
-    nft add rule inet mangle prerouting ip6 saddr <client_ip6> <protocol> sport <client_port> meta mark set 0x00<isp_mark><tc_class_id>
-    nft add rule inet mangle forward ip6 daddr <client_ip6> <protocol> dport <client_port> meta mark set 0x00<isp_mark><tc_class_id>
-    nft insert rule inet nat NAT_PRE ip6 saddr <public_remote_ip6> ip6 daddr <public_facing_isp_ip6> <protocol> dport <public_facing_isp_port> dnat to <client_ip6>:<client_port>
-    nft insert rule inet filter FILTER_FORWARD ip6 saddr <public_remote_ip6> ip6 daddr <client_ip6> <action>
-    ```
+Example:
+- Firewall has 2 ISPs, Airtel and BSNL.
+- Someone from a specific public IP connecting to Airtel's public IP, port 8000
+- Their connection goes to local IP 10.1.1.81:8000
+- Only this specific source IP can access this service.
 
-    **Explanation:**  
+**Rules:**
 
-    1. Adds the client to the global whitelist so the firewall allows general outgoing traffic.
-    1. Tags traffic originating from the internal client and source port. Used for ISP/QoS classification of **outgoing** traffic.
-    1. Tags traffic destined **to** the internal client. Allows control of incoming bandwidth so downloads don't saturate the network.
-    1. Ensures traffic hitting the public WAN IP on a specific port from a specific source is redirected to the internal host.
-    1. Since the `forward` chain policy is `drop`, forwarded packets must be explicitly allowed **after DNAT**.
+### IPv4
 
-1. Case 5
+```bash
+nft add element inet filter allowed_ip4 { <client_ip> }
+nft add rule inet mangle prerouting ip saddr <client_ip> <protocol> sport <client_port> meta mark set 0x00<isp_mark><tc_class_id>
+nft add rule inet mangle forward ip daddr <client_ip> <protocol> dport <client_port> meta mark set 0x00<isp_mark><tc_class_id>
+nft insert rule inet nat NAT_PRE ip saddr <public_remote_ip> ip daddr <public_facing_isp_ip> <protocol> dport <public_facing_isp_port> dnat to <client_ip>:<client_port>
+nft insert rule inet nat NAT_PRE ip saddr <public_remote_ip> ip daddr <actual_public_ip> iifname @lan_ifaces <protocol> dport <public_facing_isp_port> dnat to <client_ip>:<client_port> # required for hairpin NAT
+nft insert rule inet nat NAT_POST ip saddr <client_subnet> ip daddr <client_ip> snat to <client_gateway>
+nft insert rule inet filter FILTER_FORWARD ip saddr <public_remote_ip> ip daddr <client_ip> <action>
+```
 
-    **Meaning:**  
+### IPv6
 
-    Traffic from a specific remote source IP connecting to a range of ports on our firewall's specific ISP IP connects to a corresponding port range on a local machine.
+```bash
+nft add element inet filter allowed_ip6 { <client_ip6> }
+nft add rule inet mangle prerouting ip6 saddr <client_ip6> <protocol> sport <client_port> meta mark set 0x00<isp_mark><tc_class_id>
+nft add rule inet mangle forward ip6 daddr <client_ip6> <protocol> dport <client_port> meta mark set 0x00<isp_mark><tc_class_id>
+nft insert rule inet nat NAT_PRE ip6 saddr <public_remote_ip6> ip6 daddr <public_facing_isp_ip6> <protocol> dport <public_facing_isp_port> dnat to <client_ip6>:<client_port>
+nft insert rule inet nat NAT_PRE ip6 saddr <public_remote_ip6> ip6 daddr <actual_public_ip6> iifname @lan_ifaces <protocol> dport <public_facing_isp_port> dnat to <client_ip6>:<client_port> # required for hairpin NAT
+nft insert rule inet nat NAT_POST ip6 saddr <client_prefix> ip6 daddr <client_ip6> snat to <client_gateway>
+nft insert rule inet filter FILTER_FORWARD ip6 saddr <public_remote_ip6> ip6 daddr <client_ip6> <action>
+```
 
-    Example:
-    - Firewall has 2 ISPs, Airtel and BSNL.
-    - Someone from a specific public IP connecting to Airtel's public IP, ports 8000-8100
-    - Their connection goes to local IP 10.1.1.81:8000-8100
-    - Only this specific source IP can access this port range.
+**Explanation:**
 
-    **Rules:**  
+1. Adds the client to the global whitelist so the firewall allows general outgoing traffic.
+1. Tags traffic originating from the internal client and source port. Used for ISP/QoS classification of **outgoing** traffic.
+1. Tags traffic destined **to** the internal client. Allows control of incoming bandwidth so downloads don't saturate the network.
+1. Ensures traffic hitting the public WAN IP on a specific port from a specific source is redirected to the internal host.
+1. Hairpin NAT — allows the specific remote source IP (if inside the LAN) to reach the internal server via the public IP. Source restriction is preserved.
+1. SNATs reply traffic so return packets are correctly routed back through the gateway when source and destination are on the same subnet.
+1. Since the `forward` chain policy is `drop`, forwarded packets must be explicitly allowed **after DNAT**.
 
-    # IPV4
+---
 
-    ```bash
-    nft add element inet filter allowed_ip4 { <client_ip> }
-    nft add rule inet mangle prerouting ip saddr <client_ip> <protocol> sport <starting_client_port>-<ending_client_port> meta mark set 0x00<isp_mark><tc_class_id>
-    nft add rule inet mangle forward ip daddr <client_ip> <protocol> dport <starting_client_port>-<ending_client_port> meta mark set 0x00<isp_mark><tc_class_id>
-    nft insert rule inet nat NAT_PRE ip saddr <public_remote_ip> ip daddr <public_facing_isp_ip> <protocol> dport <starting_public_facing_isp_port>-<ending_public_facing_isp_port> dnat to <client_ip>:<starting_client_port>-<ending_client_port>
-    nft insert rule inet filter FILTER_FORWARD ip saddr <public_remote_ip> ip daddr <client_ip> <action>
-    ```
+## Case 5
 
-    # IPV6
+**Meaning:**
 
-    ```bash
-    nft add element inet filter allowed_ip6 { <client_ip6> }
-    nft add rule inet mangle prerouting ip6 saddr <client_ip6> <protocol> sport <starting_client_port>-<ending_client_port> meta mark set 0x00<isp_mark><tc_class_id>
-    nft add rule inet mangle forward ip6 daddr <client_ip6> <protocol> dport <starting_client_port>-<ending_client_port> meta mark set 0x00<isp_mark><tc_class_id>
-    nft insert rule inet nat NAT_PRE ip6 saddr <public_remote_ip6> ip6 daddr <public_facing_isp_ip6> <protocol> dport <starting_public_facing_isp_port>-<ending_public_facing_isp_port> dnat to <client_ip6>:<starting_client_port>-<ending_client_port>
-    nft insert rule inet filter FILTER_FORWARD ip6 saddr <public_remote_ip6> ip6 daddr <client_ip6> <action>
-    ```
+Traffic from a specific remote source IP connecting to a range of ports on our firewall's specific ISP IP connects to a corresponding port range on a local machine.
 
-    **Explanation:**  
+Example:
+- Firewall has 2 ISPs, Airtel and BSNL.
+- Someone from a specific public IP connecting to Airtel's public IP, ports 8000-8100
+- Their connection goes to local IP 10.1.1.81:8000-8100
+- Only this specific source IP can access this port range.
 
-    1. Adds the client to the global whitelist so the firewall allows general outgoing traffic.
-    1. Tags traffic originating from the internal client and source ports. Used for ISP/QoS classification of **outgoing** traffic.
-    1. Tags traffic destined **to** the internal client. Allows control of incoming bandwidth so downloads don't saturate the network.
-    1. Since the `forward` chain policy is `drop`, forwarded packets must be explicitly allowed **after DNAT**.
-    > Note: Ensure traffic hitting the public WAN IP on a specific port range (eg 1000-2000) is redirected to the same  internal ports (1000-2000) and mapped one to one.
+**Rules:**
 
-    > Different ranges are NOT ALLOWED. eg: internal 1000-2000 CANNOT BE MAPPED TO external 2000-3000 
+### IPv4
 
-1. Case 6
+```bash
+nft add element inet filter allowed_ip4 { <client_ip> }
+nft add rule inet mangle prerouting ip saddr <client_ip> <protocol> sport <starting_client_port>-<ending_client_port> meta mark set 0x00<isp_mark><tc_class_id>
+nft add rule inet mangle forward ip daddr <client_ip> <protocol> dport <starting_client_port>-<ending_client_port> meta mark set 0x00<isp_mark><tc_class_id>
+nft insert rule inet nat NAT_PRE ip saddr <public_remote_ip> ip daddr <public_facing_isp_ip> <protocol> dport <starting_public_facing_isp_port>-<ending_public_facing_isp_port> dnat to <client_ip>:<starting_client_port>-<ending_client_port>
+nft insert rule inet nat NAT_PRE ip saddr <public_remote_ip> ip daddr <actual_public_ip> iifname @lan_ifaces <protocol> dport <starting_public_facing_isp_port>-<ending_public_facing_isp_port> dnat to <client_ip>:<starting_client_port>-<ending_client_port> # required for hairpin NAT
+nft insert rule inet nat NAT_POST ip saddr <client_subnet> ip daddr <client_ip> snat to <client_gateway>
+nft insert rule inet filter FILTER_FORWARD ip saddr <public_remote_ip> ip daddr <client_ip> <action>
+```
 
-    **Meaning:**  
+### IPv6
 
-    Traffic from a specific remote source IP connecting to any port on our firewall's specific ISP IP connects to the same internal machine for all ports.
+```bash
+nft add element inet filter allowed_ip6 { <client_ip6> }
+nft add rule inet mangle prerouting ip6 saddr <client_ip6> <protocol> sport <starting_client_port>-<ending_client_port> meta mark set 0x00<isp_mark><tc_class_id>
+nft add rule inet mangle forward ip6 daddr <client_ip6> <protocol> dport <starting_client_port>-<ending_client_port> meta mark set 0x00<isp_mark><tc_class_id>
+nft insert rule inet nat NAT_PRE ip6 saddr <public_remote_ip6> ip6 daddr <public_facing_isp_ip6> <protocol> dport <starting_public_facing_isp_port>-<ending_public_facing_isp_port> dnat to <client_ip6>:<starting_client_port>-<ending_client_port>
+nft insert rule inet nat NAT_PRE ip6 saddr <public_remote_ip6> ip6 daddr <actual_public_ip6> iifname @lan_ifaces <protocol> dport <starting_public_facing_isp_port>-<ending_public_facing_isp_port> dnat to <client_ip6>:<starting_client_port>-<ending_client_port> # required for hairpin NAT
+nft insert rule inet nat NAT_POST ip6 saddr <client_prefix> ip6 daddr <client_ip6> snat to <client_gateway>
+nft insert rule inet filter FILTER_FORWARD ip6 saddr <public_remote_ip6> ip6 daddr <client_ip6> <action>
+```
 
-    Example:
-    - Firewall has 2 ISPs, Airtel and BSNL.
-    - Someone from a specific public IP connecting to any port on Airtel's ISP IP
-    - Their connection goes to local IP 10.1.1.81 on the same port
-    - Only this specific source IP can access this service.
+**Explanation:**
 
-    **Rules:**  
+1. Adds the client to the global whitelist so the firewall allows general outgoing traffic.
+1. Tags traffic originating from the internal client and source ports. Used for ISP/QoS classification of **outgoing** traffic.
+1. Tags traffic destined **to** the internal client. Allows control of incoming bandwidth so downloads don't saturate the network.
+1. Ensures traffic hitting the public WAN IP on a specific port range from a specific source is redirected to the internal host.
+1. Hairpin NAT — allows the specific remote source IP (if inside the LAN) to reach the internal server via the public IP across the same port range. Source restriction is preserved.
+1. SNATs reply traffic so return packets are correctly routed back through the gateway when source and destination are on the same subnet.
+1. Since the `forward` chain policy is `drop`, forwarded packets must be explicitly allowed **after DNAT**.
 
-    # IPV4
-    
-    ```bash
-    nft add element inet filter allowed_ip4 { <client_ip> }
-    nft add element inet mangle user4_marks { <client_ip> : 0x00<isp_mark><tc_class_id> }
-    nft insert rule inet nat NAT_PRE ip saddr <public_remote_ip>  ip daddr <public_facing_isp_ip> dnat to <client_ip>
-    nft insert rule inet filter FILTER_FORWARD ip saddr <public_remote_ip> ip daddr <client_ip> <action>
-    ```
+> Note: Ensure traffic hitting the public WAN IP on a specific port range (e.g. 1000-2000) is redirected to the same internal ports (1000-2000) and mapped one to one.
 
-    # IPV6
-    
-    ```bash
-    nft add element inet filter allowed_ip6 { <client_ip6> }
-    nft add element inet mangle user6_marks { <client_ip6> : 0x00<isp_mark><tc_class_id> }
-    nft insert rule inet nat NAT_PRE ip6 saddr <public_remote_ip6>  ip6 daddr <public_facing_isp_ip6> dnat to <client_ip6>
-    nft insert rule inet filter FILTER_FORWARD ip6 saddr <public_remote_ip6> ip6 daddr <client_ip6> <action>
-    ```
+> Different ranges are NOT ALLOWED. e.g. internal 1000-2000 CANNOT BE MAPPED TO external 2000-3000
 
-    ***
-    OR (for a sepcific protocol)
-    -
+---
 
-    Full DNAT to a specific internal client for all incoming traffic on a public IP from a specific remote source IP using a specific protocol, allowing only the designated source IP to access all ports on the internal service.
+## Case 6
 
-    **Rules:**  
+**Meaning:**
 
-    # IPV4
+Traffic from a specific remote source IP connecting to any port on our firewall's specific ISP IP connects to the same internal machine for all ports.
 
-    ```bash
-    nft add element inet filter allowed_ip4 { <client_ip> }
-    nft add element inet mangle user4_marks { <client_ip> : 0x00<isp_mark><tc_class_id> }
-    nft insert rule inet nat NAT_PRE ip saddr <public_remote_ip> ip protocol <protocol> ip daddr <public_facing_isp_ip> dnat to <client_ip>
-    nft insert rule inet filter FILTER_FORWARD ip saddr <public_remote_ip> ip daddr <client_ip> <action>
-    ```
+Example:
+- Firewall has 2 ISPs, Airtel and BSNL.
+- Someone from a specific public IP connecting to any port on Airtel's ISP IP
+- Their connection goes to local IP 10.1.1.81 on the same port
+- Only this specific source IP can access this service.
 
-    # IPV6
+**Rules:**
 
-    ```bash
-    nft add element inet filter allowed_ip6 { <client_ip6> }
-    nft add element inet mangle user6_marks { <client_ip6> : 0x00<isp_mark><tc_class_id> }
-    nft insert rule inet nat NAT_PRE ip6 saddr <public_remote_ip6> ip6 protocol <protocol> ip6 daddr <public_facing_isp_ip6> dnat to <client_ip6>
-    nft insert rule inet filter FILTER_FORWARD ip6 saddr <public_remote_ip6> ip6 daddr <client_ip6> <action>
-    ```
+### IPv4
 
-    **Explanation:**  
-    1. Allows the internal client to send traffic **out** to the internet. Without this, the host can receive packets but cannot reply.
-    1. Labels all traffic from the client for bandwidth management. Ensures forwarded DMZ traffic still respects TC class limits.
-    1. All packets hitting the public ISP IP from a specific source are destination-NATed to the internal client before routing decisions occur.
-    1. Explicitly allows traffic through the `forward` chain. Required when the default policy is `drop`.
+```bash
+nft add element inet filter allowed_ip4 { <client_ip> }
+nft add element inet mangle user4_marks { <client_ip> : 0x00<isp_mark><tc_class_id> }
+nft insert rule inet nat NAT_PRE ip saddr <public_remote_ip> ip daddr <public_facing_isp_ip> dnat to <client_ip>
+nft insert rule inet nat NAT_PRE ip saddr <public_remote_ip> ip daddr <actual_public_ip> iifname @lan_ifaces dnat to <client_ip> # required for hairpin NAT
+nft insert rule inet nat NAT_POST ip saddr <client_subnet> ip daddr <client_ip> snat to <client_gateway>
+nft insert rule inet filter FILTER_FORWARD ip saddr <public_remote_ip> ip daddr <client_ip> <action>
+```
 
+### IPv6
+
+```bash
+nft add element inet filter allowed_ip6 { <client_ip6> }
+nft add element inet mangle user6_marks { <client_ip6> : 0x00<isp_mark><tc_class_id> }
+nft insert rule inet nat NAT_PRE ip6 saddr <public_remote_ip6> ip6 daddr <public_facing_isp_ip6> dnat to <client_ip6>
+nft insert rule inet nat NAT_PRE ip6 saddr <public_remote_ip6> ip6 daddr <actual_public_ip6> iifname @lan_ifaces dnat to <client_ip6> # required for hairpin NAT
+nft insert rule inet nat NAT_POST ip6 saddr <client_prefix> ip6 daddr <client_ip6> snat to <client_gateway>
+nft insert rule inet filter FILTER_FORWARD ip6 saddr <public_remote_ip6> ip6 daddr <client_ip6> <action>
+```
+
+---
+
+### OR (for a specific protocol)
+
+Full DNAT to a specific internal client for all incoming traffic on a public IP from a specific remote source IP using a specific protocol, allowing only the designated source IP to access all ports on the internal service.
+
+**Rules:**
+
+#### IPv4
+
+```bash
+nft add element inet filter allowed_ip4 { <client_ip> }
+nft add element inet mangle user4_marks { <client_ip> : 0x00<isp_mark><tc_class_id> }
+nft insert rule inet nat NAT_PRE ip saddr <public_remote_ip> ip protocol <protocol> ip daddr <public_facing_isp_ip> dnat to <client_ip>
+nft insert rule inet nat NAT_PRE ip saddr <public_remote_ip> ip protocol <protocol> ip daddr <actual_public_ip> iifname @lan_ifaces dnat to <client_ip> # required for hairpin NAT
+nft insert rule inet nat NAT_POST ip saddr <client_subnet> ip daddr <client_ip> snat to <client_gateway>
+nft insert rule inet filter FILTER_FORWARD ip saddr <public_remote_ip> ip daddr <client_ip> <action>
+```
+
+#### IPv6
+
+```bash
+nft add element inet filter allowed_ip6 { <client_ip6> }
+nft add element inet mangle user6_marks { <client_ip6> : 0x00<isp_mark><tc_class_id> }
+nft insert rule inet nat NAT_PRE ip6 saddr <public_remote_ip6> ip6 nexthdr <protocol> ip6 daddr <public_facing_isp_ip6> dnat to <client_ip6>
+nft insert rule inet nat NAT_PRE ip6 saddr <public_remote_ip6> ip6 nexthdr <protocol> ip6 daddr <actual_public_ip6> iifname @lan_ifaces dnat to <client_ip6> # required for hairpin NAT
+nft insert rule inet nat NAT_POST ip6 saddr <client_prefix> ip6 daddr <client_ip6> snat to <client_gateway>
+nft insert rule inet filter FILTER_FORWARD ip6 saddr <public_remote_ip6> ip6 daddr <client_ip6> <action>
+```
+
+**Explanation:**
+
+1. Allows the internal client to send traffic **out** to the internet. Without this, the host can receive packets but cannot reply.
+1. Labels all traffic from the client for bandwidth management. Ensures forwarded DMZ traffic still respects TC class limits.
+1. All packets hitting the public ISP IP from a specific source matching the specified protocol are destination-NATed to the internal client before routing decisions occur.
+1. Hairpin NAT — allows the specific remote source IP (if inside the LAN) to reach the internal server via the public IP, scoped to the specified protocol. Source restriction and protocol scope are both preserved. No `dport` needed since all ports are forwarded.
+1. SNATs reply traffic so return packets are correctly routed back through the gateway when source and destination are on the same subnet.
+1. Explicitly allows traffic through the `forward` chain. Required when the default policy is `drop`.
