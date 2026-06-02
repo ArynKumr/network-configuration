@@ -12,6 +12,14 @@
         ...
         nexthop via <ispN_gateway_ip> dev <ispN_iface> weight <wN>
     ```
+
+    ```bash
+    ip -6 route add default table <aggregated_table_id> \
+        nexthop via <isp1_gateway_ip> dev <isp1_iface> weight <w1> \
+        nexthop via <isp2_gateway_ip> dev <isp2_iface> weight <w2> \
+        ...
+        nexthop via <ispN_gateway_ip> dev <ispN_iface> weight <wN>
+    ```
     This command creates **a single default route** in a **non-main routing table** that contains **multiple next hops**.
 
     > Note: We must have a special table for aggregation. (independant of all the other ISP tables/main table).
@@ -26,28 +34,10 @@
     ```bash
     ip rule add fwmark 0x00XX0000/0x00FF0000 table <aggregated_table_id>
     ```
-    Now this table can be assigned to the users for whom ISP agregation is to be enabled. We set the Fwmark as this table's for those users.
-
-
-1. Nexthop Semantics
-
-    Each `nexthop` defines **one ISP path**:
-
-    | Field | Meaning |
-    | --- | --- |
-    | `via <gateway>` | Layer-3 next router |
-    | `dev <iface>` | Physical/logical interface |
-    | `weight <w>` | Relative traffic share |
-
-    Example:
-
     ```bash
-    nexthop via 1.1.1.1 dev wan1 weight 3
-    nexthop via 2.2.2.2 dev wan2 weight 1
+    ip -6 rule add fwmark 0x00XX0000/0x00FF0000 table <aggregated_table_id>
     ```
-
-    **Result:**  
-    ≈ 75% of _new flows_ go to `wan1`, ≈ 25% to `wan2`.
+    Now this table can be assigned to the users for whom ISP agregation is to be enabled. We set the Fwmark as this table's for those users.
 
 
 1. Weight Is Not Bandwidth
@@ -102,33 +92,8 @@
     ```bash
     ip rule add fwmark 0x00<isp_id>0000/0x00FF0000 table <aggregated_table_id>
     ```
+    ```bash
+    ip -6 rule add fwmark 0x00<isp_id>0000/0x00FF0000 table <aggregated_table_id>
+    ```
 
     Without **mangle + ip rule**, this route does nothing.
-
-
-1. Common Use Cases
-
-    This design is **wrong** for:
-
-    *   single large downloads
-    *   VPN tunnel aggregation
-    *   TCP stream bonding
-
-    * * *
-
-1. Minimal Validation Checklist
-
-    After configuring:
-
-    ```bash
-    ip route show table <aggregated_table_id>
-    ip rule show
-    ```
-
-    Then test:
-
-    ```bash
-    ip route get 8.8.8.8 mark 0x00XX0000
-    ```
-
-    You should see **one of the nexthops selected**, not all.

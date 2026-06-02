@@ -22,6 +22,11 @@ Example:
         ip route add default via <isp2_gateway> dev <isp_iface> table <isp2_table_id>
         ```
 
+        ```
+        ip -6 route add default via <isp1_gateway> dev <isp_iface> table <isp1_table_id>
+        ip -6 route add default via <isp2_gateway> dev <isp_iface> table <isp2_table_id>
+        ```
+
     1. SNAT Alignment (Critical)
 
         If users marked `0x00<isp1_mark>0000` are SNATed to ISP-1 public IPs:
@@ -43,6 +48,11 @@ Example:
         ```
         ip rule add fwmark 0x00<isp1_mark>0000 lookup <isp1_table_id>
         ip rule add fwmark 0x00<isp2_mark>0000 lookup <isp2_table_id>
+        ```
+
+        ```
+        ip -6 route add default via <isp1_gateway> dev <isp_iface> table <isp1_table_id>
+        ip -6 route add default via <isp2_gateway> dev <isp_iface> table <isp2_table_id>
         ```
 
         Meaning
@@ -78,6 +88,9 @@ Example:
             ```
             ip rule del fwmark 0x00<isp1_mark>0000 lookup <isp1_table_id> priority <prio>
             ```
+            ```
+            ip -6 rule del fwmark 0x00<isp1_mark>0000 lookup <isp1_table_id> priority <prio>
+            ```
 
             This immediately prevents traffic marked `0x00<isp1_mark>0000` from being routed via ISP-1.
 
@@ -86,6 +99,9 @@ Example:
 
             ```
             ip rule add fwmark 0x00<isp1_mark>0000 lookup <isp2_table_id> priority <prio> priority <prio>
+            ```
+            ```
+            ip -6 rule add fwmark 0x00<isp1_mark>0000 lookup <isp2_table_id> priority <prio> priority <prio>
             ```
 
             Now:
@@ -105,4 +121,8 @@ Example:
     ```
     ip rule del fwmark 0x00<isp1_mark>0000 lookup <isp2_table_id> priority <prio>
     ip rule add fwmark 0x00<isp1_mark>0000 lookup <isp1_table_id> priority <prio>
+    ```
+    ```
+    ip -6 rule del fwmark 0x00<isp1_mark>0000 lookup <isp2_table_id> priority <prio>
+    ip -6 rule add fwmark 0x00<isp1_mark>0000 lookup <isp1_table_id> priority <prio>
     ```
