@@ -60,8 +60,8 @@ Case Semantics
     nft add chain inet nat PRE_NAT_<POLICY_NAME>
     nft add chain inet nat POST_NAT_<POLICY_NAME>
 
-    nft insert rule inet filter FILTER_FORWARD ip saddr @<policy_vpn_users_set> jump <POLICY_NAME>
-    nft insert rule inet filter FILTER_FORWARD ip daddr @<policy_vpn_users_set> jump <POLICY_NAME>
+    nft insert rule inet filter VPN_FORWARD ip saddr @<policy_vpn_users_set> jump <POLICY_NAME>
+    nft insert rule inet filter VPN_FORWARD ip daddr @<policy_vpn_users_set> jump <POLICY_NAME>
 
     nft insert rule inet nat NAT_PRE ip saddr @<policy_vpn_users_set> jump PRE_NAT_<POLICY_NAME>
     nft insert rule inet nat NAT_PRE ip daddr @<policy_vpn_users_set> jump PRE_NAT_<POLICY_NAME>
@@ -97,8 +97,8 @@ Case Semantics
     nft add chain inet nat PRE_NAT_<POLICY_NAME>
     nft add chain inet nat POST_NAT_<POLICY_NAME>
 
-    nft insert rule inet filter FILTER_FORWARD ip saddr @<policy_vpn_users_set> jump <POLICY_NAME>
-    nft insert rule inet filter FILTER_FORWARD ip daddr @<policy_vpn_users_set> jump <POLICY_NAME>
+    nft insert rule inet filter VPN_FORWARD ip saddr @<policy_vpn_users_set> jump <POLICY_NAME>
+    nft insert rule inet filter VPN_FORWARD ip daddr @<policy_vpn_users_set> jump <POLICY_NAME>
 
     nft insert rule inet nat NAT_PRE ip saddr @<policy_vpn_users_set> jump PRE_NAT_<POLICY_NAME>
     nft insert rule inet nat NAT_PRE ip daddr @<policy_vpn_users_set> jump PRE_NAT_<POLICY_NAME>
@@ -137,8 +137,8 @@ Case Semantics
     nft add chain inet nat PRE_NAT_<POLICY_NAME>
     nft add chain inet nat POST_NAT_<POLICY_NAME>
 
-    nft insert rule inet filter FILTER_FORWARD ip saddr @<policy_vpn_users_set> jump <POLICY_NAME>
-    nft insert rule inet filter FILTER_FORWARD ip daddr @<policy_vpn_users_set> jump <POLICY_NAME>
+    nft insert rule inet filter VPN_FORWARD ip saddr @<policy_vpn_users_set> jump <POLICY_NAME>
+    nft insert rule inet filter VPN_FORWARD ip daddr @<policy_vpn_users_set> jump <POLICY_NAME>
 
     nft insert rule inet nat NAT_PRE ip saddr @<policy_vpn_users_set> jump PRE_NAT_<POLICY_NAME>
     nft insert rule inet nat NAT_PRE ip daddr @<policy_vpn_users_set> jump PRE_NAT_<POLICY_NAME>
@@ -180,8 +180,8 @@ Case Semantics
     nft add chain inet nat PRE_NAT_<POLICY_NAME>
     nft add chain inet nat POST_NAT_<POLICY_NAME>
 
-    nft insert rule inet filter FILTER_FORWARD ip saddr @<policy_vpn_users_set> jump <POLICY_NAME>
-    nft insert rule inet filter FILTER_FORWARD ip daddr @<policy_vpn_users_set> jump <POLICY_NAME>
+    nft insert rule inet filter VPN_FORWARD ip saddr @<policy_vpn_users_set> jump <POLICY_NAME>
+    nft insert rule inet filter VPN_FORWARD ip daddr @<policy_vpn_users_set> jump <POLICY_NAME>
 
     nft insert rule inet nat NAT_PRE ip saddr @<policy_vpn_users_set> jump PRE_NAT_<POLICY_NAME>
     nft insert rule inet nat NAT_PRE ip daddr @<policy_vpn_users_set> jump PRE_NAT_<POLICY_NAME>
@@ -220,8 +220,8 @@ Case Semantics
     nft add chain inet nat PRE_NAT_<POLICY_NAME>
     nft add chain inet nat POST_NAT_<POLICY_NAME>
 
-    nft insert rule inet filter FILTER_FORWARD ip saddr @<policy_users_set> jump <POLICY_NAME>
-    nft insert rule inet filter FILTER_FORWARD ip daddr @<policy_users_set> jump <POLICY_NAME>
+    nft insert rule inet filter VPN_FORWARD ip saddr @<policy_users_set> jump <POLICY_NAME>
+    nft insert rule inet filter VPN_FORWARD ip daddr @<policy_users_set> jump <POLICY_NAME>
 
     nft insert rule inet nat NAT_PRE ip saddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
     nft insert rule inet nat NAT_PRE ip daddr @<policy_users_set> jump PRE_NAT_<POLICY_NAME>
@@ -263,8 +263,8 @@ Case Semantics
     nft add chain inet nat PRE_NAT_<POLICY_NAME>
     nft add chain inet nat POST_NAT_<POLICY_NAME>
 
-    nft insert rule inet filter FILTER_FORWARD ip saddr @<policy_vpn_users_set> jump <POLICY_NAME>
-    nft insert rule inet filter FILTER_FORWARD ip daddr @<policy_vpn_users_set> jump <POLICY_NAME>
+    nft insert rule inet filter VPN_FORWARD ip saddr @<policy_vpn_users_set> jump <POLICY_NAME>
+    nft insert rule inet filter VPN_FORWARD ip daddr @<policy_vpn_users_set> jump <POLICY_NAME>
 
     nft insert rule inet nat NAT_PRE ip saddr @<policy_vpn_users_set> jump PRE_NAT_<POLICY_NAME>
     nft insert rule inet nat NAT_PRE ip daddr @<policy_vpn_users_set> jump PRE_NAT_<POLICY_NAME>
@@ -306,8 +306,8 @@ Case Semantics
     nft add chain inet nat PRE_NAT_<POLICY_NAME>
     nft add chain inet nat POST_NAT_<POLICY_NAME>
 
-    nft insert rule inet filter FILTER_FORWARD ip saddr @<policy_vpn_users_set> jump <POLICY_NAME>
-    nft insert rule inet filter FILTER_FORWARD ip daddr @<policy_vpn_users_set> jump <POLICY_NAME>
+    nft insert rule inet filter VPN_FORWARD ip saddr @<policy_vpn_users_set> jump <POLICY_NAME>
+    nft insert rule inet filter VPN_FORWARD ip daddr @<policy_vpn_users_set> jump <POLICY_NAME>
 
     nft insert rule inet nat NAT_PRE ip saddr @<policy_vpn_users_set> jump PRE_NAT_<POLICY_NAME>
     nft insert rule inet nat NAT_PRE ip daddr @<policy_vpn_users_set> jump PRE_NAT_<POLICY_NAME>
@@ -344,8 +344,8 @@ Case Semantics
     nft add chain inet nat PRE_NAT_<POLICY_NAME>
     nft add chain inet nat POST_NAT_<POLICY_NAME>
 
-    nft insert rule inet filter FILTER_FORWARD ip saddr @<policy_vpn_users_set> jump <POLICY_NAME>
-    nft insert rule inet filter FILTER_FORWARD ip daddr @<policy_vpn_users_set> <action>
+    nft insert rule inet filter VPN_FORWARD ip saddr @<policy_vpn_users_set> jump <POLICY_NAME>
+    nft insert rule inet filter VPN_FORWARD ip daddr @<policy_vpn_users_set> <action>
 
     nft insert rule inet nat NAT_PRE ip saddr @<policy_vpn_users_set> jump PRE_NAT_<POLICY_NAME>
     nft insert rule inet nat NAT_PRE ip daddr @<policy_vpn_users_set> <action>
@@ -379,8 +379,8 @@ Case Semantics
     nft add chain inet nat PRE_NAT_<POLICY_NAME>
     nft add chain inet nat POST_NAT_<POLICY_NAME>
 
-    nft insert rule inet filter FILTER_FORWARD ip daddr @<policy_vpn_users_set> jump <POLICY_NAME>
-    nft insert rule inet filter FILTER_FORWARD ip saddr @<policy_vpn_users_set> <action>
+    nft insert rule inet filter VPN_FORWARD ip daddr @<policy_vpn_users_set> jump <POLICY_NAME>
+    nft insert rule inet filter VPN_FORWARD ip saddr @<policy_vpn_users_set> <action>
 
     nft insert rule inet nat NAT_PRE ip daddr @<policy_vpn_users_set> jump PRE_NAT_<POLICY_NAME>
     nft insert rule inet nat NAT_PRE ip saddr @<policy_vpn_users_set> <action>
@@ -414,8 +414,8 @@ Case Semantics
     nft add chain inet nat PRE_NAT_<POLICY_NAME>
     nft add chain inet nat POST_NAT_<POLICY_NAME>
 
-    nft insert rule inet filter FILTER_FORWARD ip saddr @<policy_vpn_users_set> jump <POLICY_NAME>
-    nft insert rule inet filter FILTER_FORWARD ip daddr @<policy_vpn_users_set> jump <POLICY_NAME>
+    nft insert rule inet filter VPN_FORWARD ip saddr @<policy_vpn_users_set> jump <POLICY_NAME>
+    nft insert rule inet filter VPN_FORWARD ip daddr @<policy_vpn_users_set> jump <POLICY_NAME>
 
     nft insert rule inet nat NAT_PRE ip saddr @<policy_vpn_users_set> jump PRE_NAT_<POLICY_NAME>
     nft insert rule inet nat NAT_PRE ip daddr @<policy_vpn_users_set> jump PRE_NAT_<POLICY_NAME>
