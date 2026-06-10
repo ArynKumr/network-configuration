@@ -35,3 +35,5 @@ One-Line Summary
 ----------------
 
 > This module enforces hard Layer-2 denial by dropping all traffic from specified MAC addresses in both INPUT and FORWARD chains before any higher-level policy evaluation occurs.
+
+> NOTE: Doesn't stop the mac to communicate with the firewall itself via services that open their sockets before netfilter (e.g., Dhcpv4 over raw sockets).

@@ -1,5 +1,6 @@
 # Setting Up Jool NAT64
-
+---
+## Overview
 > **Jool** is a Linux NAT64 translator that bridges IPv6-only clients with IPv4-only servers — no dual-stack required.
 
 ---
@@ -8,8 +9,8 @@
 
 Before you begin, make sure you have:
 
-- [ ] `jool` kernel module installed
-- [ ] Unbound (or another DNS64-capable resolver) configured
+- `jool` kernel module installed
+- Unbound (or another DNS64-capable resolver) configured
 
 ---
 
@@ -31,7 +32,7 @@ IPv4 Internet
 ```
 
 > **Without Jool:** DNS resolution succeeds, but connections fail at the network layer.
-
+  - Exception: local v6 <-> local v4 , one needs to enable network address translation (NAT64 and NAT46 paired) between the n number of IPv6 and IPv4 networks.
 ---
 
 ## Network Topology

@@ -378,7 +378,7 @@ Name=<interface_name>
 [Network]
 VLAN=vlan10
 ```
-
+>NOTE: You may append `VLAN=` to the `[Network]` section, alongside the current keys to maintain the old config alongside the vlan membership being declared.
 ---
 
 ## Apply and Verify

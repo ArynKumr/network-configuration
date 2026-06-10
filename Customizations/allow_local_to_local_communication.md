@@ -63,7 +63,7 @@ nft insert rule inet filter input \
 ```
 nft insert rule inet filter input \
     iifname lo \
-    ip saddr 127.0.0.1 \
+    ip saddr <localhost_ipv4> \
     accept
 ```
 
@@ -72,10 +72,10 @@ nft insert rule inet filter input \
 ```
 nft insert rule inet filter input \
     iifname lo \
-    ip6 saddr ::1 \
+    ip6 saddr <localhost_ipv6> \
     accept
 ```
 
 ---
 
->NOTE: These rules are needed to be applied during bootup
+>NOTE: These rules are required to be applied during bootup.

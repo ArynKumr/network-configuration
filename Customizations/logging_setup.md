@@ -232,33 +232,7 @@ log prefix "[FW-WEBFILTER] "
 
 This does **not** mean blocked or allowed — only observed.
 
-* * *
 
-GEO TABLE Logging (Border Enforcement)
---------------------------------------
-
-### Inbound
-
-```
-[GEOFENCE-BLOCK-V4]
-[GEOFENCE-BLOCK-V6]
-```
-
-**Meaning:**
-
-> “Traffic from a blocked country was dropped at the border”
-
-Happens **before NAT, mangle, filter**.
-
-* * *
-
-### Outbound
-
-Same prefix, but triggered in `forward`.
-
-**Meaning:**
-
-> “Internal device attempted to reach a blocked country”
 
 * * *
 
