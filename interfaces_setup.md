@@ -5,8 +5,8 @@
 
 - Debian 13 (Trixie) — ships systemd 257
 - `systemd-networkd` ≥ 257 — verify with `networkctl --version`
-- `radvd` — handles all IPv6 RA advertisement to downstream clients; see [radvd-setup.md](radvd-setup.md)
-- `ndppd` — handles NDP proxying for downstream addresses; see [ndppd-setup.md](ndppd-setup.md)
+- `radvd` — handles all IPv6 RA advertisement to downstream clients; see [radvd-setup.md](Customizations/radvd-setup.md)
+- `ndppd` — handles NDP proxying for downstream addresses; see [ndppd-setup.md](Customizations/ndppd-setup.md)
 - A public IPv4/IPv6 address or ISP assignment
 - A valid default route via your WAN interface
 - For IPv6 routing: a delegated prefix (PD) or static block from your ISP
