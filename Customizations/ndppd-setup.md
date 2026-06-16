@@ -27,7 +27,7 @@ proxy <wan_interface> {
 }
 ```
 
-> The `rule` prefix is the /64 on the **LAN** interface, not the WAN. One `rule` block per LAN interface if there are multiple ,you may add `rule` blocks for each LAN interface over which traffic should be proxied.
+> The `<prefix>::<length_of_prefix>` will be accquired from wan. One `rule` block per LAN interface if there are multiple ,you may add `rule` blocks for each LAN interface over which traffic should be proxied.
 
 ```bash
 systemctl restart ndppd
