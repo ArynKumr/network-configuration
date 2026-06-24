@@ -27,6 +27,8 @@ nft add map inet nat client_to_wan '{ type ipv4_addr . inet_proto : ipv4_addr; }
 
 ```bash
 nft add element inet nat client_to_wan '{ <client_ip/client_subnet> . <protocol> : <isp_ip_from_isp_pool> }'
+nft add rule inet mangle prerouting ip saddr <client_ip/client_subnet> ip protocol <protocol> meta mark set 0x00<isp_mark><tc_class_id>
+nft add rule inet mangle forward ip daddr <client_ip/client_subnet> ip protocol <protocol> meta mark set 0x00<isp_mark><tc_class_id>
 ```
 
 **Rule**
@@ -47,6 +49,8 @@ nft add map inet nat client_to_wanV6 '{ type ipv6_addr . inet_proto : ipv6_addr;
 
 ```bash
 nft add element inet nat client_to_wanV6 '{ <client_ip6/client_subnet> . <protocol> : <isp_ip6_from_isp_pool> }'
+nft add rule inet mangle prerouting ip6 saddr <client_ip6/client_subnet> ip6 nexthdr <protocol> meta mark set 0x00<isp_mark><tc_class_id>
+nft add rule inet mangle forward ip6 daddr <client_ip6/client_subnet> ip6 nexthdr <protocol> meta mark set 0x00<isp_mark><tc_class_id>
 ```
 
 **Rule**
@@ -70,6 +74,8 @@ nft add map inet nat client_dst_ports '{ type ipv4_addr . inet_service . ipv4_ad
 
 ```bash
 nft add element inet nat client_dst_ports '{ <client_ip/client_subnet> . <source_port> . <destination_ip_or_subnet>  . <destination_port> . <protocol> : <isp_ip_from_isp_pool> }'
+nft add rule inet mangle prerouting ip saddr <client_ip/client_subnet> <protocol> sport <source_port> ip daddr <destination_ip_or_subnet> <protocol> dport <destination_port> meta mark set 0x00<isp_mark><tc_class_id>
+nft add rule inet mangle forward ip daddr <client_ip/client_subnet> <protocol> dport <source_port> ip saddr <destination_ip_or_subnet> <protocol> sport <destination_port> meta mark set 0x00<isp_mark><tc_class_id>
 ```
 
 **Rules**
@@ -90,6 +96,8 @@ nft add map inet nat client_dst_portsV6 '{ type ipv6_addr . inet_service . ipv6_
 
 ```bash
 nft add element inet nat client_dst_portsV6 '{ <client_ip6/client_prefix> . <source_port> . <destination_ip6_or_prefix>  . <destination_port> . <protocol> : <isp_ip6_from_isp_pool> }'
+nft add rule inet mangle prerouting ip6 saddr <client_ip6/client_prefix> sport <source_port> ip6 daddr <destination_ip6_or_prefix> <protocol> dport <destination_port> meta mark set 0x00<isp_mark><tc_class_id>
+nft add rule inet mangle forward ip6 daddr <client_ip6/client_prefix> dport <source_port> ip6 saddr <destination_ip6_or_prefix> <protocol> sport <destination_port> meta mark set 0x00<isp_mark><tc_class_id>
 ```
 
 **Rules**
@@ -112,6 +120,8 @@ nft add map inet nat destination_to_wan '{ type ipv4_addr . ipv4_addr . inet_pro
 
 ```bash
 nft add element inet nat destination_to_wan '{ <client_ip/client_subnet> . <destination_ip_or_subnet> . <protocol> : <isp_ip_from_isp_pool> }'
+nft add rule inet mangle prerouting ip saddr <client_ip/client_subnet> ip daddr <destination_ip_or_subnet> ip protocol <protocol> meta mark set 0x00<isp_mark><tc_class_id>
+nft add rule inet mangle forward ip daddr <client_ip/client_subnet> ip saddr <destination_ip_or_subnet> ip protocol <protocol> meta mark set 0x00<isp_mark><tc_class_id>
 ```
 
 **Rule**
@@ -130,6 +140,8 @@ nft add map inet nat destination_to_wanV6 '{ type ipv6_addr . ipv6_addr . inet_p
 
 ```bash
 nft add element inet nat destination_to_wanV6 '{ <client_ip6/client_prefix> . <destination_ip6_or_prefix> . <protocol> : <isp_ip6_from_isp_pool> }'
+nft add rule inet mangle prerouting ip6 saddr <client_ip6/client_prefix> ip6 daddr <destination_ip6_or_prefix> ip6 nexthdr <protocol> meta mark set 0x00<isp_mark><tc_class_id>
+nft add rule inet mangle forward ip6 daddr <client_ip6/client_prefix> ip6 saddr <destination_ip6_or_prefix> ip6 nexthdr <protocol> meta mark set 0x00<isp_mark><tc_class_id>
 ```
 
 **Rule**
@@ -149,9 +161,10 @@ nft add map inet nat client_dstport '{ type ipv4_addr . ipv4_addr . inet_service
 ```
 
 **Example**
-
 ```bash
 nft add element inet nat client_dstport '{ <client_ip/client_subnet> . <destination_ip_or_subnet>  . <destination_port> . <protcol> : <isp_ip_from_isp_pool> }'
+nft add rule inet mangle prerouting meta l4proto '{ <protocol> }' ip saddr <client_ip/client_subnet> th dport <destination_port> ip daddr <destination_ip_or_subnet> meta mark set 0x00<isp_mark><tc_class_id>
+nft add rule inet mangle forward meta l4proto '{ <protocol> }' ip daddr <client_ip/client_subnet> th sport <destination_port> ip saddr <destination_ip_or_subnet> meta mark set 0x00<isp_mark><tc_class_id>
 ```
 
 **Rules**
@@ -170,6 +183,8 @@ nft add map inet nat client_dstportV6 '{ type ipv6_addr . ipv6_addr . inet_servi
 
 ```bash
 nft add element inet nat client_dstportV6 '{ <client_ip6/client_prefix> . <destination_ip6_or_prefix>  . <destination_port> . <protcol> : <isp_ip6_from_isp_pool> }'
+nft add rule inet mangle prerouting meta l4proto '{ <protocol> }' ip6 saddr <client_ip6/client_prefix> th dport <destination_port> ip6 daddr <destination_ip6_or_prefix> meta mark set 0x00<isp_mark><tc_class_id>
+nft add rule inet mangle forward meta l4proto '{ <protocol> }' ip6 daddr <client_ip6/client_prefix> th sport <destination_port> ip6 saddr <destination_ip6_or_prefix> meta mark set 0x00<isp_mark><tc_class_id>
 ```
 
 **Rules**
@@ -192,6 +207,8 @@ nft add map inet nat client_sport_dport '{ type ipv4_addr . inet_service . inet_
 
 ```bash
 nft add element inet nat client_sport_dport '{ <client_ip/client_subnet> . <source_port> . <destination_port> . <protocol> : <isp_ip_from_isp_pool> }'
+nft add rule inet mangle prerouting meta l4proto '{ <protocol> }' ip saddr <client_ip/client_subnet> th dport <destination_port> th sport <source_port> meta mark set 0x00<isp_mark><tc_class_id>
+nft add rule inet mangle forward meta l4proto '{ <protocol> }' ip daddr <client_ip/client_subnet> th sport <destination_port> th dport <source_port> meta mark set 0x00<isp_mark><tc_class_id>
 ```
 
 **Rules**
@@ -210,6 +227,8 @@ nft add map inet nat client_sport_dportV6 '{ type ipv6_addr . inet_service . ine
 
 ```bash
 nft add element inet nat client_sport_dportV6 '{ <client_ip6/client_prefix> . <source_port> . <destination_port> . <protocol> : <isp_ip6_from_isp_pool> }'
+nft add rule inet mangle prerouting meta l4proto '{ <protocol> }' ip6 saddr <client_ip6/client_prefix> th dport <destination_port> th sport <source_port> meta mark set 0x00<isp_mark><tc_class_id>
+nft add rule inet mangle forward meta l4proto '{ <protocol> }' ip6 daddr <client_ip6/client_prefix> th sport <destination_port> th dport <source_port> meta mark set 0x00<isp_mark><tc_class_id>
 ```
 
 **Rules**
@@ -232,6 +251,8 @@ nft add map inet nat client_sport '{ type ipv4_addr . inet_service . inet_proto 
 
 ```bash
 nft add element inet nat client_sport '{ <client_ip/client_subnet> . <source_port> . <protocol> : <isp_ip_from_isp_pool> }'
+nft add rule inet mangle prerouting meta l4proto '{ <protocol> }' ip saddr <client_ip/client_subnet> th sport <source_port> meta mark set 0x00<isp_mark><tc_class_id>
+nft add rule inet mangle forward meta l4proto '{ <protocol> }' ip daddr <client_ip/client_subnet> th dport <source_port> meta mark set 0x00<isp_mark><tc_class_id>
 ```
 
 **Rules**
@@ -250,6 +271,8 @@ nft add map inet nat client_sportV6 '{ type ipv6_addr . inet_service . inet_prot
 
 ```bash
 nft add element inet nat client_sportV6 '{ <client_ip6/client_prefix> . <source_port> . <protocol> : <isp_ip6_from_isp_pool> }'
+nft add rule inet mangle prerouting meta l4proto '{ <protocol> }' ip6 saddr <client_ip6/client_prefix> th sport <source_port> meta mark set 0x00<isp_mark><tc_class_id>
+nft add rule inet mangle forward meta l4proto '{ <protocol> }' ip6 daddr <client_ip6/client_prefix> th dport <source_port> meta mark set 0x00<isp_mark><tc_class_id>
 ```
 
 **Rules**
@@ -272,6 +295,8 @@ nft add map inet nat client_dport '{ type ipv4_addr . inet_service . inet_proto 
 
 ```bash
 nft add element inet nat client_dport '{ <client_ip/client_subnet> . <destination_port> . <protocol> : <isp_ip_from_isp_pool> }'
+nft add rule inet mangle prerouting meta l4proto '{ <protocol> }' ip saddr <client_ip/client_subnet> th sport <source_port> meta mark set 0x00<isp_mark><tc_class_id>
+nft add rule inet mangle forward meta l4proto '{ <protocol> }' ip daddr <client_ip/client_subnet> th dport <source_port> meta mark set 0x00<isp_mark><tc_class_id>
 ```
 
 **Rules**
@@ -290,6 +315,8 @@ nft add map inet nat client_dportV6 '{ type ipv6_addr . inet_service . inet_prot
 
 ```bash
 nft add element inet nat client_dportV6 '{ <client_ip6/client_prefix> . <destination_port> . <protocol> : <isp_ip6_from_isp_pool> }'
+nft add rule inet mangle prerouting meta l4proto '{ <protocol> }' ip6 saddr <client_ip6/client_prefix> th sport <source_port> meta mark set 0x00<isp_mark><tc_class_id>
+nft add rule inet mangle forward meta l4proto '{ <protocol> }' ip6 daddr <client_ip6/client_prefix> th dport <source_port> meta mark set 0x00<isp_mark><tc_class_id>
 ```
 
 **Rules**
@@ -312,6 +339,8 @@ nft add map inet nat client_sport_dst '{ type ipv4_addr . inet_service . ipv4_ad
 
 ```bash
 nft add element inet nat client_sport_dst '{ <client_ip/client_subnet> . <source_port> . <destination_ip_or_subnet> . <protocol> : <isp_ip_from_isp_pool> }'
+nft add rule inet mangle prerouting meta l4proto '{ <protocol> }' ip saddr <client_ip/client_subnet> th dport <source_port> ip daddr <destination_ip_or_subnet> meta mark set 0x00<isp_mark><tc_class_id>
+nft add rule inet mangle forward meta l4proto '{ <protocol> }' ip daddr <client_ip/client_subnet> th sport <source_port> ip saddr <destination_ip_or_subnet> meta mark set 0x00<isp_mark><tc_class_id>
 ```
 
 **Rules**
@@ -330,6 +359,8 @@ nft add map inet nat client_sport_dstV6 '{ type ipv6_addr . inet_service . ipv6_
 
 ```bash
 nft add element inet nat client_sport_dstV6 '{ <client_ip6/client_prefix> . <source_port> . <destination_ip_or_prefix> . <protocol> : <isp_ip6_from_isp_pool> }'
+nft add rule inet mangle prerouting meta l4proto '{ <protocol> }' ip6 saddr <client_ip6/client_prefix> th dport <source_port> ip6 daddr <destination_ip6_or_prefix> meta mark set 0x00<isp_mark><tc_class_id>
+nft add rule inet mangle forward meta l4proto '{ <protocol> }' ip6 daddr <client_ip6/client_prefix> th sport <source_port> ip6 saddr <destination_ip6_or_prefix> meta mark set 0x00<isp_mark><tc_class_id>
 ```
 
 **Rules**
