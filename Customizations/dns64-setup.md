@@ -42,7 +42,7 @@ Create `/etc/unbound/unbound.conf.d/nat64.conf`:
 
 ```conf
 server:
-    interface: ::
+    interface: <interface-name>@5301
     do-ip6: yes
 
     access-control: <RA_subnet> allow

@@ -206,6 +206,7 @@ Address=1.2.3.4/24
 Gateway=1.2.3.1
 Address=2001:db8:100::2/64
 Gateway=2001:db8:100::1
+IPv6AcceptRA=no
 ```
 
 ---
@@ -224,6 +225,7 @@ DHCP=ipv4
 IPv6AcceptRA=yes   # SLAAC only — no DHCPv6 client, RA provides gateway and /64
 ```
 
+>> WARNING: if ip is not to be assigned via RA ,please set `IPv6AcceptRA=no`, because if RA is active on the link ,the default behaviour of systemd-networkd is to allow it
 ---
 
 ## LAN Interface
