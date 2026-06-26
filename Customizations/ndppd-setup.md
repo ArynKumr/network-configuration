@@ -1,15 +1,54 @@
-# ndppd — IPv6 Neighbor Proxy
+# IPv6 Prefix Proxying with ndppd and radvd
 
 ## Overview
-`ndppd` proxies IPv6 Neighbor Discovery between WAN and LAN. Without it, the ISP sends Neighbor Solicitations for delegated /64 addresses onto the WAN link and gets silence — traffic drops, IPv6 breaks. ndppd intercepts those solicitations and answers on behalf of downstream hosts.
 
-```bash
-apt install ndppd      # or apk / pacman
-systemctl enable ndppd
-```
+This guide explains how to configure **ndppd** and **radvd** when your ISP provides only a **single IPv6 /64** and does **not** support DHCPv6 Prefix Delegation (DHCPv6-PD).
+
+Instead of routing a separate subnet, the router proxies Neighbor Discovery Protocol (NDP) between the WAN and LAN. This allows LAN devices to receive globally routable IPv6 addresses from the ISP's /64 using SLAAC.
+
 ---
-## The Config
-`/etc/ndppd.conf` — substitute your WAN interface, LAN interface, and the /64 assigned to LAN :
+
+# Assign an IPv6 Address to the LAN Interface
+
+The LAN interface must have an address from the ISP-assigned prefix.
+
+This address is used as:
+
+* The default gateway for LAN clients
+* The source address for Router Advertisements
+* The DNS server (if advertised)
+
+---
+
+# Configure radvd
+
+Configuration file:
+
+```text
+/etc/radvd.conf
+```
+
+Example:
+
+```conf
+interface <iface_name> {
+    AdvSendAdvert on;
+    prefix <prefix_to_be_distributed> {
+    };
+    RDNSS <ip_of_advertised_dns> {
+    };
+};
+```
+
+# Configure ndppd
+
+Configuration file:
+
+```text
+/etc/ndppd.conf
+```
+
+Example:
 
 ```conf
 route-ttl 30000
@@ -27,50 +66,16 @@ proxy <wan_interface> {
 }
 ```
 
-> The `<prefix>::<length_of_prefix>` will be accquired from wan. One `rule` block per LAN interface if there are multiple ,you may add `rule` blocks for each LAN interface over which traffic should be proxied.
+---
+
+# Start the Services
 
 ```bash
+systemctl enable ndppd
 systemctl restart ndppd
+
+systemctl enable radvd
+systemctl restart radvd
 ```
 
 ---
-
-## Verification
-
-```bash
-# Service is running
-systemctl is-active ndppd
-
-# ISP has resolved at least one address (non-empty = working)
-ip -6 neigh show dev <wan_interface>
-
-# NDP traffic is flowing
-tcpdump -i <wan_interface> -n icmp6
-```
-
-If the neighbor table is empty and no NDP traffic is visible, the `rule` prefix is wrong — re-check it against `ip -6 addr show dev <lan_interface>`.
-
----
-
-## Debugging
-
-Before restarting the service, dry-run the config directly. It will either error out immediately (bad config) or hang waiting for traffic (valid):
-
-```bash
-timeout 3 ndppd -d -c /etc/ndppd.conf
-```
-
->Non-zero exit before the timeout = syntax error, fix it before restarting. Still running at timeout = config is clean, kill it and proceed.
-
----
-
-## Common Errors  
-
-| Symptom | Cause | Fix |
-|---|---|---|
-| Service fails to start | Config syntax error | `ndppd -d -c /etc/ndppd.conf` — error will print directly |
-| NDP visible on WAN but no NA reply | Wrong prefix in `rule` | Prefix must match the LAN interface /64 exactly |
-| Works but hosts unreachable | IPv6 forwarding off | Please check `99-ngfw.conf` for `net.ipv6.conf.all.forwarding`|
-| Intermittent drops | Timeout too tight | Bump `timeout` from `500` to `1000` |
-| Breaks after reboot | Service not enabled | `systemctl enable ndppd` or `systemctl enable --now ndppd` for an immediate launch |
-| Stops working after ISP reconnect | Prefix re-delegated | Update `rule` prefix and `systemctl restart ndppd` |
