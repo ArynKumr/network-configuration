@@ -207,6 +207,7 @@ Gateway=1.2.3.1
 Address=2001:db8:100::2/64
 Gateway=2001:db8:100::1
 IPv6AcceptRA=no
+#IPv6SendRA=yes #If enabling radvd on the interface
 ```
 
 ---
