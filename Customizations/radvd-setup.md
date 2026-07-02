@@ -53,6 +53,45 @@ interface <iface1_name> {
 
 > Uncomment and duplicate blocks as needed — one per routed segment.
 
+### radvd example — Stateful (DHCPv6)
+### For DHCP Specific instances 
+
+```
+interface <iface_name> {
+    AdvSendAdvert on;
+    AdvManagedFlag on;       # M=1  → use DHCPv6 for addresses
+    AdvOtherConfigFlag on;   # O=1  → use DHCPv6 for options
+    prefix <prefix_to_be_distributed> {
+        AdvAutonomous off;   # disable SLAAC
+    };
+};
+```
+
+### radvd example — Stateless (SLAAC + DHCPv6 options)
+
+```
+interface <iface_name> {
+    AdvSendAdvert on;
+    AdvManagedFlag off;      # M=0  → addresses via SLAAC
+    AdvOtherConfigFlag on;   # O=1  → options via DHCPv6
+    prefix <prefix_to_be_distributed> {
+        AdvAutonomous on;    # enable SLAAC
+    };
+};
+```
+
+### radvd example — Hybrid (SLAAC + IA_NA available)
+
+```
+interface <iface_name> {
+    AdvSendAdvert on;
+    AdvManagedFlag on;       # M=1  → DHCPv6 addresses for clients that request them
+    AdvOtherConfigFlag on;   # O=1  → options via DHCPv6
+    prefix <prefix_to_be_distributed> {
+        AdvAutonomous on;    # SLAAC still available for non-DHCPv6 clients
+    };
+};
+
 ---
 
 ## Assign Router Addresses to Each Interface
@@ -93,7 +132,7 @@ systemctl status radvd
               Router
       +----------------------+
       |                      |
-      |  enp1s0  →  LAN A   |  2001:db8:1::/64
+      |  enp1s0  →  LAN A   |  <prefix_to_be_distributed>
       |  enp2s0  →  LAN B   |  2001:db8:2::/64
       |  wlan0     →  WiFi    |  2001:db8:3::/64
       +----------------------+
@@ -111,7 +150,7 @@ Advertising the same `/64` on multiple Layer-3 interfaces breaks routing. Each r
 
 | Interface | Prefix |
 |---|---|
-| `enp1s0` | `2001:db8:1::/64` |
+| `enp1s0` | `<prefix_to_be_distributed>` |
 | `enp2s0` | `2001:db8:2::/64` |
 | `wlan0` | `2001:db8:3::/64` |
 
@@ -119,8 +158,8 @@ Advertising the same `/64` on multiple Layer-3 interfaces breaks routing. Each r
 
 | Interface | Prefix |
 |---|---|
-| `enp1s0` | `2001:db8:1::/64` |
-| `enp2s0` | `2001:db8:1::/64` |
+| `enp1s0` | `<prefix_to_be_distributed>` |
+| `enp2s0` | `<prefix_to_be_distributed>` |
 
 > **Exception:** Interfaces that are bridged into the same Layer-2 domain (e.g., two ports on the same bridge) may share a prefix, since they are logically one segment.
 

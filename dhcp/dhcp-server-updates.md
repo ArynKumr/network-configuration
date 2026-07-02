@@ -11,8 +11,7 @@ This guide walks through how to query the ISC Kea DHCP daemons — both DHCPv4 a
 You will need `curl` installed — it almost certainly already is:
 
 ```bash
-apt install curl       # Debian/Ubuntu
-dnf install curl       # RHEL/Fedora
+apt install curl
 ```
 
 ---

@@ -21,9 +21,11 @@ The following document describes how to set up the networking, DHCP, DNS and nft
 
         ```bash
         sudo apt install dnsdist
+        # If enabling dns for A records and AAAA records ,tandem setup between (unbound and dnsdist)
+        sudo apt install dnsdist unbound
         ```
 
-        then make this file:
+        then make this file for dnsdist:
         ```lua
         -- in /etc/dnsdist/dnsdist.conf
         setSecurityPollSuffix("")
@@ -32,8 +34,25 @@ The following document describes how to set up the networking, DHCP, DNS and nft
 
         addLocal("192.168.1.1") -- this is what we listen to.
         ```
+        for unbound:
+        ```text
+          include-toplevel: "/etc/unbound/unbound.conf.d/*.conf"
+          
+          server:
+              interface: ::
+              port: 5301
+              do-ip6: yes
+              access-control: ::1/128 allow
+              access-control: :: allow
+              access-control: 2401:4900:1c6e:2121:5054:ff:fed0:f037/128 allow
+          forward-zone:
+              name: "."
+              forward-addr: 2606:4700:4700::1111
+              forward-addr: 2001:4860:4860::8888
+        ```
 
         `systemctl restart dnsdist`
+        `systemctl restart unbound`
 
 
     1. Basic nftables

@@ -175,10 +175,10 @@ Similary for DHCP over IPv6
     }
 
 ```
->TODO:Testing relay in dhcpv6 environments and simultaneous service of dhcpv4 and dhcpv6
 ---
 >NOTE: Some variables here are default consts already (e.g; valid-lifetime:86400 is set by default to 86400), they are mentioned for reference ,if in future any of them loose their default status or values for them need to be customised.
 ---
+
 To test the service
 ```bash 
 #Performs a dry-run and tells whether there are any syntax errors
@@ -187,5 +187,5 @@ kea-dhcp4 -t /etc/kea/kea-dhcp4.conf
 systemctl restart isc-kea-dhcp4-server`
 ```
 >Refer: [isc-kea](https://gitlab.isc.org/isc-projects/kea) repo for more info
-For More DHCP Option Related configurations (Like PXE,Voip,Classless Stateless Routing), Refer [here](all-options.conf)
+For More DHCP Option Related configurations (Like PXE,Voip,Classless Stateless Routing), Refer [here](condensed-options.json) & for v6 [here](condensed-optionsv6.json)
 ---

@@ -22,13 +22,7 @@
                     │   │  PREROUTING (First point of contact)                                 │    │
                     │   │  ════════════════════════════════════                                │    │
                     │   │                                                                      │    │
-                    │   │  1. [inet geo prerouting] ──────► GeoIP Enforcement                  │    │
-                    │   │     │                              - Check geo_v4/geo_v6 sets        │    │
-                    │   │     │                              - Drop blocked countries          │    │
-                    │   │     │                              - Log violations                  │    │
-                    │   │     │                                                                │    │
-                    │   │     ▼                                                                │    │
-                    │   │  2. [inet nat prerouting] ──────► NAT/Redirection Logic              │    │
+                    │   │  1. [inet nat prerouting] ──────► NAT/Redirection Logic              │    │
                     │   │     │                              - Captive portal redirect         │    │
                     │   │     │                              - Port forwarding (DNAT)          │    │
                     │   │     │                              - DMZ rules                       │    │
@@ -36,7 +30,7 @@
                     │   │     │                              - Check allowed_ip4_mac map       │    │
                     │   │     │                                                                │    │
                     │   │     ▼                                                                │    │
-                    │   │  3. [inet mangle prerouting] ───► Packet Marking (QoS + Routing)     │    │
+                    │   │  2. [inet mangle prerouting] ───► Packet Marking (QoS + Routing)     │    │
                     │   │     │                              - Apply user4_marks/user6_marks   │    │
                     │   │     │                              - Apply user_mac_marks            │    │
                     │   │     │                              - Mark: 0x00[ISP][TC_CLASS]       │    │
