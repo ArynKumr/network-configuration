@@ -60,9 +60,9 @@ forward-zone:
 
 ## Configuration Reference
 
-### `interface: ::`
+### `interface: <interface-name>@5301`
 
-Listens on all IPv6 interfaces — equivalent to binding both `0.0.0.0` and `::` on a dual-stack system.
+Listens on all interface at port 5301.
 
 ---
 
