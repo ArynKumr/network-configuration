@@ -21,6 +21,13 @@ It also explains how VPN traffic interacts with webfilter / NFQUEUE.
                 accept
             ```
 
+            ```bash
+            nft add rule inet filter input \
+                ip6 daddr <firewall_public_isp_ip> \
+                <protocol> dport <firewall_public_isp_port> \
+                accept
+            ```
+
             Examples
 
             | VPN Type | Protocol | Port |
@@ -39,6 +46,12 @@ It also explains how VPN traffic interacts with webfilter / NFQUEUE.
                 accept
             ```
 
+            ```bash
+            nft add rule inet filter input \
+                ip6 daddr <vpn_prefix>/<prefix_length> \
+                accept
+            ```
+
             Purpose
 
             *   Allows VPN users to:
@@ -53,7 +66,14 @@ It also explains how VPN traffic interacts with webfilter / NFQUEUE.
             Packets originate from the VPN subnet which acts like another lan network.
 
             ```bash
-                nft add element inet mangle vpn_subnet {<vpn_subnet>} 
+                nft add element inet filter vpn_subnet {<vpn_subnet>}
+                nft add element inet nat vpn_subnet {<vpn_subnet>}
+                nft add element inet webfilter vpn_subnet {<vpn_subnet>}
+            ```
+            ```bash
+                nft add element inet filter vpnv6_subnet {<vpnv6_subnet>}
+                nft add element inet nat vpnv6_subnet {<vpnv6_subnet>}
+                nft add element inet webfilter vpnv6_subnet {<vpnv6_subnet>}
             ```
 
             Purpose
@@ -63,37 +83,6 @@ It also explains how VPN traffic interacts with webfilter / NFQUEUE.
                 *   not affect their download quota
 
             Without this rule, VPN users connect but consumes its download quota.
-            
-
-        1. Web Filtering Integration (Optional but Important)
-
-            > NOTE:  
-            > VPN subnets must be explicitly integrated with the webfilter table.
-
-            If VPN user traffic must be inspected by NFQUEUE:
-
-            ```bash
-            nft add rule inet webfilter SYS_WEBFILTER \
-                ip saddr @<vpn_subnet> \
-                ip saddr = @ALLOW_ACCESS \
-                tcp dport { 80, 443 } \
-                queue flags bypass to 0
-            ```
-
-            What This Does
-
-            *   Sends VPN users’ HTTP/HTTPS traffic to netfilter
-            *   Applies the same content filtering rules as LAN users
-            *   `bypass` ensures internet still works if the filter crashes
-
-
-            If Only Specific VPN Users Should Be Filtered
-
-            Add individual VPN user IPs to `ALLOW_ACCESS` instead of the whole subnet.
-
-            ```bash
-            nft add element inet webfilter ALLOW_ACCESS { <vpn_user_ip> }
-            ```
 
 1. Part B — Site-to-Site VPN
     - Site-to-site VPNs require strict peer validation.
@@ -104,6 +93,15 @@ It also explains how VPN traffic interacts with webfilter / NFQUEUE.
                 ip saddr <source_remote_ip> \
                 <protocol> sport <source_remote_port> \
                 ip daddr <firewall_public_isp_ip> \
+                <protocol> dport <firewall_public_isp_port> \
+                accept
+            ```
+
+            ```bash
+            nft add rule inet filter input \
+                ip6 saddr <source_remote_ip6> \
+                <protocol> sport <source_remote_port> \
+                ip6 daddr <firewall_public_isp_ip6> \
                 <protocol> dport <firewall_public_isp_port> \
                 accept
             ```
@@ -121,6 +119,12 @@ It also explains how VPN traffic interacts with webfilter / NFQUEUE.
             ```bash
             nft add rule inet filter input \
                 ip daddr <vpn_subnet>/<prefix> \
+                accept
+            ```
+
+            ```bash
+            nft add rule inet filter input \
+                ip6 daddr <vpn_prefix>/<prefix_length> \
                 accept
             ```
 
