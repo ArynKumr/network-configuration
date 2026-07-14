@@ -84,7 +84,7 @@ It also explains how VPN traffic interacts with webfilter / NFQUEUE.
 
             Without this rule, VPN users connect but consumes its download quota.
 
-1. Part B — Site-to-Site VPN
+1. Site-to-Site VPN
     - Site-to-site VPNs require strict peer validation.
         1. Allow Tunnel Establishment from Known Peer
 
