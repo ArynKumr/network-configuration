@@ -29,25 +29,25 @@ Example:
 ### IPv4
 
 ```bash
-nft add element inet filter allowed_ip4 { <client_ip> }
 nft add rule inet mangle prerouting ip saddr <client_ip> <protocol> sport <client_port> meta mark set 0x00<isp_mark><tc_class_id>
 nft add rule inet mangle forward ip daddr <client_ip> <protocol> dport <client_port> meta mark set 0x00<isp_mark><tc_class_id>
 nft insert rule inet nat NAT_PRE ip daddr <public_facing_isp_ip> <protocol> dport <public_facing_isp_port> dnat to <client_ip>:<client_port>
 nft insert rule inet nat NAT_PRE ip daddr <actual_public_ip> iifname @lan_ifaces <protocol> dport <public_facing_isp_port> dnat to <client_ip>:<client_port> # required for hairpin NAT
 nft insert rule inet nat NAT_POST ip saddr <client_subnet> ip daddr <client_ip> snat to <client_gateway>
-nft insert rule inet filter FILTER_FORWARD ip daddr <client_ip> <action>
+nft insert rule inet filter FILTER_FORWARD iifname <isp_iface> ip daddr <client_ip> <action>
+nft insert rule inet filter FILTER_FORWARD oifname <isp_iface> ip saddr <client_ip> <action>
 ```
 
 ### IPv6
 
 ```bash
-nft add element inet filter allowed_ip6 { <client_ip6> }
 nft add rule inet mangle prerouting ip6 saddr <client_ip6> <protocol> sport <client_port> meta mark set 0x00<isp_mark><tc_class_id>
 nft add rule inet mangle forward ip6 daddr <client_ip6> <protocol> dport <client_port> meta mark set 0x00<isp_mark><tc_class_id>
 nft insert rule inet nat NAT_PRE ip6 daddr <public_facing_isp_ip6> <protocol> dport <public_facing_isp_port> dnat to <client_ip6>:<client_port>
 nft insert rule inet nat NAT_PRE ip6 daddr <actual_public_ip6> iifname @lan_ifaces <protocol> dport <public_facing_isp_port> dnat to <client_ip6>:<client_port> # required for hairpin NAT
 nft insert rule inet nat NAT_POST ip6 saddr <client_prefix> ip6 daddr <client_ip6> snat to <client_gateway>
-nft insert rule inet filter FILTER_FORWARD ip6 daddr <client_ip6> <action>
+nft insert rule inet filter FILTER_FORWARD iifname <isp_iface> ip6 daddr <client_ip6> <action>
+nft insert rule inet filter FILTER_FORWARD oifname <isp_iface> ip6 saddr <client_ip6> <action>
 ```
 
 **Explanation:**
@@ -78,25 +78,25 @@ Example:
 ### IPv4
 
 ```bash
-nft add element inet filter allowed_ip4 { <client_ip> }
 nft add rule inet mangle prerouting ip saddr <client_ip> <protocol> sport <starting_client_port>-<ending_client_port> meta mark set 0x00<isp_mark><tc_class_id>
 nft add rule inet mangle forward ip daddr <client_ip> <protocol> dport <starting_client_port>-<ending_client_port> meta mark set 0x00<isp_mark><tc_class_id>
 nft insert rule inet nat NAT_PRE ip daddr <public_facing_isp_ip> <protocol> dport <starting_public_facing_isp_port>-<ending_public_facing_isp_port> dnat to <client_ip>:<starting_client_port>-<ending_client_port>
 nft insert rule inet nat NAT_PRE ip daddr <actual_public_ip> iifname @lan_ifaces <protocol> dport <starting_public_facing_isp_port>-<ending_public_facing_isp_port> dnat to <client_ip>:<starting_client_port>-<ending_client_port> # required for hairpin NAT
 nft insert rule inet nat NAT_POST ip saddr <client_subnet> ip daddr <client_ip> snat to <client_gateway>
-nft insert rule inet filter FILTER_FORWARD ip daddr <client_ip> <action>
+nft insert rule inet filter FILTER_FORWARD iifname <isp_iface> ip daddr <client_ip> <action>
+nft insert rule inet filter FILTER_FORWARD oifname <isp_iface> ip saddr <client_ip> <action>
 ```
 
 ### IPv6
 
 ```bash
-nft add element inet filter allowed_ip6 { <client_ip6> }
 nft add rule inet mangle prerouting ip6 saddr <client_ip6> <protocol> sport <starting_client_port>-<ending_client_port> meta mark set 0x00<isp_mark><tc_class_id>
 nft add rule inet mangle forward ip6 daddr <client_ip6> <protocol> dport <starting_client_port>-<ending_client_port> meta mark set 0x00<isp_mark><tc_class_id>
 nft insert rule inet nat NAT_PRE ip6 daddr <public_facing_isp_ip6> <protocol> dport <starting_public_facing_isp_port>-<ending_public_facing_isp_port> dnat to <client_ip6>:<starting_client_port>-<ending_client_port>
 nft insert rule inet nat NAT_PRE ip6 daddr <actual_public_ip6> iifname @lan_ifaces <protocol> dport <starting_public_facing_isp_port>-<ending_public_facing_isp_port> dnat to <client_ip6>:<starting_client_port>-<ending_client_port> # required for hairpin NAT
 nft insert rule inet nat NAT_POST ip6 saddr <client_prefix> ip6 daddr <client_ip6> snat to <client_gateway>
-nft insert rule inet filter FILTER_FORWARD ip6 daddr <client_ip6> <action>
+nft insert rule inet filter FILTER_FORWARD iifname <isp_iface> ip6 daddr <client_ip6> <action>
+nft insert rule inet filter FILTER_FORWARD oifname <isp_iface> ip6 saddr <client_ip6> <action>
 ```
 
 **Explanation:**
@@ -131,23 +131,23 @@ Example:
 ### IPv4
 
 ```bash
-nft add element inet filter allowed_ip4 { <client_ip> }
 nft add element inet mangle user4_marks { <client_ip> : 0x00<isp_mark><tc_class_id> }
 nft insert rule inet nat NAT_PRE ip daddr <public_facing_isp_ip> dnat to <client_ip>
 nft insert rule inet nat NAT_PRE ip daddr <actual_public_ip> iifname @lan_ifaces dnat to <client_ip> # required for hairpin NAT
 nft insert rule inet nat NAT_POST ip saddr <client_subnet> ip daddr <client_ip> snat to <client_gateway>
-nft insert rule inet filter FILTER_FORWARD ip daddr <client_ip> <action>
+nft insert rule inet filter FILTER_FORWARD iifname <isp_iface> ip daddr <client_ip> <action>
+nft insert rule inet filter FILTER_FORWARD oifname <isp_iface> ip saddr <client_ip> <action>
 ```
 
 ### IPv6
 
 ```bash
-nft add element inet filter allowed_ip6 { <client_ip6> }
 nft add element inet mangle user6_marks { <client_ip6> : 0x00<isp_mark><tc_class_id> }
 nft insert rule inet nat NAT_PRE ip6 daddr <public_facing_isp_ip6> dnat to <client_ip6>
 nft insert rule inet nat NAT_PRE ip6 daddr <actual_public_ip6> iifname @lan_ifaces dnat to <client_ip6> # required for hairpin NAT
 nft insert rule inet nat NAT_POST ip6 saddr <client_prefix> ip6 daddr <client_ip6> snat to <client_gateway>
-nft insert rule inet filter FILTER_FORWARD ip6 daddr <client_ip6> <action>
+nft insert rule inet filter FILTER_FORWARD iifname <isp_iface> ip6 daddr <client_ip6> <action>
+nft insert rule inet filter FILTER_FORWARD oifname <isp_iface> ip6 saddr <client_ip6> <action>
 ```
 
 **Explanation:**
@@ -170,23 +170,23 @@ Full DNAT to a specific internal client for all incoming traffic using a specifi
 #### IPv4
 
 ```bash
-nft add element inet filter allowed_ip4 { <client_ip> }
 nft add element inet mangle user4_marks { <client_ip> : 0x00<isp_mark><tc_class_id> }
 nft insert rule inet nat NAT_PRE ip daddr <public_facing_isp_ip> ip protocol <protocol> dnat to <client_ip>
 nft insert rule inet nat NAT_PRE ip daddr <actual_public_ip> iifname @lan_ifaces ip protocol <protocol> dnat to <client_ip> # required for hairpin NAT
 nft insert rule inet nat NAT_POST ip saddr <client_subnet> ip daddr <client_ip> snat to <client_gateway>
-nft insert rule inet filter FILTER_FORWARD ip daddr <client_ip> <action>
+nft insert rule inet filter FILTER_FORWARD iifname <isp_iface> ip daddr <client_ip> <action>
+nft insert rule inet filter FILTER_FORWARD oifname <isp_iface> ip saddr <client_ip> <action>
 ```
 
 #### IPv6
 
 ```bash
-nft add element inet filter allowed_ip6 { <client_ip6> }
 nft add element inet mangle user6_marks { <client_ip6> : 0x00<isp_mark><tc_class_id> }
 nft insert rule inet nat NAT_PRE ip6 daddr <public_facing_isp_ip6> ip6 nexthdr <protocol> dnat to <client_ip6>
 nft insert rule inet nat NAT_PRE ip6 daddr <actual_public_ip6> iifname @lan_ifaces ip6 nexthdr <protocol> dnat to <client_ip6> # required for hairpin NAT
 nft insert rule inet nat NAT_POST ip6 saddr <client_prefix> ip6 daddr <client_ip6> snat to <client_gateway>
-nft insert rule inet filter FILTER_FORWARD ip6 daddr <client_ip6> <action>
+nft insert rule inet filter FILTER_FORWARD iifname <isp_iface> ip6 daddr <client_ip6> <action>
+nft insert rule inet filter FILTER_FORWARD oifname <isp_iface> ip6 saddr <client_ip6> <action>
 ```
 
 **Explanation:**
@@ -217,22 +217,21 @@ Example:
 ### IPv4
 
 ```bash
-nft add element inet filter allowed_ip4 { <client_ip> }
 nft add rule inet mangle prerouting ip saddr <client_ip> <protocol> sport <client_port> meta mark set 0x00<isp_mark><tc_class_id>
 nft add rule inet mangle forward ip daddr <client_ip> <protocol> dport <client_port> meta mark set 0x00<isp_mark><tc_class_id>
 nft insert rule inet nat NAT_PRE ip saddr <public_remote_ip> ip daddr <public_facing_isp_ip> <protocol> dport <public_facing_isp_port> dnat to <client_ip>:<client_port>
-nft insert rule inet filter FILTER_FORWARD ip saddr <public_remote_ip> ip daddr <client_ip> <action>
-
+nft insert rule inet filter FILTER_FORWARD iifname <isp_iface> ip saddr <public_remote_ip> ip daddr <client_ip> <action>
+nft insert rule inet filter FILTER_FORWARD oifname <isp_iface> ip daddr <public_remote_ip> ip saddr <client_ip> <action>
 ```
 
 ### IPv6
 
 ```bash
-nft add element inet filter allowed_ip6 { <client_ip6> }
 nft add rule inet mangle prerouting ip6 saddr <client_ip6> <protocol> sport <client_port> meta mark set 0x00<isp_mark><tc_class_id>
 nft add rule inet mangle forward ip6 daddr <client_ip6> <protocol> dport <client_port> meta mark set 0x00<isp_mark><tc_class_id>
 nft insert rule inet nat NAT_PRE ip6 saddr <public_remote_ip6> ip6 daddr <public_facing_isp_ip6> <protocol> dport <public_facing_isp_port> dnat to <client_ip6>:<client_port>
-nft insert rule inet filter FILTER_FORWARD ip6 saddr <public_remote_ip6> ip6 daddr <client_ip6> <action>
+nft insert rule inet filter FILTER_FORWARD iifname <isp_iface> ip6 saddr <public_remote_ip6> ip6 daddr <client_ip6> <action>
+nft insert rule inet filter FILTER_FORWARD oifname <isp_iface> ip6 daddr <public_remote_ip6> ip6 saddr <client_ip6> <action>
 ```
 
 **Explanation:**
@@ -264,21 +263,21 @@ Example:
 ### IPv4
 
 ```bash
-nft add element inet filter allowed_ip4 { <client_ip> }
 nft add rule inet mangle prerouting ip saddr <client_ip> <protocol> sport <starting_client_port>-<ending_client_port> meta mark set 0x00<isp_mark><tc_class_id>
 nft add rule inet mangle forward ip daddr <client_ip> <protocol> dport <starting_client_port>-<ending_client_port> meta mark set 0x00<isp_mark><tc_class_id>
 nft insert rule inet nat NAT_PRE ip saddr <public_remote_ip> ip daddr <public_facing_isp_ip> <protocol> dport <starting_public_facing_isp_port>-<ending_public_facing_isp_port> dnat to <client_ip>:<starting_client_port>-<ending_client_port>
-nft insert rule inet filter FILTER_FORWARD ip saddr <public_remote_ip> ip daddr <client_ip> <action>
+nft insert rule inet filter FILTER_FORWARD iifname <isp_iface> ip saddr <public_remote_ip> ip daddr <client_ip> <action>
+nft insert rule inet filter FILTER_FORWARD oifname <isp_iface> ip daddr <public_remote_ip> ip saddr <client_ip> <action>
 ```
 
 ### IPv6
 
 ```bash
-nft add element inet filter allowed_ip6 { <client_ip6> }
 nft add rule inet mangle prerouting ip6 saddr <client_ip6> <protocol> sport <starting_client_port>-<ending_client_port> meta mark set 0x00<isp_mark><tc_class_id>
 nft add rule inet mangle forward ip6 daddr <client_ip6> <protocol> dport <starting_client_port>-<ending_client_port> meta mark set 0x00<isp_mark><tc_class_id>
 nft insert rule inet nat NAT_PRE ip6 saddr <public_remote_ip6> ip6 daddr <public_facing_isp_ip6> <protocol> dport <starting_public_facing_isp_port>-<ending_public_facing_isp_port> dnat to <client_ip6>:<starting_client_port>-<ending_client_port>
-nft insert rule inet filter FILTER_FORWARD ip6 saddr <public_remote_ip6> ip6 daddr <client_ip6> <action>
+nft insert rule inet filter FILTER_FORWARD iifname <isp_iface> ip6 saddr <public_remote_ip6> ip6 daddr <client_ip6> <action>
+nft insert rule inet filter FILTER_FORWARD oifname <isp_iface> ip6 daddr <public_remote_ip6> ip6 saddr <client_ip6> <action>
 ```
 
 **Explanation:**
@@ -314,19 +313,19 @@ Example:
 ### IPv4
 
 ```bash
-nft add element inet filter allowed_ip4 { <client_ip> }
 nft add element inet mangle user4_marks { <client_ip> : 0x00<isp_mark><tc_class_id> }
 nft insert rule inet nat NAT_PRE ip saddr <public_remote_ip> ip daddr <public_facing_isp_ip> dnat to <client_ip>
-nft insert rule inet filter FILTER_FORWARD ip saddr <public_remote_ip> ip daddr <client_ip> <action>
+nft insert rule inet filter FILTER_FORWARD iifname <isp_iface> ip saddr <public_remote_ip> ip daddr <client_ip> <action>
+nft insert rule inet filter FILTER_FORWARD oifname <isp_iface> ip daddr <public_remote_ip> ip saddr <client_ip> <action>
 ```
 
 ### IPv6
 
 ```bash
-nft add element inet filter allowed_ip6 { <client_ip6> }
 nft add element inet mangle user6_marks { <client_ip6> : 0x00<isp_mark><tc_class_id> }
 nft insert rule inet nat NAT_PRE ip6 saddr <public_remote_ip6> ip6 daddr <public_facing_isp_ip6> dnat to <client_ip6>
-nft insert rule inet filter FILTER_FORWARD ip6 saddr <public_remote_ip6> ip6 daddr <client_ip6> <action>
+nft insert rule inet filter FILTER_FORWARD iifname <isp_iface> ip6 saddr <public_remote_ip6> ip6 daddr <client_ip6> <action>
+nft insert rule inet filter FILTER_FORWARD oifname <isp_iface> ip6 daddr <public_remote_ip6> ip6 saddr <client_ip6> <action>
 ```
 
 ---
@@ -340,19 +339,19 @@ Full DNAT to a specific internal client for all incoming traffic on a public IP 
 #### IPv4
 
 ```bash
-nft add element inet filter allowed_ip4 { <client_ip> }
 nft add element inet mangle user4_marks { <client_ip> : 0x00<isp_mark><tc_class_id> }
 nft insert rule inet nat NAT_PRE ip saddr <public_remote_ip> ip protocol <protocol> ip daddr <public_facing_isp_ip> dnat to <client_ip>
-nft insert rule inet filter FILTER_FORWARD ip saddr <public_remote_ip> ip daddr <client_ip> <action>
+nft insert rule inet filter FILTER_FORWARD iifname <isp_iface> ip saddr <public_remote_ip> ip daddr <client_ip> <action>
+nft insert rule inet filter FILTER_FORWARD oifname <isp_iface> ip daddr <public_remote_ip> ip saddr <client_ip> <action>
 ```
 
 #### IPv6
 
 ```bash
-nft add element inet filter allowed_ip6 { <client_ip6> }
 nft add element inet mangle user6_marks { <client_ip6> : 0x00<isp_mark><tc_class_id> }
 nft insert rule inet nat NAT_PRE ip6 saddr <public_remote_ip6> ip6 nexthdr <protocol> ip6 daddr <public_facing_isp_ip6> dnat to <client_ip6>
-nft insert rule inet filter FILTER_FORWARD ip6 saddr <public_remote_ip6> ip6 daddr <client_ip6> <action>
+nft insert rule inet filter FILTER_FORWARD iifname <isp_iface> ip6 saddr <public_remote_ip6> ip6 daddr <client_ip6> <action>
+nft insert rule inet filter FILTER_FORWARD oifname <isp_iface> ip6 daddr <public_remote_ip6> ip6 saddr <client_ip6> <action>
 ```
 
 **Explanation:**
