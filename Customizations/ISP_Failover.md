@@ -117,12 +117,13 @@ Example:
     - Recovery
 
     When ISP-1 comes back:
-
-    ```
+    
+    ``` bash
     ip rule del fwmark 0x00<isp1_mark>0000 lookup <isp2_table_id> priority <prio>
     ip rule add fwmark 0x00<isp1_mark>0000 lookup <isp1_table_id> priority <prio>
     ```
-    ```
+
+    ```bash
     ip -6 rule del fwmark 0x00<isp1_mark>0000 lookup <isp2_table_id> priority <prio>
     ip -6 rule add fwmark 0x00<isp1_mark>0000 lookup <isp1_table_id> priority <prio>
     ```
