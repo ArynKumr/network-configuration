@@ -48,8 +48,6 @@ server:
     access-control: <RA_subnet> allow
     module-config: "dns64 validator iterator"
     dns64-prefix: 64:ff9b::/96
-    do-nat64: yes
-    nat64-prefix: 64:ff9b::/96
 
 forward-zone:
     name: "."
